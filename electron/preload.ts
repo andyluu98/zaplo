@@ -593,6 +593,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     imageUpload:    (params: { zaloId: string; filePath: string }) => ipcRenderer.invoke('posting:image.upload', params),
     imageList:      (params: { zaloId: string }) => ipcRenderer.invoke('posting:image.list', params),
     imageDelete:    (params: { zaloId: string; id: number }) => ipcRenderer.invoke('posting:image.delete', params),
+    imageGenerate:  (params: { zaloId: string; prompt: string }) => ipcRenderer.invoke('posting:image.generate', params),
   },
 
   lockScreen: {

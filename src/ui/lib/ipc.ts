@@ -606,6 +606,7 @@ declare global {
       imageUpload:    (params: { zaloId: string; filePath: string }) => Promise<{ success: boolean; id?: number; rel_path?: string; error?: string }>;
       imageList:      (params: { zaloId: string }) => Promise<{ success: boolean; assets: import('@/../../src/models/automation').ImageAsset[]; error?: string }>;
       imageDelete:    (params: { zaloId: string; id: number }) => Promise<{ success: boolean; error?: string }>;
+      imageGenerate:  (params: { zaloId: string; prompt: string }) => Promise<{ success: boolean; id?: number; rel_path?: string; error?: string }>;
     };
   };
 }

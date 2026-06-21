@@ -13,6 +13,8 @@ import DatabaseService from '../../src/services/database/DatabaseService';
 import FileStorageService from '../../src/services/file/FileStorageService';
 import PostingSchedulerService from '../../src/services/posting/posting-scheduler-service';
 import ContentDraftGenerator from '../../src/services/posting/content-draft-generator';
+import AIAssistantService from '../../src/services/ai/AIAssistantService';
+import { generateImage } from '../../src/services/posting/posting-image-generator';
 import Logger from '../../src/utils/Logger';
 
 export function registerPostingIpc(): void {
@@ -224,6 +226,59 @@ export function registerPostingIpc(): void {
             return { success: true, assets };
         } catch (e: any) {
             Logger.error(`[postingIpc] image.list: ${e.message}`);
+            return { success: false, error: e.message };
+        }
+    });
+
+    /**
+     * posting:image.generate — generate an AI image via DALL-E 3, save to media storage,
+     * and register it as an image_asset with origin='ai'.
+     * Args: { zaloId: string; prompt: string }
+     * Returns: { success: true; id: number; rel_path: string } | { success: false; error: string }
+     */
+    ipcMain.handle('posting:image.generate', async (_e, { zaloId, prompt }: { zaloId: string; prompt: string }) => {
+        try {
+            if (!zaloId || !prompt?.trim()) return { success: false, error: 'Missing zaloId or prompt' };
+
+            // Resolve the first enabled OpenAI assistant's decrypted API key
+            const assistants = AIAssistantService.getInstance().listAssistants();
+            const openaiAssistant = assistants.find(a => a.platform === 'openai' && a.enabled && a.apiKey);
+            if (!openaiAssistant) {
+                return { success: false, error: 'Chưa cấu hình trợ lý OpenAI (cần API key OpenAI trong Cài đặt AI)' };
+            }
+
+            const apiKey = openaiAssistant.apiKey;
+            // Mask key in logs: show first 8 + last 4 chars
+            const keyPreview = `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`;
+            Logger.info(`[postingIpc] image.generate: zaloId=${zaloId}, promptLen=${prompt.length}, keyPreview=${keyPreview}`);
+
+            // Call DALL-E 3 — returns a temporary image URL
+            const imageUrl = await generateImage(prompt.trim(), apiKey);
+
+            // Download and save to managed media storage
+            const fname = `ai_${Date.now()}.jpg`;
+            const rel_path = await FileStorageService.downloadImage(zaloId, imageUrl, fname);
+            if (!rel_path) return { success: false, error: 'Không thể tải ảnh từ OpenAI về máy' };
+
+            // Compute dimensions (best-effort — non-fatal if image-size fails)
+            let width: number | null = null;
+            let height: number | null = null;
+            try {
+                const absPath = FileStorageService.resolveAbsolutePath(rel_path);
+                const buf = fs.readFileSync(absPath);
+                const dim = imageSize(buf);
+                width = dim.width ?? null;
+                height = dim.height ?? null;
+            } catch { /* non-fatal */ }
+
+            const db = DatabaseService.getInstance();
+            const id = db.saveImageAsset({ owner_zalo_id: zaloId, rel_path, origin: 'ai', width, height });
+            db.save();
+
+            Logger.info(`[postingIpc] image.generate: saved id=${id}, rel_path=${rel_path}`);
+            return { success: true, id, rel_path };
+        } catch (e: any) {
+            Logger.error(`[postingIpc] image.generate: ${e.message}`);
             return { success: false, error: e.message };
         }
     });

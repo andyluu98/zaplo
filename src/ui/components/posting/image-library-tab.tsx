@@ -60,6 +60,8 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
   const { imageLibrary, setImageLibrary, loadingImages, setLoadingImages } = usePostingStore();
   const { showNotification } = useAppStore();
   const [uploading, setUploading] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [generating, setGenerating] = useState(false);
 
   const fetchImages = useCallback(async () => {
     if (!zaloId) return;
@@ -126,6 +128,25 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
     }
   };
 
+  const handleGenerateAI = async () => {
+    if (!zaloId || !aiPrompt.trim() || generating) return;
+    setGenerating(true);
+    try {
+      const res = await ipc.posting?.imageGenerate({ zaloId, prompt: aiPrompt.trim() });
+      if (res?.success) {
+        showNotification('Đã tạo ảnh AI thành công', 'success');
+        setAiPrompt('');
+        await fetchImages();
+      } else {
+        showNotification(res?.error || 'Tạo ảnh thất bại', 'error');
+      }
+    } catch (e: any) {
+      showNotification(e?.message || 'Lỗi kết nối', 'error');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Toolbar */}
@@ -148,6 +169,39 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
             <>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>
               Tải ảnh lên
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* AI image generation row */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-700/60 flex-shrink-0">
+        <input
+          type="text"
+          value={aiPrompt}
+          onChange={e => setAiPrompt(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleGenerateAI(); }}
+          placeholder="Mô tả ảnh muốn tạo bằng AI..."
+          disabled={generating}
+          className="flex-1 px-3 py-1.5 rounded-lg bg-gray-800 border border-gray-700 text-xs text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-500 disabled:opacity-50"
+        />
+        <button
+          onClick={handleGenerateAI}
+          disabled={!aiPrompt.trim() || generating}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition-colors disabled:opacity-50 whitespace-nowrap"
+        >
+          {generating ? (
+            <>
+              <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              Đang tạo...
+            </>
+          ) : (
+            <>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+              Sinh ảnh AI
             </>
           )}
         </button>
