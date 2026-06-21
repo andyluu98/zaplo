@@ -99,6 +99,8 @@ export function registerPostingIpc(): void {
         try {
             const id = DatabaseService.getInstance().savePostSchedule({ ...schedule, owner_zalo_id: zaloId });
             DatabaseService.getInstance().save();
+            // Reset cached daily plan so next tick rebuilds with the new window/posts_per_day
+            PostingSchedulerService.getInstance().resetPlan(zaloId);
             return { success: true, id };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
@@ -113,6 +115,8 @@ export function registerPostingIpc(): void {
             const scheduler = PostingSchedulerService.getInstance();
             if (enabled) {
                 scheduler.startForAccount(zaloId);
+                // Reset plan so the scheduler picks up the saved window immediately
+                scheduler.resetPlan(zaloId);
             } else {
                 scheduler.stopForAccount(zaloId);
             }

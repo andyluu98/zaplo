@@ -7405,12 +7405,30 @@ class DatabaseService {
         try {
             const now = Date.now();
             if (schedule.id) {
+                // Known id — update that specific row
                 this.run(
                     `UPDATE post_schedule SET group_ids=?, posts_per_day=?, window_start=?, window_end=?, enabled=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
                     [schedule.group_ids, schedule.posts_per_day, schedule.window_start ?? '08:00', schedule.window_end ?? '21:00', schedule.enabled ?? 0, now, schedule.id, schedule.owner_zalo_id]
                 );
+                // Dedupe: remove any other rows for same account (handles pre-existing duplicates)
+                this.run(`DELETE FROM post_schedule WHERE owner_zalo_id=? AND id<>?`, [schedule.owner_zalo_id, schedule.id]);
                 return schedule.id;
             } else {
+                // No id in payload — upsert by owner_zalo_id to prevent duplicate rows
+                const existing = this.query<{ id: number }>(
+                    `SELECT id FROM post_schedule WHERE owner_zalo_id=? ORDER BY id DESC LIMIT 1`,
+                    [schedule.owner_zalo_id]
+                );
+                if (existing.length > 0) {
+                    const existingId = existing[0].id;
+                    this.run(
+                        `UPDATE post_schedule SET group_ids=?, posts_per_day=?, window_start=?, window_end=?, enabled=?, updated_at=? WHERE id=?`,
+                        [schedule.group_ids, schedule.posts_per_day, schedule.window_start ?? '08:00', schedule.window_end ?? '21:00', schedule.enabled ?? 0, now, existingId]
+                    );
+                    // Dedupe: remove any other rows for same account
+                    this.run(`DELETE FROM post_schedule WHERE owner_zalo_id=? AND id<>?`, [schedule.owner_zalo_id, existingId]);
+                    return existingId;
+                }
                 return this.runInsert(
                     `INSERT INTO post_schedule (owner_zalo_id, group_ids, posts_per_day, window_start, window_end, enabled, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
                     [schedule.owner_zalo_id, schedule.group_ids, schedule.posts_per_day, schedule.window_start ?? '08:00', schedule.window_end ?? '21:00', schedule.enabled ?? 0, now, now]

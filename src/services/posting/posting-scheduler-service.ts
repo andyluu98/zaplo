@@ -109,6 +109,20 @@ class PostingSchedulerService {
         }
         const timer = setInterval(() => this.tick(zaloId), this.CHECK_INTERVAL_MS);
         this.timers.set(zaloId, timer);
+        EventBroadcaster.emit('postingBot:update', { zaloId, type: 'started', running: true });
+    }
+
+    /**
+     * Clear the cached daily plan for this account so the next tick rebuilds it
+     * using the current schedule (window_start, window_end, posts_per_day).
+     * Call after any schedule save that changes timing parameters.
+     * Does NOT touch tokens or lastSentAt — only plan state is reset.
+     */
+    public resetPlan(zaloId: string): void {
+        this.dailySlots.delete(zaloId);
+        this.planDay.delete(zaloId);
+        this.planDayExhausted.delete(zaloId);
+        Logger.log(`[PostingScheduler] ${zaloId}: daily plan reset — will rebuild on next tick`);
     }
 
     /** Stop and clean up all per-account state */
