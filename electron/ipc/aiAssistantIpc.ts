@@ -2,6 +2,7 @@ import { ipcMain } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 import AIAssistantService from '../../src/services/ai/AIAssistantService';
+import { enableAutoReply, disableAutoReply, getAutoReplyStatus } from '../../src/services/ai/auto-reply-workflow-manager';
 import Logger from '../../src/utils/Logger';
 
 export function registerAIAssistantIpc(): void {
@@ -189,6 +190,32 @@ export function registerAIAssistantIpc(): void {
       return { success: true, stats };
     } catch (e: any) {
       return { success: false, error: e.message, stats: [] };
+    }
+  });
+
+  // ─── AI Auto-Reply (hidden workflow per Zalo account) ──────────────────────
+  ipcMain.handle('ai:toggleAutoReply', async (_e, { zaloId, enabled, assistantId }: { zaloId: string; enabled: boolean; assistantId?: string }) => {
+    try {
+      if (enabled) {
+        if (!assistantId) return { success: false, error: 'assistantId là bắt buộc khi bật AI tự trả lời' };
+        enableAutoReply(zaloId, assistantId);
+      } else {
+        disableAutoReply(zaloId);
+      }
+      return { success: true };
+    } catch (e: any) {
+      Logger.error(`[AIAssistantIpc] toggleAutoReply: ${e.message}`);
+      return { success: false, error: e.message };
+    }
+  });
+
+  ipcMain.handle('ai:getAutoReplyStatus', async (_e, { zaloId }: { zaloId: string }) => {
+    try {
+      const status = getAutoReplyStatus(zaloId);
+      return { success: true, ...status };
+    } catch (e: any) {
+      Logger.error(`[AIAssistantIpc] getAutoReplyStatus: ${e.message}`);
+      return { success: false, error: e.message, enabled: false, assistantId: null };
     }
   });
 }

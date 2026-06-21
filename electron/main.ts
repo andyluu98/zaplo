@@ -24,6 +24,8 @@ import { registerErpNoteIpc } from './ipc/erpNoteIpc';
 import { registerErpNotificationIpc } from './ipc/erpNotificationIpc';
 import { registerErpHrmIpc } from './ipc/erpHrmIpc';
 import { registerLockScreenIpc } from './ipc/lockScreenIpc';
+import { registerPostingIpc } from './ipc/postingIpc';
+import PostingSchedulerService from '../src/services/posting/posting-scheduler-service';
 import WorkspaceManager from '../src/utils/WorkspaceManager';
 import HttpConnectionManager from '../src/services/http/HttpConnectionManager';
 import WorkflowEngineService from '../src/services/workflow/WorkflowEngineService';
@@ -825,6 +827,7 @@ app.whenReady().then(async () => {
   registerErpNotificationIpc();
   registerErpHrmIpc();
   registerLockScreenIpc();
+  registerPostingIpc();
   // Auto-reconnect Facebook accounts
   setTimeout(() => reconnectAllFBAccounts(), 4000);
   // Ordered startup: relay + Zalo for all local workspaces FIRST, then remote workspaces
@@ -833,6 +836,8 @@ app.whenReady().then(async () => {
   }), 3000);
   // Resume any active CRM campaigns after restart
   setTimeout(() => CRMQueueService.getInstance().resumeActiveCampaigns(), 3000);
+  // Resume enabled posting bot schedules after restart
+  setTimeout(() => PostingSchedulerService.getInstance().resumeActiveSchedules(), 3500);
   // Initialize ERP Calendar reminders scheduler
   setTimeout(() => {
     try {

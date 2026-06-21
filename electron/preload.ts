@@ -346,6 +346,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAccountAssistants: (zaloId: string) => ipcRenderer.invoke('ai:getAccountAssistants', { zaloId }),
     getUsageLogs:  (opts?: any) => ipcRenderer.invoke('ai:getUsageLogs', opts || {}),
     getUsageStats: (opts?: any) => ipcRenderer.invoke('ai:getUsageStats', opts || {}),
+    toggleAutoReply:   (zaloId: string, enabled: boolean, assistantId?: string) => ipcRenderer.invoke('ai:toggleAutoReply', { zaloId, enabled, assistantId }),
+    getAutoReplyStatus: (zaloId: string) => ipcRenderer.invoke('ai:getAutoReplyStatus', { zaloId }),
   },
 
   // ─── Tunnel ───────────────────────────────────────────────────────
@@ -571,6 +573,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
     notifyDelete:       (params: any) => ipcRenderer.invoke('erp:notify:delete', params),
     notifyDeleteAll:    (params: any) => ipcRenderer.invoke('erp:notify:deleteAll', params),
   },
+  // ─── Group Posting Bot ────────────────────────────────────────────
+  posting: {
+    pillarList:     (params: any) => ipcRenderer.invoke('posting:pillar.list', params),
+    pillarSave:     (params: any) => ipcRenderer.invoke('posting:pillar.save', params),
+    pillarDelete:   (params: any) => ipcRenderer.invoke('posting:pillar.delete', params),
+    draftGenerate:  (params: any) => ipcRenderer.invoke('posting:draft.generate', params),
+    draftList:      (params: any) => ipcRenderer.invoke('posting:draft.list', params),
+    draftApprove:   (params: any) => ipcRenderer.invoke('posting:draft.approve', params),
+    draftReject:    (params: any) => ipcRenderer.invoke('posting:draft.reject', params),
+    draftUpdate:    (params: any) => ipcRenderer.invoke('posting:draft.update', params),
+    scheduleGet:    (params: any) => ipcRenderer.invoke('posting:schedule.get', params),
+    scheduleSave:   (params: any) => ipcRenderer.invoke('posting:schedule.save', params),
+    scheduleEnable: (params: any) => ipcRenderer.invoke('posting:schedule.enable', params),
+    groupsList:     (params: any) => ipcRenderer.invoke('posting:groups.list', params),
+    logList:        (params: any) => ipcRenderer.invoke('posting:log.list', params),
+    botStatus:      (params: any) => ipcRenderer.invoke('posting:bot.status', params),
+    // ─── Image Library ────────────────────────────────────────────────
+    imageUpload:    (params: { zaloId: string; filePath: string }) => ipcRenderer.invoke('posting:image.upload', params),
+    imageList:      (params: { zaloId: string }) => ipcRenderer.invoke('posting:image.list', params),
+    imageDelete:    (params: { zaloId: string; id: number }) => ipcRenderer.invoke('posting:image.delete', params),
+  },
+
   lockScreen: {
     status:           () => ipcRenderer.invoke('lockScreen:status'),
     setup:            (params: { password: string }) => ipcRenderer.invoke('lockScreen:setup', params),
@@ -669,6 +693,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'erp:event:noteShared',
       'erp:event:departmentUpdated',
       'erp:event:employeeProfileUpdated',
+      // ─── Posting Bot ─────────────────────────────────────────────────
+      'postingBot:update',
     ];
     if (validChannels.includes(channel)) {
       const subscription = (_event: any, ...args: any[]) => callback(...args);

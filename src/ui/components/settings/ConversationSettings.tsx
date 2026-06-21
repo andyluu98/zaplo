@@ -3,9 +3,10 @@ import { useAccountStore } from '@/store/accountStore';
 import AccountMultiDropdown from '../common/AccountMultiDropdown';
 import QuickMessageSettings from './conversation/QuickMessageSettings';
 import LabelSettings from './conversation/LabelSettings';
+import AutoReplySettings from './conversation/AutoReplySettings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type MainTab = 'quick_msg' | 'labels';
+type MainTab = 'quick_msg' | 'labels' | 'auto_reply';
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function ConversationSettings() {
@@ -31,8 +32,9 @@ export default function ConversationSettings() {
         {/* Main tabs — pill style */}
         <div className="flex bg-gray-800 rounded-lg p-0.5 gap-0.5 my-2">
           {([
-            { id: 'quick_msg' as const, label: '⚡ Tin nhắn nhanh' },
-            { id: 'labels'    as const, label: '🏷️ Quản lý nhãn' },
+            { id: 'quick_msg'  as const, label: '⚡ Tin nhắn nhanh' },
+            { id: 'labels'     as const, label: '🏷️ Quản lý nhãn' },
+            { id: 'auto_reply' as const, label: '🤖 AI tự trả lời' },
           ]).map(tab => (
             <button
               key={tab.id}
@@ -88,6 +90,12 @@ export default function ConversationSettings() {
             accounts={accounts}
             filterAccounts={filterAccounts}
             searchText={searchText}
+          />
+        )}
+        {activeTab === 'auto_reply' && (
+          <AutoReplySettings
+            accounts={accounts}
+            filterAccounts={filterAccounts}
           />
         )}
       </div>

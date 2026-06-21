@@ -587,6 +587,26 @@ declare global {
       notifyDelete:        (params: any) => Promise<{ success: boolean; error?: string }>;
       notifyDeleteAll:     (params: any) => Promise<{ success: boolean; error?: string }>;
     };
+    // ─── Group Posting Bot ─────────────────────────────────────────────────────
+    posting: {
+      pillarList:     (params: { zaloId: string }) => Promise<{ success: boolean; pillars: import('@/../../src/models/automation').ContentPillar[]; error?: string }>;
+      pillarSave:     (params: { zaloId: string; pillar: import('@/../../src/models/automation').ContentPillar }) => Promise<{ success: boolean; id?: number; error?: string }>;
+      pillarDelete:   (params: { zaloId: string; id: number }) => Promise<{ success: boolean; error?: string }>;
+      draftGenerate:  (params: { zaloId: string; pillarId: number; count: number }) => Promise<{ success: boolean; ids?: number[]; error?: string }>;
+      draftList:      (params: { zaloId: string; status?: string }) => Promise<{ success: boolean; drafts: import('@/../../src/models/automation').ContentDraft[]; error?: string }>;
+      draftApprove:   (params: { zaloId: string; id: number }) => Promise<{ success: boolean; error?: string }>;
+      draftReject:    (params: { zaloId: string; id: number }) => Promise<{ success: boolean; error?: string }>;
+      draftUpdate:    (params: { zaloId: string; id: number; text: string; imageAssetId?: number | null }) => Promise<{ success: boolean; error?: string }>;
+      scheduleGet:    (params: { zaloId: string }) => Promise<{ success: boolean; schedule: import('@/../../src/models/automation').PostSchedule | null; error?: string }>;
+      scheduleSave:   (params: { zaloId: string; schedule: import('@/../../src/models/automation').PostSchedule }) => Promise<{ success: boolean; id?: number; error?: string }>;
+      scheduleEnable: (params: { zaloId: string; enabled: boolean }) => Promise<{ success: boolean; error?: string }>;
+      groupsList:     (params: { zaloId: string }) => Promise<{ success: boolean; groups: Array<{ groupId: string; name: string; avatar: string }>; error?: string }>;
+      logList:        (params: { zaloId: string; limit?: number }) => Promise<{ success: boolean; logs: import('@/../../src/models/automation').PostLog[]; error?: string }>;
+      botStatus:      (params: { zaloId: string }) => Promise<{ success: boolean; status: { running: boolean; nextRunAt?: number | null; lastRunAt?: number | null; pendingDrafts?: number }; error?: string }>;
+      imageUpload:    (params: { zaloId: string; filePath: string }) => Promise<{ success: boolean; id?: number; rel_path?: string; error?: string }>;
+      imageList:      (params: { zaloId: string }) => Promise<{ success: boolean; assets: import('@/../../src/models/automation').ImageAsset[]; error?: string }>;
+      imageDelete:    (params: { zaloId: string; id: number }) => Promise<{ success: boolean; error?: string }>;
+    };
   };
 }
 }
@@ -670,6 +690,7 @@ export const ipc = {
 
   erp,
   lockScreen: window.electronAPI?.lockScreen,
+  posting: window.electronAPI?.posting,
   on: window.electronAPI?.on,
   removeAllListeners: window.electronAPI?.removeAllListeners,
 };

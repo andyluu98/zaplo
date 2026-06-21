@@ -54,3 +54,9 @@ export type { ErpCalendarEvent, ErpEventAttendee, ErpEventReminder, CreateCalend
 export type { ErpNoteFolder, ErpNote, ErpNoteTag, ErpNoteVersion, ErpNoteShare } from './erp/Note';
 export type { ErpNotification } from './erp/ErpNotification';
 export type { ErpRole, ErpPermissionAction, ErpPermissionOverrideMode, ErpPermissionOverrides } from './erp/Permission';
+
+// Automation — Group Posting Bot
+export type {
+    ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog,
+    DraftApprovalStatus, DraftSource, ImageAssetOrigin, PostLogStatus,
+} from './automation';

@@ -4,6 +4,7 @@ import { app, safeStorage } from 'electron';
 import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
+import type { ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus } from '../../models';
 
 // better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
 let db: BetterSqlite3.Database | null = null;
@@ -687,6 +688,75 @@ class DatabaseService {
             );
             CREATE INDEX IF NOT EXISTS idx_crm_log_owner ON crm_send_log(owner_zalo_id, sent_at DESC);
             CREATE INDEX IF NOT EXISTS idx_crm_log_contact ON crm_send_log(owner_zalo_id, contact_id);
+        `);
+
+        // ─── Automation — Group Posting Bot ───────────────────────────────────
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS content_pillar (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_zalo_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                prompt_template TEXT DEFAULT '',
+                tone TEXT DEFAULT '',
+                enabled INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
+        `);
+
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS content_draft (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_zalo_id TEXT NOT NULL,
+                pillar_id INTEGER,
+                text TEXT NOT NULL,
+                image_asset_id INTEGER,
+                approval_status TEXT NOT NULL DEFAULT 'pending',
+                source TEXT NOT NULL DEFAULT 'ai',
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_draft_status ON content_draft(owner_zalo_id, approval_status);
+        `);
+
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS image_asset (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_zalo_id TEXT NOT NULL,
+                rel_path TEXT NOT NULL,
+                origin TEXT NOT NULL DEFAULT 'upload',
+                width INTEGER,
+                height INTEGER,
+                created_at INTEGER NOT NULL DEFAULT 0
+            );
+        `);
+
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS post_schedule (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_zalo_id TEXT NOT NULL,
+                group_ids TEXT NOT NULL,
+                posts_per_day INTEGER NOT NULL DEFAULT 1,
+                window_start TEXT DEFAULT '08:00',
+                window_end TEXT DEFAULT '21:00',
+                enabled INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
+        `);
+
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS post_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_zalo_id TEXT NOT NULL,
+                draft_id INTEGER,
+                group_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                error TEXT,
+                posted_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_postlog ON post_log(owner_zalo_id, posted_at);
         `);
 
         // ─── Local Labels (custom per-app labels, independent from Zalo) ────────
@@ -7196,6 +7266,196 @@ class DatabaseService {
             `SELECT * FROM fb_crm_contacts WHERE fb_account_id = ? ORDER BY display_name ASC`,
             [fbAccountId]
         );
+    }
+
+    // ─── Automation — Group Posting Bot Methods ───────────────────────────────
+
+    /** Content Pillars */
+    public getContentPillars(zaloId: string): ContentPillar[] {
+        if (!this.initialized) return [];
+        try {
+            return this.query<any>(`SELECT * FROM content_pillar WHERE owner_zalo_id=? ORDER BY id ASC`, [zaloId]);
+        } catch (err: any) { Logger.error(`[DB] getContentPillars: ${err.message}`); return []; }
+    }
+
+    public getContentPillar(zaloId: string, id: number): ContentPillar | null {
+        if (!this.initialized) return null;
+        try {
+            const rows = this.query<any>(`SELECT * FROM content_pillar WHERE id=? AND owner_zalo_id=?`, [id, zaloId]);
+            return rows[0] || null;
+        } catch (err: any) { Logger.error(`[DB] getContentPillar: ${err.message}`); return null; }
+    }
+
+    public saveContentPillar(pillar: ContentPillar): number {
+        if (!this.initialized) return 0;
+        try {
+            const now = Date.now();
+            if (pillar.id) {
+                this.run(
+                    `UPDATE content_pillar SET name=?, description=?, prompt_template=?, tone=?, enabled=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                    [pillar.name, pillar.description ?? '', pillar.prompt_template ?? '', pillar.tone ?? '', pillar.enabled ?? 1, now, pillar.id, pillar.owner_zalo_id]
+                );
+                return pillar.id;
+            } else {
+                return this.runInsert(
+                    `INSERT INTO content_pillar (owner_zalo_id, name, description, prompt_template, tone, enabled, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+                    [pillar.owner_zalo_id, pillar.name, pillar.description ?? '', pillar.prompt_template ?? '', pillar.tone ?? '', pillar.enabled ?? 1, now, now]
+                );
+            }
+        } catch (err: any) { Logger.error(`[DB] saveContentPillar: ${err.message}`); return 0; }
+    }
+
+    public deleteContentPillar(zaloId: string, id: number): void {
+        if (!this.initialized) return;
+        try { this.run(`DELETE FROM content_pillar WHERE id=? AND owner_zalo_id=?`, [id, zaloId]); }
+        catch (err: any) { Logger.error(`[DB] deleteContentPillar: ${err.message}`); }
+    }
+
+    /** Content Drafts */
+    public getContentDrafts(zaloId: string, status?: DraftApprovalStatus): ContentDraft[] {
+        if (!this.initialized) return [];
+        try {
+            if (status) {
+                return this.query<any>(`SELECT * FROM content_draft WHERE owner_zalo_id=? AND approval_status=? ORDER BY updated_at DESC`, [zaloId, status]);
+            }
+            return this.query<any>(`SELECT * FROM content_draft WHERE owner_zalo_id=? ORDER BY updated_at DESC`, [zaloId]);
+        } catch (err: any) { Logger.error(`[DB] getContentDrafts: ${err.message}`); return []; }
+    }
+
+    public getContentDraft(zaloId: string, id: number): ContentDraft | null {
+        if (!this.initialized) return null;
+        try {
+            const rows = this.query<any>(`SELECT * FROM content_draft WHERE id=? AND owner_zalo_id=?`, [id, zaloId]);
+            return rows[0] || null;
+        } catch (err: any) { Logger.error(`[DB] getContentDraft: ${err.message}`); return null; }
+    }
+
+    public saveContentDraft(draft: ContentDraft): number {
+        if (!this.initialized) return 0;
+        try {
+            const now = Date.now();
+            if (draft.id) {
+                this.run(
+                    `UPDATE content_draft SET pillar_id=?, text=?, image_asset_id=?, approval_status=?, source=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                    [draft.pillar_id ?? null, draft.text, draft.image_asset_id ?? null, draft.approval_status, draft.source, now, draft.id, draft.owner_zalo_id]
+                );
+                return draft.id;
+            } else {
+                return this.runInsert(
+                    `INSERT INTO content_draft (owner_zalo_id, pillar_id, text, image_asset_id, approval_status, source, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+                    [draft.owner_zalo_id, draft.pillar_id ?? null, draft.text, draft.image_asset_id ?? null, draft.approval_status || 'pending', draft.source || 'ai', now, now]
+                );
+            }
+        } catch (err: any) { Logger.error(`[DB] saveContentDraft: ${err.message}`); return 0; }
+    }
+
+    public updateDraftStatus(zaloId: string, id: number, status: DraftApprovalStatus): void {
+        if (!this.initialized) return;
+        try { this.run(`UPDATE content_draft SET approval_status=?, updated_at=? WHERE id=? AND owner_zalo_id=?`, [status, Date.now(), id, zaloId]); }
+        catch (err: any) { Logger.error(`[DB] updateDraftStatus: ${err.message}`); }
+    }
+
+    public updateDraftContent(zaloId: string, id: number, text: string, imageAssetId: number | null): void {
+        if (!this.initialized) return;
+        try { this.run(`UPDATE content_draft SET text=?, image_asset_id=?, updated_at=? WHERE id=? AND owner_zalo_id=?`, [text, imageAssetId, Date.now(), id, zaloId]); }
+        catch (err: any) { Logger.error(`[DB] updateDraftContent: ${err.message}`); }
+    }
+
+    public deleteContentDraft(zaloId: string, id: number): void {
+        if (!this.initialized) return;
+        try { this.run(`DELETE FROM content_draft WHERE id=? AND owner_zalo_id=?`, [id, zaloId]); }
+        catch (err: any) { Logger.error(`[DB] deleteContentDraft: ${err.message}`); }
+    }
+
+    /** Image Assets */
+    public getImageAssets(zaloId: string): ImageAsset[] {
+        if (!this.initialized) return [];
+        try {
+            return this.query<any>(`SELECT * FROM image_asset WHERE owner_zalo_id=? ORDER BY created_at DESC`, [zaloId]);
+        } catch (err: any) { Logger.error(`[DB] getImageAssets: ${err.message}`); return []; }
+    }
+
+    public saveImageAsset(asset: ImageAsset): number {
+        if (!this.initialized) return 0;
+        try {
+            return this.runInsert(
+                `INSERT INTO image_asset (owner_zalo_id, rel_path, origin, width, height, created_at) VALUES (?,?,?,?,?,?)`,
+                [asset.owner_zalo_id, asset.rel_path, asset.origin || 'upload', asset.width ?? null, asset.height ?? null, Date.now()]
+            );
+        } catch (err: any) { Logger.error(`[DB] saveImageAsset: ${err.message}`); return 0; }
+    }
+
+    public deleteImageAsset(zaloId: string, id: number): void {
+        if (!this.initialized) return;
+        try { this.run(`DELETE FROM image_asset WHERE id=? AND owner_zalo_id=?`, [id, zaloId]); }
+        catch (err: any) { Logger.error(`[DB] deleteImageAsset: ${err.message}`); }
+    }
+
+    /** Post Schedule */
+    public getPostSchedule(zaloId: string): PostSchedule | null {
+        if (!this.initialized) return null;
+        try {
+            const rows = this.query<any>(`SELECT * FROM post_schedule WHERE owner_zalo_id=? ORDER BY id DESC LIMIT 1`, [zaloId]);
+            return rows[0] || null;
+        } catch (err: any) { Logger.error(`[DB] getPostSchedule: ${err.message}`); return null; }
+    }
+
+    public savePostSchedule(schedule: PostSchedule): number {
+        if (!this.initialized) return 0;
+        try {
+            const now = Date.now();
+            if (schedule.id) {
+                this.run(
+                    `UPDATE post_schedule SET group_ids=?, posts_per_day=?, window_start=?, window_end=?, enabled=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                    [schedule.group_ids, schedule.posts_per_day, schedule.window_start ?? '08:00', schedule.window_end ?? '21:00', schedule.enabled ?? 0, now, schedule.id, schedule.owner_zalo_id]
+                );
+                return schedule.id;
+            } else {
+                return this.runInsert(
+                    `INSERT INTO post_schedule (owner_zalo_id, group_ids, posts_per_day, window_start, window_end, enabled, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+                    [schedule.owner_zalo_id, schedule.group_ids, schedule.posts_per_day, schedule.window_start ?? '08:00', schedule.window_end ?? '21:00', schedule.enabled ?? 0, now, now]
+                );
+            }
+        } catch (err: any) { Logger.error(`[DB] savePostSchedule: ${err.message}`); return 0; }
+    }
+
+    public setScheduleEnabled(zaloId: string, id: number, enabled: number): void {
+        if (!this.initialized) return;
+        try { this.run(`UPDATE post_schedule SET enabled=?, updated_at=? WHERE id=? AND owner_zalo_id=?`, [enabled, Date.now(), id, zaloId]); }
+        catch (err: any) { Logger.error(`[DB] setScheduleEnabled: ${err.message}`); }
+    }
+
+    /** Post Log */
+    public addPostLog(log: PostLog): number {
+        if (!this.initialized) return 0;
+        try {
+            return this.runInsert(
+                `INSERT INTO post_log (owner_zalo_id, draft_id, group_id, status, error, posted_at) VALUES (?,?,?,?,?,?)`,
+                [log.owner_zalo_id, log.draft_id ?? null, log.group_id, log.status, log.error ?? null, log.posted_at || Date.now()]
+            );
+        } catch (err: any) { Logger.error(`[DB] addPostLog: ${err.message}`); return 0; }
+    }
+
+    public getPostLog(zaloId: string, limit = 100): PostLog[] {
+        if (!this.initialized) return [];
+        try {
+            return this.query<any>(`SELECT * FROM post_log WHERE owner_zalo_id=? ORDER BY posted_at DESC LIMIT ?`, [zaloId, limit]);
+        } catch (err: any) { Logger.error(`[DB] getPostLog: ${err.message}`); return []; }
+    }
+
+    /** Count posts already sent today for a given group (used by scheduler to enforce posts_per_day) */
+    public countPostsToday(zaloId: string, groupId: string): number {
+        if (!this.initialized) return 0;
+        try {
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const todayStartMs = todayStart.getTime();
+            const rows = this.query<any>(
+                `SELECT COUNT(*) as cnt FROM post_log WHERE owner_zalo_id=? AND group_id=? AND status='sent' AND posted_at >= ?`,
+                [zaloId, groupId, todayStartMs]
+            );
+            return rows[0]?.cnt ?? 0;
+        } catch (err: any) { Logger.error(`[DB] countPostsToday: ${err.message}`); return 0; }
     }
 }
 
