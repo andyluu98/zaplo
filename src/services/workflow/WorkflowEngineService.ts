@@ -1751,7 +1751,7 @@ class WorkflowEngineService {
       case 'notify.discord': {
         const payload: Record<string, any> = {
           content: cfg.message,
-          username: cfg.username || 'DepLao Bot',
+          username: cfg.username || 'Zaplo Bot',
         };
         if (cfg.avatarUrl) payload.avatar_url = cfg.avatarUrl;
         await axios.post(cfg.webhookUrl, payload, { timeout: 10000 });

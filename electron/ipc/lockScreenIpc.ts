@@ -331,7 +331,7 @@ function promptWindowsHello(): Promise<boolean> {
             '    $availResult = Await $checkMethod.Invoke($null, $null) ([Windows.Security.Credentials.UI.UserConsentVerifierAvailability])\n' +
             "    if ($availResult -ne 'Available') { Write-Output 99; exit 0 }\n" +
             "    $verifyMethod = $type.GetMethod('RequestVerificationAsync', [System.Reflection.BindingFlags]::Public -bor [System.Reflection.BindingFlags]::Static)\n" +
-            "    $result = Await $verifyMethod.Invoke($null, @('Mở khoá Deplao')) ([Windows.Security.Credentials.UI.UserConsentVerificationResult])\n" +
+            "    $result = Await $verifyMethod.Invoke($null, @('Mở khoá Zaplo')) ([Windows.Security.Credentials.UI.UserConsentVerificationResult])\n" +
             '    Write-Output ([int]$result)\n' +
             '} catch {\n' +
             '    Write-Output -1\n' +

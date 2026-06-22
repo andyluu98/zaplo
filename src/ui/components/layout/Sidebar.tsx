@@ -630,8 +630,8 @@ const TOOLS_GUIDE = [
       {
         title: '🏷️ Hệ thống nhãn kép',
         items: [
-          'Nhãn Zalo (Zalo Label): đồng bộ 2 chiều với app Zalo trên điện thoại — gán từ Deplao, thấy trên Zalo và ngược lại',
-          'Nhãn Local: nhãn riêng của Deplao, tùy biến màu sắc + emoji, không giới hạn số lượng',
+          'Nhãn Zalo (Zalo Label): đồng bộ 2 chiều với app Zalo trên điện thoại — gán từ Zaplo, thấy trên Zalo và ngược lại',
+          'Nhãn Local: nhãn riêng của Zaplo, tùy biến màu sắc + emoji, không giới hạn số lượng',
           'Dùng nhãn làm điều kiện lọc trong chiến dịch (chỉ gửi cho khách có nhãn "VIP")',
           'Dùng nhãn làm Trigger trong Workflow: khi gắn nhãn → tự động chạy luồng xử lý',
         ],
@@ -723,7 +723,7 @@ const TOOLS_GUIDE = [
     icon: '🔗', title: 'Tích hợp — Kết nối bên thứ 3',
     color: 'border-green-500/40 bg-green-900/10',
     badgeColor: 'bg-green-600/30 text-green-500',
-    purpose: 'Kết nối Deplao với hệ sinh thái bán hàng, thanh toán, vận chuyển Việt Nam. Tra cứu dữ liệu ngay trong khung chat, nhận webhook tự động, kết hợp Workflow để xử lý end-to-end.',
+    purpose: 'Kết nối Zaplo với hệ sinh thái bán hàng, thanh toán, vận chuyển Việt Nam. Tra cứu dữ liệu ngay trong khung chat, nhận webhook tự động, kết hợp Workflow để xử lý end-to-end.',
     sections: [
       {
         title: '🛒 POS / Bán hàng (4 nền tảng)',
@@ -755,7 +755,7 @@ const TOOLS_GUIDE = [
         title: '🌐 Tunnel — Mở kết nối ra internet',
         items: [
           'Bật thủ công khi cần: tạo URL công khai (https://xxx.loca.lt) trỏ về app',
-          'Cho phép bên ngoài (Casso, SePay, n8n cloud...) gửi webhook về Deplao',
+          'Cho phép bên ngoài (Casso, SePay, n8n cloud...) gửi webhook về Zaplo',
           'Không bật = webhook chỉ hoạt động trên localhost (cùng máy)',
           'Tắt bất cứ lúc nào — không ảnh hưởng các tính năng khác',
         ],
@@ -781,7 +781,7 @@ const COMBO_SCENARIOS = [
     tags: ['Tích hợp', 'Workflow'],
     color: 'border-emerald-500/30',
     flow: ['🔗 SePay/Casso nhận CK', '⚙️ Trigger payment', '📝 Ghép tin "Cảm ơn {tên}, đơn #{mã} đã nhận {số tiền}"', '💬 Gửi tin Zalo', '🏷️ Gắn nhãn "Đã TT"'],
-    desc: 'Khách chuyển khoản → Deplao nhận webhook từ ngân hàng → Workflow tự động gửi tin xác nhận + gắn nhãn CRM.',
+    desc: 'Khách chuyển khoản → Zaplo nhận webhook từ ngân hàng → Workflow tự động gửi tin xác nhận + gắn nhãn CRM.',
   },
   {
     icon: '🤖',

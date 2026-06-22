@@ -102,7 +102,7 @@ class DatabaseService {
                         }
                     } catch {}
                 }
-                this.dbPath = path.join(dbFolder, 'deplao-tool.db');
+                this.dbPath = path.join(dbFolder, 'zaplo-tool.db');
             }
 
             const dir = path.dirname(this.dbPath);
@@ -3394,7 +3394,7 @@ class DatabaseService {
      * of doing raw string replacement.
      *
      * Example:
-     *   baseDir = "C:\Users\Admin\AppData\Roaming\Deplao\media"
+     *   baseDir = "C:\Users\Admin\AppData\Roaming\Zaplo\media"
      *   stored  = {"main":"C:\\Users\\Admin\\...\\media\\zaloId\\date\\img.jpg"}
      *   →         {"main":"zaloId/date/img.jpg"}
      *

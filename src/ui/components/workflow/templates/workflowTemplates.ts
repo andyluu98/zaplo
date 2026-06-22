@@ -997,7 +997,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
       { id: 'n2', type: 'data.dateFormat', label: 'Lấy giờ hiện tại', position: { x: 300, y: 200 },
         config: { format: 'datetime' } },
       { id: 'n3', type: 'data.textFormat', label: 'Soạn tóm tắt', position: { x: 300, y: 340 },
-        config: { template: '⏰ Cập nhật lúc {{ $node.n2.output }}\n\n📊 Tình trạng hệ thống: ✅ Hoạt động\n💬 Các workflow đang chạy bình thường\n\n— Gửi tự động bởi Deplao Bot' } },
+        config: { template: '⏰ Cập nhật lúc {{ $node.n2.output }}\n\n📊 Tình trạng hệ thống: ✅ Hoạt động\n💬 Các workflow đang chạy bình thường\n\n— Gửi tự động bởi Zaplo Bot' } },
       { id: 'n4', type: 'notify.telegram', label: 'Gửi Telegram', position: { x: 300, y: 480 },
         config: { botToken: '', chatId: '', message: '{{ $node.n3.output }}' } },
     ],

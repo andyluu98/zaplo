@@ -232,7 +232,7 @@ export const DEFAULT_CONFIGS: Record<string, Record<string, any>> = {
   'ai.classify':     { aiConfigMode: 'assistant', assistantId: '', platform: 'openai', apiKey: '', model: 'gpt-5.4-mini', categories: 'hỏi giá, đặt hàng, khiếu nại, khác', input: '{{ $trigger.content }}' },
   // Notify
   'notify.telegram': { botToken: '', chatId: '', message: '' },
-  'notify.discord':  { webhookUrl: '', message: '', username: 'DepLao Bot' },
+  'notify.discord':  { webhookUrl: '', message: '', username: 'Zaplo Bot' },
   'notify.email':    { smtpHost: 'smtp.gmail.com', smtpPort: 587, smtpUser: '', smtpPass: '', to: '', subject: '', body: '' },
   'notify.notion':   { apiKey: '', databaseId: '', properties: '{"Tên": {"title": [{"text": {"content": "{{ $trigger.fromName }}"}}]}}' },
   // Trigger: payment
