@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { usePostingStore } from '@/store/posting-store';
 import { showConfirm } from '@/components/common/ConfirmDialog';
 import { useAppStore } from '@/store/appStore';
@@ -14,6 +14,7 @@ interface PillarFormState {
   prompt_template: string;
   tone: string;
   enabled: number;
+  assistant_id: string;
 }
 
 const EMPTY_FORM: PillarFormState = {
@@ -22,7 +23,10 @@ const EMPTY_FORM: PillarFormState = {
   prompt_template: '',
   tone: '',
   enabled: 1,
+  assistant_id: '',
 };
+
+interface AssistantOption { id: string; name: string; enabled?: number | boolean; }
 
 // ─── Inline form panel ────────────────────────────────────────────────────────
 
@@ -31,14 +35,37 @@ function PillarForm({
   onSave,
   onCancel,
   saving,
+  assistants,
 }: {
   initial: PillarFormState;
   onSave: (data: PillarFormState) => void;
   onCancel: () => void;
   saving: boolean;
+  assistants: AssistantOption[];
 }) {
   const [form, setForm] = useState<PillarFormState>(initial);
   const set = (k: keyof PillarFormState, v: any) => setForm(f => ({ ...f, [k]: v }));
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+
+  // Insert a variable token at the caret position of the prompt textarea (or append to end).
+  const insertVariable = (token: string) => {
+    const el = promptRef.current;
+    const current = form.prompt_template;
+    if (el && el.selectionStart != null) {
+      const start = el.selectionStart;
+      const end = el.selectionEnd ?? start;
+      const next = current.slice(0, start) + token + current.slice(end);
+      set('prompt_template', next);
+      // Restore caret after the inserted token on next tick.
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + token.length;
+        el.setSelectionRange(pos, pos);
+      });
+    } else {
+      set('prompt_template', current + token);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,16 +107,47 @@ function PillarForm({
         />
       </div>
 
+      {/* AI assistant picker — each pillar can use a different assistant/prompt */}
+      <div>
+        <label className="block text-xs text-gray-400 mb-1">Trợ lý AI tạo bài</label>
+        <select
+          value={form.assistant_id}
+          onChange={e => set('assistant_id', e.target.value)}
+          className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white text-sm focus:outline-none focus:border-blue-500"
+        >
+          <option value="">— Trợ lý mặc định —</option>
+          {assistants.map(a => (
+            <option key={a.id} value={a.id}>{a.name}{a.enabled ? '' : ' (đã tắt)'}</option>
+          ))}
+        </select>
+        <p className="text-[11px] text-gray-600 mt-1">Mỗi chuyên đề có thể dùng 1 trợ lý riêng (prompt khác nhau cho từng chủ đề).</p>
+      </div>
+
       {/* Prompt template */}
       <div>
         <label className="block text-xs text-gray-400 mb-1">Prompt AI</label>
         <textarea
+          ref={promptRef}
           value={form.prompt_template}
           onChange={e => set('prompt_template', e.target.value)}
           rows={3}
           placeholder="Hướng dẫn AI tạo bài viết cho chủ đề này..."
           className="w-full px-3 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500 resize-none font-mono text-xs"
         />
+        {/* Insert-variable chips — click to insert token at caret */}
+        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+          {['{name}', '{description}', '{tone}'].map(token => (
+            <button
+              key={token}
+              type="button"
+              onClick={() => insertVariable(token)}
+              className="text-[11px] px-1.5 py-0.5 rounded bg-gray-700 hover:bg-blue-500/20 hover:text-blue-300 text-gray-300 border border-gray-600 font-mono transition-colors"
+            >
+              {token}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-gray-600 mt-1">Biến sẽ thay bằng thông tin chủ đề khi AI viết bài.</p>
       </div>
 
       {/* Tone + Enabled row */}
@@ -135,10 +193,11 @@ function PillarForm({
 
 // ─── Pillar row ───────────────────────────────────────────────────────────────
 
-function PillarRow({ pillar, onEdit, onDelete }: {
+function PillarRow({ pillar, onEdit, onDelete, agentsUsing }: {
   pillar: ContentPillar;
   onEdit: (p: ContentPillar) => void;
   onDelete: (p: ContentPillar) => void;
+  agentsUsing: string[];
 }) {
   return (
     <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-800 border border-gray-700 hover:border-gray-600 transition-colors">
@@ -155,6 +214,23 @@ function PillarRow({ pillar, onEdit, onDelete }: {
         {pillar.description && (
           <p className="text-xs text-gray-500 truncate">{pillar.description}</p>
         )}
+        {/* "Used by" badges — which posting agents reference this pillar */}
+        <div className="flex flex-wrap items-center gap-1 mt-1.5">
+          {agentsUsing.length > 0 ? (
+            <>
+              <span className="text-[10px] text-gray-600">Dùng bởi:</span>
+              {agentsUsing.map(name => (
+                <span key={name} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-900/40 text-blue-300 flex-shrink-0">
+                  {name}
+                </span>
+              ))}
+            </>
+          ) : (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/30 text-amber-400 flex-shrink-0">
+              ⚠ Chưa agent nào dùng
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex gap-1 flex-shrink-0">
         <button
@@ -183,6 +259,8 @@ export default function PillarsTab({ zaloId }: { zaloId: string }) {
   const { showNotification } = useAppStore();
   const [formState, setFormState] = useState<PillarFormState | null>(null);
   const [saving, setSaving] = useState(false);
+  const [assistants, setAssistants] = useState<AssistantOption[]>([]);
+  const [agents, setAgents] = useState<Array<{ id: number; name: string; pillar_ids: number[] }>>([]);
 
   const fetchPillars = useCallback(async () => {
     if (!zaloId) return;
@@ -197,7 +275,45 @@ export default function PillarsTab({ zaloId }: { zaloId: string }) {
     }
   }, [zaloId, setPillars, setLoadingPillars]);
 
-  useEffect(() => { fetchPillars(); }, [fetchPillars]);
+  const fetchAssistants = useCallback(async () => {
+    try {
+      const res = await ipc.ai?.listAssistants();
+      if (res?.success) setAssistants((res.assistants ?? []).map((a: any) => ({ id: a.id, name: a.name, enabled: a.enabled })));
+    } catch (e) {
+      console.error('[PillarsTab] listAssistants error', e);
+    }
+  }, []);
+
+  const fetchAgents = useCallback(async () => {
+    if (!zaloId) return;
+    try {
+      const res = await ipc.posting?.agentList({ zaloId });
+      if (res?.success) {
+        setAgents((res.agents ?? []).map((a: any) => ({
+          id: a.id,
+          name: a.name,
+          pillar_ids: Array.isArray(a.pillar_ids) ? a.pillar_ids : [],
+        })));
+      }
+    } catch (e) {
+      console.error('[PillarsTab] agentList error', e);
+    }
+  }, [zaloId]);
+
+  useEffect(() => { fetchPillars(); fetchAssistants(); fetchAgents(); }, [fetchPillars, fetchAssistants, fetchAgents]);
+
+  // Map pillar id → names of agents using it.
+  const agentsByPillar = React.useMemo(() => {
+    const map = new Map<number, string[]>();
+    for (const agent of agents) {
+      for (const pid of agent.pillar_ids) {
+        const arr = map.get(pid) ?? [];
+        arr.push(agent.name);
+        map.set(pid, arr);
+      }
+    }
+    return map;
+  }, [agents]);
 
   const handleSave = async (data: PillarFormState) => {
     if (!zaloId) return;
@@ -211,6 +327,7 @@ export default function PillarsTab({ zaloId }: { zaloId: string }) {
         prompt_template: data.prompt_template.trim(),
         tone: data.tone.trim(),
         enabled: data.enabled,
+        assistant_id: data.assistant_id || '',
       };
       const res = await ipc.posting?.pillarSave({ zaloId, pillar });
       if (res?.success) {
@@ -272,6 +389,7 @@ export default function PillarsTab({ zaloId }: { zaloId: string }) {
             onSave={handleSave}
             onCancel={() => setFormState(null)}
             saving={saving}
+            assistants={assistants}
           />
         )}
 
@@ -288,7 +406,8 @@ export default function PillarsTab({ zaloId }: { zaloId: string }) {
             <PillarRow
               key={p.id}
               pillar={p}
-              onEdit={p => setFormState({ ...EMPTY_FORM, ...p, id: p.id })}
+              agentsUsing={p.id != null ? (agentsByPillar.get(p.id) ?? []) : []}
+              onEdit={p => setFormState({ ...EMPTY_FORM, ...p, assistant_id: p.assistant_id ?? '', id: p.id })}
               onDelete={handleDelete}
             />
           ))

@@ -4,7 +4,7 @@ import { app, safeStorage } from 'electron';
 import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
-import type { ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus } from '../../models';
+import type { ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus, PostingAgent, AgentSchedule } from '../../models';
 
 // better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
 let db: BetterSqlite3.Database | null = null;
@@ -700,6 +700,7 @@ class DatabaseService {
                 prompt_template TEXT DEFAULT '',
                 tone TEXT DEFAULT '',
                 enabled INTEGER NOT NULL DEFAULT 1,
+                assistant_id TEXT DEFAULT '',
                 created_at INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL DEFAULT 0
             );
@@ -710,10 +711,12 @@ class DatabaseService {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 owner_zalo_id TEXT NOT NULL,
                 pillar_id INTEGER,
+                agent_id INTEGER,
                 text TEXT NOT NULL,
                 image_asset_id INTEGER,
                 approval_status TEXT NOT NULL DEFAULT 'pending',
                 source TEXT NOT NULL DEFAULT 'ai',
+                scheduled_at INTEGER,
                 created_at INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL DEFAULT 0
             );
@@ -750,6 +753,7 @@ class DatabaseService {
             CREATE TABLE IF NOT EXISTS post_log (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 owner_zalo_id TEXT NOT NULL,
+                agent_id INTEGER,
                 draft_id INTEGER,
                 group_id TEXT NOT NULL,
                 status TEXT NOT NULL,
@@ -757,6 +761,53 @@ class DatabaseService {
                 posted_at INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS idx_postlog ON post_log(owner_zalo_id, posted_at);
+        `);
+
+        // ─── Posting Agents (agent-centric module) ──────────────────────────────
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS posting_agent (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_zalo_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                assistant_id TEXT DEFAULT '',
+                enabled INTEGER NOT NULL DEFAULT 0,
+                approval_mode TEXT NOT NULL DEFAULT 'manual',
+                image_mode TEXT NOT NULL DEFAULT 'auto',
+                image_count INTEGER NOT NULL DEFAULT 2,
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS agent_pillar (
+                agent_id INTEGER NOT NULL,
+                pillar_id INTEGER NOT NULL,
+                PRIMARY KEY (agent_id, pillar_id)
+            );
+            CREATE TABLE IF NOT EXISTS agent_group (
+                agent_id INTEGER NOT NULL,
+                group_id TEXT NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (agent_id, group_id)
+            );
+            CREATE TABLE IF NOT EXISTS agent_image (
+                agent_id INTEGER NOT NULL,
+                image_asset_id INTEGER NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (agent_id, image_asset_id)
+            );
+            CREATE TABLE IF NOT EXISTS agent_schedule (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                agent_id INTEGER NOT NULL,
+                kind TEXT NOT NULL DEFAULT 'daily',
+                weekdays TEXT DEFAULT '',
+                month_days TEXT DEFAULT '',
+                date TEXT DEFAULT '',
+                time TEXT DEFAULT '',
+                window_start TEXT DEFAULT '08:00',
+                window_end TEXT DEFAULT '21:00',
+                posts_per_day INTEGER NOT NULL DEFAULT 1,
+                enabled INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE INDEX IF NOT EXISTS idx_agent_sched ON agent_schedule(agent_id);
         `);
 
         // ─── Local Labels (custom per-app labels, independent from Zalo) ────────
@@ -1434,6 +1485,101 @@ class DatabaseService {
             }
         } catch (err: any) {
             Logger.warn(`[DatabaseService] Migration channel column: ${err.message}`);
+        }
+
+        // ─── Migration: content_pillar.assistant_id (per-pillar AI assistant) ──
+        try {
+            const pillarCols = this.query<any>(`PRAGMA table_info(content_pillar)`);
+            if (pillarCols.length > 0 && !pillarCols.some((c: any) => c.name === 'assistant_id')) {
+                db!.exec(`ALTER TABLE content_pillar ADD COLUMN assistant_id TEXT DEFAULT ''`);
+                this.save();
+                Logger.log('[DatabaseService] ✅ Migration: added assistant_id to content_pillar');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration content_pillar.assistant_id: ${err.message}`);
+        }
+
+        // ─── Migration: create agent-centric tables on EXISTING databases ───────
+        // createTables() only fully runs for fresh DBs; ensure these exist here too.
+        try {
+            db!.exec(`
+                CREATE TABLE IF NOT EXISTS posting_agent (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, owner_zalo_id TEXT NOT NULL, name TEXT NOT NULL,
+                    assistant_id TEXT DEFAULT '', enabled INTEGER NOT NULL DEFAULT 0,
+                    approval_mode TEXT NOT NULL DEFAULT 'manual', image_mode TEXT NOT NULL DEFAULT 'auto',
+                    image_count INTEGER NOT NULL DEFAULT 2, created_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS agent_pillar (agent_id INTEGER NOT NULL, pillar_id INTEGER NOT NULL, PRIMARY KEY (agent_id, pillar_id));
+                CREATE TABLE IF NOT EXISTS agent_group (agent_id INTEGER NOT NULL, group_id TEXT NOT NULL, position INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (agent_id, group_id));
+                CREATE TABLE IF NOT EXISTS agent_image (agent_id INTEGER NOT NULL, image_asset_id INTEGER NOT NULL, position INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (agent_id, image_asset_id));
+                CREATE TABLE IF NOT EXISTS agent_schedule (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, agent_id INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'daily',
+                    weekdays TEXT DEFAULT '', month_days TEXT DEFAULT '', date TEXT DEFAULT '', time TEXT DEFAULT '',
+                    window_start TEXT DEFAULT '08:00', window_end TEXT DEFAULT '21:00', posts_per_day INTEGER NOT NULL DEFAULT 1, enabled INTEGER NOT NULL DEFAULT 1
+                );
+                CREATE INDEX IF NOT EXISTS idx_agent_sched ON agent_schedule(agent_id);
+            `);
+            this.save();
+            Logger.log('[DatabaseService] ✅ Migration: ensured agent-centric tables exist');
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration create agent tables: ${err.message}`);
+        }
+
+        // ─── Migration: agent-centric posting columns (content_draft, post_log) ──
+        try {
+            const dc = this.query<any>(`PRAGMA table_info(content_draft)`);
+            if (dc.length > 0) {
+                if (!dc.some((c: any) => c.name === 'agent_id'))      db!.exec(`ALTER TABLE content_draft ADD COLUMN agent_id INTEGER`);
+                if (!dc.some((c: any) => c.name === 'scheduled_at'))  db!.exec(`ALTER TABLE content_draft ADD COLUMN scheduled_at INTEGER`);
+            }
+            const pl = this.query<any>(`PRAGMA table_info(post_log)`);
+            if (pl.length > 0 && !pl.some((c: any) => c.name === 'agent_id')) db!.exec(`ALTER TABLE post_log ADD COLUMN agent_id INTEGER`);
+            // Index after the column exists (safe on existing DBs)
+            db!.exec(`CREATE INDEX IF NOT EXISTS idx_draft_agent ON content_draft(agent_id)`);
+            this.save();
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration agent columns: ${err.message}`);
+        }
+
+        // ─── Migration: post_schedule → 1 default posting_agent per account ──────
+        // Runs once: only when posting_agent is empty but legacy post_schedule rows exist.
+        try {
+            const agentCount = this.query<any>(`SELECT COUNT(*) AS n FROM posting_agent`)[0]?.n ?? 0;
+            const schedRows = this.query<any>(`SELECT * FROM post_schedule`);
+            if (agentCount === 0 && schedRows.length > 0) {
+                const firstAssistant = this.query<any>(`SELECT id FROM ai_assistants WHERE enabled=1 ORDER BY is_default DESC, id ASC LIMIT 1`)[0]?.id ?? '';
+                const now = Date.now();
+                this.transaction(() => {
+                    for (const s of schedRows) {
+                        const owner = s.owner_zalo_id;
+                        const agentId = this.runInsert(
+                            `INSERT INTO posting_agent (owner_zalo_id, name, assistant_id, enabled, approval_mode, image_mode, image_count, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+                            [owner, 'Agent mặc định', firstAssistant, s.enabled ?? 0, 'auto', 'auto', 2, now, now]
+                        );
+                        // schedule (carry window/posts_per_day as a daily rule)
+                        this.run(
+                            `INSERT INTO agent_schedule (agent_id, kind, window_start, window_end, posts_per_day, enabled) VALUES (?,?,?,?,?,?)`,
+                            [agentId, 'daily', s.window_start ?? '08:00', s.window_end ?? '21:00', s.posts_per_day ?? 1, 1]
+                        );
+                        // groups from JSON
+                        let gids: string[] = [];
+                        try { gids = JSON.parse(s.group_ids || '[]'); } catch {}
+                        gids.forEach((g, i) => this.run(`INSERT OR IGNORE INTO agent_group (agent_id, group_id, position) VALUES (?,?,?)`, [agentId, g, i]));
+                        // link ALL pillars of this account
+                        const pillars = this.query<any>(`SELECT id FROM content_pillar WHERE owner_zalo_id=?`, [owner]);
+                        pillars.forEach((p: any) => this.run(`INSERT OR IGNORE INTO agent_pillar (agent_id, pillar_id) VALUES (?,?)`, [agentId, p.id]));
+                        // backfill drafts + logs for this account
+                        this.run(`UPDATE content_draft SET agent_id=? WHERE owner_zalo_id=? AND agent_id IS NULL`, [agentId, owner]);
+                        this.run(`UPDATE post_log SET agent_id=? WHERE owner_zalo_id=? AND agent_id IS NULL`, [agentId, owner]);
+                    }
+                    // Disable legacy schedules so the old scheduler never double-posts.
+                    this.run(`UPDATE post_schedule SET enabled=0`);
+                });
+                this.save();
+                Logger.log(`[DatabaseService] ✅ Migration: created default posting_agent for ${schedRows.length} account(s)`);
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration post_schedule→agent: ${err.message}`);
         }
 
         // ─── Migration: copy fb_* data → unified tables (Phase B3) ─────────────
@@ -7292,14 +7438,14 @@ class DatabaseService {
             const now = Date.now();
             if (pillar.id) {
                 this.run(
-                    `UPDATE content_pillar SET name=?, description=?, prompt_template=?, tone=?, enabled=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                    [pillar.name, pillar.description ?? '', pillar.prompt_template ?? '', pillar.tone ?? '', pillar.enabled ?? 1, now, pillar.id, pillar.owner_zalo_id]
+                    `UPDATE content_pillar SET name=?, description=?, prompt_template=?, tone=?, enabled=?, assistant_id=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                    [pillar.name, pillar.description ?? '', pillar.prompt_template ?? '', pillar.tone ?? '', pillar.enabled ?? 1, pillar.assistant_id ?? '', now, pillar.id, pillar.owner_zalo_id]
                 );
                 return pillar.id;
             } else {
                 return this.runInsert(
-                    `INSERT INTO content_pillar (owner_zalo_id, name, description, prompt_template, tone, enabled, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
-                    [pillar.owner_zalo_id, pillar.name, pillar.description ?? '', pillar.prompt_template ?? '', pillar.tone ?? '', pillar.enabled ?? 1, now, now]
+                    `INSERT INTO content_pillar (owner_zalo_id, name, description, prompt_template, tone, enabled, assistant_id, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+                    [pillar.owner_zalo_id, pillar.name, pillar.description ?? '', pillar.prompt_template ?? '', pillar.tone ?? '', pillar.enabled ?? 1, pillar.assistant_id ?? '', now, now]
                 );
             }
         } catch (err: any) { Logger.error(`[DB] saveContentPillar: ${err.message}`); return 0; }
@@ -7312,13 +7458,13 @@ class DatabaseService {
     }
 
     /** Content Drafts */
-    public getContentDrafts(zaloId: string, status?: DraftApprovalStatus): ContentDraft[] {
+    public getContentDrafts(zaloId: string, status?: DraftApprovalStatus, agentId?: number): ContentDraft[] {
         if (!this.initialized) return [];
         try {
-            if (status) {
-                return this.query<any>(`SELECT * FROM content_draft WHERE owner_zalo_id=? AND approval_status=? ORDER BY updated_at DESC`, [zaloId, status]);
-            }
-            return this.query<any>(`SELECT * FROM content_draft WHERE owner_zalo_id=? ORDER BY updated_at DESC`, [zaloId]);
+            const where = ['owner_zalo_id=?']; const params: any[] = [zaloId];
+            if (status)   { where.push('approval_status=?'); params.push(status); }
+            if (agentId)  { where.push('agent_id=?');        params.push(agentId); }
+            return this.query<any>(`SELECT * FROM content_draft WHERE ${where.join(' AND ')} ORDER BY updated_at DESC`, params);
         } catch (err: any) { Logger.error(`[DB] getContentDrafts: ${err.message}`); return []; }
     }
 
@@ -7336,14 +7482,14 @@ class DatabaseService {
             const now = Date.now();
             if (draft.id) {
                 this.run(
-                    `UPDATE content_draft SET pillar_id=?, text=?, image_asset_id=?, approval_status=?, source=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                    [draft.pillar_id ?? null, draft.text, draft.image_asset_id ?? null, draft.approval_status, draft.source, now, draft.id, draft.owner_zalo_id]
+                    `UPDATE content_draft SET pillar_id=?, agent_id=?, text=?, image_asset_id=?, approval_status=?, source=?, scheduled_at=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                    [draft.pillar_id ?? null, draft.agent_id ?? null, draft.text, draft.image_asset_id ?? null, draft.approval_status, draft.source, draft.scheduled_at ?? null, now, draft.id, draft.owner_zalo_id]
                 );
                 return draft.id;
             } else {
                 return this.runInsert(
-                    `INSERT INTO content_draft (owner_zalo_id, pillar_id, text, image_asset_id, approval_status, source, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
-                    [draft.owner_zalo_id, draft.pillar_id ?? null, draft.text, draft.image_asset_id ?? null, draft.approval_status || 'pending', draft.source || 'ai', now, now]
+                    `INSERT INTO content_draft (owner_zalo_id, pillar_id, agent_id, text, image_asset_id, approval_status, source, scheduled_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                    [draft.owner_zalo_id, draft.pillar_id ?? null, draft.agent_id ?? null, draft.text, draft.image_asset_id ?? null, draft.approval_status || 'pending', draft.source || 'ai', draft.scheduled_at ?? null, now, now]
                 );
             }
         } catch (err: any) { Logger.error(`[DB] saveContentDraft: ${err.message}`); return 0; }
@@ -7437,6 +7583,19 @@ class DatabaseService {
         } catch (err: any) { Logger.error(`[DB] savePostSchedule: ${err.message}`); return 0; }
     }
 
+    /**
+     * Remove duplicate post_schedule rows, keeping only the newest (max id) per account.
+     * Pre-existing duplicates (from before the upsert dedupe) can make getPostSchedule
+     * and resumeActiveSchedules read different rows → bot appears enabled but never runs.
+     */
+    public dedupePostSchedules(): void {
+        if (!this.initialized) return;
+        try {
+            this.run(`DELETE FROM post_schedule WHERE id NOT IN (SELECT MAX(id) FROM post_schedule GROUP BY owner_zalo_id)`);
+            this.save();
+        } catch (err: any) { Logger.error(`[DB] dedupePostSchedules: ${err.message}`); }
+    }
+
     public setScheduleEnabled(zaloId: string, id: number, enabled: number): void {
         if (!this.initialized) return;
         try { this.run(`UPDATE post_schedule SET enabled=?, updated_at=? WHERE id=? AND owner_zalo_id=?`, [enabled, Date.now(), id, zaloId]); }
@@ -7448,32 +7607,188 @@ class DatabaseService {
         if (!this.initialized) return 0;
         try {
             return this.runInsert(
-                `INSERT INTO post_log (owner_zalo_id, draft_id, group_id, status, error, posted_at) VALUES (?,?,?,?,?,?)`,
-                [log.owner_zalo_id, log.draft_id ?? null, log.group_id, log.status, log.error ?? null, log.posted_at || Date.now()]
+                `INSERT INTO post_log (owner_zalo_id, agent_id, draft_id, group_id, status, error, posted_at) VALUES (?,?,?,?,?,?,?)`,
+                [log.owner_zalo_id, log.agent_id ?? null, log.draft_id ?? null, log.group_id, log.status, log.error ?? null, log.posted_at || Date.now()]
             );
         } catch (err: any) { Logger.error(`[DB] addPostLog: ${err.message}`); return 0; }
     }
 
-    public getPostLog(zaloId: string, limit = 100): PostLog[] {
+    public getPostLog(zaloId: string, limit = 100, agentId?: number): PostLog[] {
         if (!this.initialized) return [];
         try {
+            if (agentId) return this.query<any>(`SELECT * FROM post_log WHERE owner_zalo_id=? AND agent_id=? ORDER BY posted_at DESC LIMIT ?`, [zaloId, agentId, limit]);
             return this.query<any>(`SELECT * FROM post_log WHERE owner_zalo_id=? ORDER BY posted_at DESC LIMIT ?`, [zaloId, limit]);
         } catch (err: any) { Logger.error(`[DB] getPostLog: ${err.message}`); return []; }
     }
 
-    /** Count posts already sent today for a given group (used by scheduler to enforce posts_per_day) */
-    public countPostsToday(zaloId: string, groupId: string): number {
+    /**
+     * Count posts already sent today for a given group.
+     * Scoped by agentId so each agent enforces its own posts_per_day budget — two agents
+     * on the same account targeting the same group keep independent counters (no shared-counter
+     * race, no cross-agent starvation). Omit agentId for the legacy account-level count.
+     */
+    public countPostsToday(zaloId: string, groupId: string, agentId?: number): number {
         if (!this.initialized) return 0;
         try {
             const todayStart = new Date();
             todayStart.setHours(0, 0, 0, 0);
             const todayStartMs = todayStart.getTime();
-            const rows = this.query<any>(
-                `SELECT COUNT(*) as cnt FROM post_log WHERE owner_zalo_id=? AND group_id=? AND status='sent' AND posted_at >= ?`,
-                [zaloId, groupId, todayStartMs]
-            );
+            const where = ['owner_zalo_id=?', 'group_id=?', "status='sent'", 'posted_at >= ?'];
+            const params: any[] = [zaloId, groupId, todayStartMs];
+            if (agentId) { where.push('agent_id=?'); params.push(agentId); }
+            const rows = this.query<any>(`SELECT COUNT(*) as cnt FROM post_log WHERE ${where.join(' AND ')}`, params);
             return rows[0]?.cnt ?? 0;
         } catch (err: any) { Logger.error(`[DB] countPostsToday: ${err.message}`); return 0; }
+    }
+
+    // ─── Posting Agents CRUD ────────────────────────────────────────────────
+    public listPostingAgents(zaloId: string): PostingAgent[] {
+        if (!this.initialized) return [];
+        try { return this.query<any>(`SELECT * FROM posting_agent WHERE owner_zalo_id=? ORDER BY id ASC`, [zaloId]); }
+        catch (err: any) { Logger.error(`[DB] listPostingAgents: ${err.message}`); return []; }
+    }
+
+    public getPostingAgent(id: number): PostingAgent | null {
+        if (!this.initialized) return null;
+        try {
+            const a = this.query<any>(`SELECT * FROM posting_agent WHERE id=?`, [id])[0];
+            if (!a) return null;
+            a.pillar_ids      = this.query<any>(`SELECT pillar_id FROM agent_pillar WHERE agent_id=?`, [id]).map((r: any) => r.pillar_id);
+            a.group_ids       = this.query<any>(`SELECT group_id FROM agent_group WHERE agent_id=? ORDER BY position`, [id]).map((r: any) => r.group_id);
+            a.fixed_image_ids = this.query<any>(`SELECT image_asset_id FROM agent_image WHERE agent_id=? ORDER BY position`, [id]).map((r: any) => r.image_asset_id);
+            a.schedules       = this.query<any>(`SELECT * FROM agent_schedule WHERE agent_id=? ORDER BY id`, [id]);
+            return a;
+        } catch (err: any) { Logger.error(`[DB] getPostingAgent: ${err.message}`); return null; }
+    }
+
+    /** List all enabled agents across accounts (startup resume). */
+    public listEnabledAgents(): PostingAgent[] {
+        if (!this.initialized) return [];
+        try { return this.query<any>(`SELECT * FROM posting_agent WHERE enabled=1`); }
+        catch (err: any) { Logger.error(`[DB] listEnabledAgents: ${err.message}`); return []; }
+    }
+
+    /** Upsert agent + replace its pillar/group/image links. Schedules saved separately. */
+    public savePostingAgent(a: PostingAgent): number {
+        if (!this.initialized) return 0;
+        try {
+            const now = Date.now();
+            let id = a.id ?? 0;
+            this.transaction(() => {
+                if (a.id) {
+                    this.run(`UPDATE posting_agent SET name=?, assistant_id=?, enabled=?, approval_mode=?, image_mode=?, image_count=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        [a.name, a.assistant_id ?? '', a.enabled ?? 0, a.approval_mode || 'manual', a.image_mode || 'auto', a.image_count ?? 2, now, a.id, a.owner_zalo_id]);
+                } else {
+                    id = this.runInsert(`INSERT INTO posting_agent (owner_zalo_id, name, assistant_id, enabled, approval_mode, image_mode, image_count, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
+                        [a.owner_zalo_id, a.name, a.assistant_id ?? '', a.enabled ?? 0, a.approval_mode || 'manual', a.image_mode || 'auto', a.image_count ?? 2, now, now]);
+                }
+                // replace links
+                this.run(`DELETE FROM agent_pillar WHERE agent_id=?`, [id]);
+                (a.pillar_ids || []).forEach(p => this.run(`INSERT OR IGNORE INTO agent_pillar (agent_id, pillar_id) VALUES (?,?)`, [id, p]));
+                this.run(`DELETE FROM agent_group WHERE agent_id=?`, [id]);
+                (a.group_ids || []).forEach((g, i) => this.run(`INSERT OR IGNORE INTO agent_group (agent_id, group_id, position) VALUES (?,?,?)`, [id, g, i]));
+                this.run(`DELETE FROM agent_image WHERE agent_id=?`, [id]);
+                (a.fixed_image_ids || []).forEach((im, i) => this.run(`INSERT OR IGNORE INTO agent_image (agent_id, image_asset_id, position) VALUES (?,?,?)`, [id, im, i]));
+            });
+            return id;
+        } catch (err: any) { Logger.error(`[DB] savePostingAgent: ${err.message}`); return 0; }
+    }
+
+    public setAgentEnabled(id: number, enabled: number): void {
+        if (!this.initialized) return;
+        try { this.run(`UPDATE posting_agent SET enabled=?, updated_at=? WHERE id=?`, [enabled, Date.now(), id]); }
+        catch (err: any) { Logger.error(`[DB] setAgentEnabled: ${err.message}`); }
+    }
+
+    public deletePostingAgent(id: number): void {
+        if (!this.initialized) return;
+        try {
+            this.transaction(() => {
+                this.run(`DELETE FROM agent_pillar WHERE agent_id=?`, [id]);
+                this.run(`DELETE FROM agent_group WHERE agent_id=?`, [id]);
+                this.run(`DELETE FROM agent_image WHERE agent_id=?`, [id]);
+                this.run(`DELETE FROM agent_schedule WHERE agent_id=?`, [id]);
+                this.run(`DELETE FROM posting_agent WHERE id=?`, [id]);
+                // Unlink (don't delete) generated drafts + history so they aren't orphaned:
+                // drafts become unassigned ("không thuộc agent"), logs show as legacy.
+                this.run(`UPDATE content_draft SET agent_id=NULL WHERE agent_id=?`, [id]);
+                this.run(`UPDATE post_log SET agent_id=NULL WHERE agent_id=?`, [id]);
+            });
+        } catch (err: any) { Logger.error(`[DB] deletePostingAgent: ${err.message}`); }
+    }
+
+    /** Remove past one-off (kind='once') schedule rows that can never fire again. Keeps DB + calendar clean. */
+    public cleanupExpiredOnceSchedules(): number {
+        if (!this.initialized) return 0;
+        try {
+            const today = new Date();
+            const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const before = this.query<any>(`SELECT COUNT(*) AS n FROM agent_schedule WHERE kind='once' AND date<>'' AND date<?`, [todayIso])[0]?.n ?? 0;
+            if (before > 0) { this.run(`DELETE FROM agent_schedule WHERE kind='once' AND date<>'' AND date<?`, [todayIso]); this.save(); }
+            return before;
+        } catch (err: any) { Logger.error(`[DB] cleanupExpiredOnceSchedules: ${err.message}`); return 0; }
+    }
+
+    // ─── Agent Schedules CRUD ───────────────────────────────────────────────
+    public listAgentSchedules(agentId: number): AgentSchedule[] {
+        if (!this.initialized) return [];
+        try { return this.query<any>(`SELECT * FROM agent_schedule WHERE agent_id=? ORDER BY id`, [agentId]); }
+        catch (err: any) { Logger.error(`[DB] listAgentSchedules: ${err.message}`); return []; }
+    }
+
+    public saveAgentSchedule(s: AgentSchedule): number {
+        if (!this.initialized) return 0;
+        try {
+            if (s.id) {
+                this.run(`UPDATE agent_schedule SET kind=?, weekdays=?, month_days=?, date=?, time=?, window_start=?, window_end=?, posts_per_day=?, enabled=? WHERE id=?`,
+                    [s.kind, s.weekdays ?? '', s.month_days ?? '', s.date ?? '', s.time ?? '', s.window_start, s.window_end, s.posts_per_day, s.enabled ?? 1, s.id]);
+                return s.id;
+            }
+            return this.runInsert(`INSERT INTO agent_schedule (agent_id, kind, weekdays, month_days, date, time, window_start, window_end, posts_per_day, enabled) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                [s.agent_id, s.kind, s.weekdays ?? '', s.month_days ?? '', s.date ?? '', s.time ?? '', s.window_start, s.window_end, s.posts_per_day, s.enabled ?? 1]);
+        } catch (err: any) { Logger.error(`[DB] saveAgentSchedule: ${err.message}`); return 0; }
+    }
+
+    /** Replace all schedule rules for an agent in one shot (used by the editor). */
+    public replaceAgentSchedules(agentId: number, rules: AgentSchedule[]): void {
+        if (!this.initialized) return;
+        try {
+            this.transaction(() => {
+                this.run(`DELETE FROM agent_schedule WHERE agent_id=?`, [agentId]);
+                rules.forEach(s => this.run(
+                    `INSERT INTO agent_schedule (agent_id, kind, weekdays, month_days, date, time, window_start, window_end, posts_per_day, enabled) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                    [agentId, s.kind, s.weekdays ?? '', s.month_days ?? '', s.date ?? '', s.time ?? '', s.window_start ?? '08:00', s.window_end ?? '21:00', s.posts_per_day ?? 1, s.enabled ?? 1]));
+            });
+        } catch (err: any) { Logger.error(`[DB] replaceAgentSchedules: ${err.message}`); }
+    }
+
+    public deleteAgentSchedule(id: number): void {
+        if (!this.initialized) return;
+        try { this.run(`DELETE FROM agent_schedule WHERE id=?`, [id]); }
+        catch (err: any) { Logger.error(`[DB] deleteAgentSchedule: ${err.message}`); }
+    }
+
+    /**
+     * Per-agent post stats: sent/failed counts.
+     * sinceMs filters by posted_at (>= sinceMs) so the UI's "hôm nay / 7 ngày / 30 ngày" period
+     * matches the numbers shown. Omit for all-time. Uses CASE WHEN (portable) not SUM(bool).
+     */
+    public getAgentStats(zaloId: string, agentId?: number, sinceMs?: number): Array<{ agent_id: number; sent: number; failed: number }> {
+        if (!this.initialized) return [];
+        try {
+            const where = ['owner_zalo_id=?'];
+            const params: any[] = [zaloId];
+            if (agentId) { where.push('agent_id=?'); params.push(agentId); }
+            else { where.push('agent_id IS NOT NULL'); }
+            if (sinceMs) { where.push('posted_at>=?'); params.push(sinceMs); }
+            return this.query<any>(
+                `SELECT agent_id,
+                        SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END) AS sent,
+                        SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed
+                 FROM post_log WHERE ${where.join(' AND ')} GROUP BY agent_id`,
+                params,
+            );
+        } catch (err: any) { Logger.error(`[DB] getAgentStats: ${err.message}`); return []; }
     }
 }
 

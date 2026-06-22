@@ -12,6 +12,7 @@ import { imageSize } from 'image-size';
 import DatabaseService from '../../src/services/database/DatabaseService';
 import FileStorageService from '../../src/services/file/FileStorageService';
 import PostingSchedulerService from '../../src/services/posting/posting-scheduler-service';
+import AgentSchedulerService from '../../src/services/posting/agent-scheduler-service';
 import ContentDraftGenerator from '../../src/services/posting/content-draft-generator';
 import AIAssistantService from '../../src/services/ai/AIAssistantService';
 import { generateImage } from '../../src/services/posting/posting-image-generator';
@@ -45,9 +46,9 @@ export function registerPostingIpc(): void {
 
     // ─── Content Drafts ───────────────────────────────────────────────────────
 
-    ipcMain.handle('posting:draft.generate', async (_e, { zaloId, pillarId, count }: { zaloId: string; pillarId: number; count: number }) => {
+    ipcMain.handle('posting:draft.generate', async (_e, { zaloId, pillarId, count, agentId }: { zaloId: string; pillarId: number; count: number; agentId?: number }) => {
         try {
-            const ids = await ContentDraftGenerator.getInstance().generateDrafts(zaloId, pillarId, count ?? 1);
+            const ids = await ContentDraftGenerator.getInstance().generateDrafts(zaloId, pillarId, count ?? 1, { agentId: agentId ?? null });
             DatabaseService.getInstance().save();
             return { success: true, ids };
         } catch (e: any) {
@@ -56,9 +57,9 @@ export function registerPostingIpc(): void {
         }
     });
 
-    ipcMain.handle('posting:draft.list', async (_e, { zaloId, status }: { zaloId: string; status?: string }) => {
+    ipcMain.handle('posting:draft.list', async (_e, { zaloId, status, agentId }: { zaloId: string; status?: string; agentId?: number }) => {
         try {
-            const drafts = DatabaseService.getInstance().getContentDrafts(zaloId, status as any);
+            const drafts = DatabaseService.getInstance().getContentDrafts(zaloId, status as any, agentId);
             return { success: true, drafts };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
@@ -87,6 +88,14 @@ export function registerPostingIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
+    ipcMain.handle('posting:draft.delete', async (_e, { zaloId, id }: { zaloId: string; id: number }) => {
+        try {
+            DatabaseService.getInstance().deleteContentDraft(zaloId, id);
+            DatabaseService.getInstance().save();
+            return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
     // ─── Post Schedule ────────────────────────────────────────────────────────
 
     ipcMain.handle('posting:schedule.get', async (_e, { zaloId }: { zaloId: string }) => {
@@ -97,10 +106,21 @@ export function registerPostingIpc(): void {
 
     ipcMain.handle('posting:schedule.save', async (_e, { zaloId, schedule }: { zaloId: string; schedule: any }) => {
         try {
-            const id = DatabaseService.getInstance().savePostSchedule({ ...schedule, owner_zalo_id: zaloId });
-            DatabaseService.getInstance().save();
+            const db = DatabaseService.getInstance();
+            // Preserve the enabled flag from DB — the "Lưu cài đặt" button must NOT flip
+            // on/off (that is the toggle's job). This prevents stale UI state from
+            // silently disabling the bot. First save (no existing row) uses payload value.
+            const existing = db.getPostSchedule(zaloId);
+            const effectiveEnabled = existing ? existing.enabled : (schedule.enabled ?? 0);
+            const id = db.savePostSchedule({ ...schedule, owner_zalo_id: zaloId, enabled: effectiveEnabled });
+            db.save();
+            // Reconcile the in-memory scheduler with the persisted enabled flag so the
+            // running timer always matches DB state (self-healing after restarts/saves).
+            const scheduler = PostingSchedulerService.getInstance();
+            if (effectiveEnabled) scheduler.startForAccount(zaloId);
+            else scheduler.stopForAccount(zaloId);
             // Reset cached daily plan so next tick rebuilds with the new window/posts_per_day
-            PostingSchedulerService.getInstance().resetPlan(zaloId);
+            scheduler.resetPlan(zaloId);
             return { success: true, id };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
@@ -158,9 +178,140 @@ export function registerPostingIpc(): void {
 
     // ─── Post Log ─────────────────────────────────────────────────────────────
 
-    ipcMain.handle('posting:log.list', async (_e, { zaloId, limit }: { zaloId: string; limit?: number }) => {
+    ipcMain.handle('posting:log.list', async (_e, { zaloId, limit, agentId }: { zaloId: string; limit?: number; agentId?: number }) => {
         try {
-            return { success: true, logs: DatabaseService.getInstance().getPostLog(zaloId, limit ?? 100) };
+            return { success: true, logs: DatabaseService.getInstance().getPostLog(zaloId, limit ?? 100, agentId) };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    // ─── Posting Agents (agent-centric module) ──────────────────────────────────
+
+    ipcMain.handle('posting:agent.list', async (_e, { zaloId }: { zaloId: string }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const sched = AgentSchedulerService.getInstance();
+            // group_id → display name map (resolve once)
+            const gmap = new Map<string, string>();
+            db.query<any>(`SELECT contact_id, display_name FROM contacts WHERE owner_zalo_id=? AND contact_type='group'`, [zaloId])
+                .forEach((r: any) => gmap.set(r.contact_id, r.display_name || r.contact_id));
+            const agents = db.listPostingAgents(zaloId).map(a => {
+                const full = db.getPostingAgent(a.id!)!;
+                return { ...full, status: sched.getStatus(a.id!), groupNames: (full.group_ids || []).map(g => gmap.get(g) || g) };
+            });
+            return { success: true, agents };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('posting:agent.get', async (_e, { id }: { id: number }) => {
+        try { return { success: true, agent: DatabaseService.getInstance().getPostingAgent(id) }; }
+        catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('posting:agent.save', async (_e, { zaloId, agent }: { zaloId: string; agent: any }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const id = db.savePostingAgent({ ...agent, owner_zalo_id: zaloId });
+            if (Array.isArray(agent.schedules)) db.replaceAgentSchedules(id, agent.schedules);
+            db.save();
+            const sched = AgentSchedulerService.getInstance();
+            if (agent.enabled) sched.startForAgent(id); else sched.stopForAgent(id);
+            sched.resetPlan(id);
+            return { success: true, id };
+        } catch (e: any) { Logger.error(`[postingIpc] agent.save: ${e.message}`); return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('posting:agent.enable', async (_e, { id, enabled }: { id: number; enabled: boolean }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            db.setAgentEnabled(id, enabled ? 1 : 0); db.save();
+            const sched = AgentSchedulerService.getInstance();
+            if (enabled) { sched.startForAgent(id); sched.resetPlan(id); } else sched.stopForAgent(id);
+            return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('posting:agent.delete', async (_e, { id }: { id: number }) => {
+        try {
+            AgentSchedulerService.getInstance().stopForAgent(id);
+            DatabaseService.getInstance().deletePostingAgent(id);
+            DatabaseService.getInstance().save();
+            return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('posting:agent.status', async (_e, { id }: { id: number }) => {
+        try { return { success: true, status: AgentSchedulerService.getInstance().getStatus(id) }; }
+        catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('posting:agent.postNow', async (_e, { agentId, draftId }: { agentId: number; draftId?: number }) => {
+        try { const r = await AgentSchedulerService.getInstance().postNow(agentId, draftId); return { success: true, ...r }; }
+        catch (e: any) { Logger.error(`[postingIpc] agent.postNow: ${e.message}`); return { success: false, ok: false, error: e.message }; }
+    });
+
+    // Calendar one-off entries (kind='once') across the account's agents for a month
+    ipcMain.handle('posting:calendar.list', async (_e, { zaloId, ym }: { zaloId: string; ym: string }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const rows = db.query<any>(
+                `SELECT s.*, a.name AS agent_name FROM agent_schedule s JOIN posting_agent a ON a.id=s.agent_id
+                 WHERE a.owner_zalo_id=? AND s.kind='once' AND s.date LIKE ? ORDER BY s.date, s.time`,
+                [zaloId, `${ym}%`],
+            );
+            return { success: true, entries: rows };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    // Add a one-off (kind='once') calendar entry for an agent on a specific date+time
+    ipcMain.handle('posting:calendar.add', async (_e, { agentId, date, time }: { agentId: number; date: string; time: string }) => {
+        try {
+            if (!agentId || !date || !time) return { success: false, error: 'Thiếu agent, ngày hoặc giờ' };
+            const id = DatabaseService.getInstance().saveAgentSchedule({
+                agent_id: agentId, kind: 'once', date, time,
+                window_start: time, window_end: time, posts_per_day: 1, enabled: 1,
+            } as any);
+            DatabaseService.getInstance().save();
+            AgentSchedulerService.getInstance().resetPlan(agentId); // pick up the new slot today
+            return { success: true, id };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    // Delete a one-off calendar entry (or any agent_schedule rule) by id
+    ipcMain.handle('posting:calendar.delete', async (_e, { id, agentId }: { id: number; agentId?: number }) => {
+        try {
+            DatabaseService.getInstance().deleteAgentSchedule(id);
+            DatabaseService.getInstance().save();
+            if (agentId) AgentSchedulerService.getInstance().resetPlan(agentId);
+            return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    // Post history for a month (calendar) — joined with agent + group names + draft preview
+    ipcMain.handle('posting:log.month', async (_e, { zaloId, ym }: { zaloId: string; ym: string }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const start = new Date(`${ym}-01T00:00:00`).getTime();
+            const end = new Date(new Date(start).getFullYear(), new Date(start).getMonth() + 1, 1).getTime();
+            const rows = db.query<any>(
+                `SELECT l.posted_at, l.status, l.group_id, l.agent_id, l.draft_id,
+                        a.name AS agent_name, c.display_name AS group_name, substr(d.text,1,60) AS draft_text
+                 FROM post_log l
+                 LEFT JOIN posting_agent a ON a.id=l.agent_id
+                 LEFT JOIN contacts c ON c.contact_id=l.group_id AND c.owner_zalo_id=l.owner_zalo_id
+                 LEFT JOIN content_draft d ON d.id=l.draft_id
+                 WHERE l.owner_zalo_id=? AND l.posted_at>=? AND l.posted_at<? ORDER BY l.posted_at DESC`,
+                [zaloId, start, end],
+            );
+            return { success: true, logs: rows };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('posting:stats', async (_e, { zaloId, agentId, sinceMs }: { zaloId: string; agentId?: number; sinceMs?: number }) => {
+        try {
+            const db = DatabaseService.getInstance();
+            const stats = db.getAgentStats(zaloId, agentId, sinceMs);
+            const names = Object.fromEntries(db.listPostingAgents(zaloId).map(a => [a.id, a.name]));
+            return { success: true, stats: stats.map(s => ({ ...s, name: names[s.agent_id] || `#${s.agent_id}` })) };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
@@ -170,6 +321,18 @@ export function registerPostingIpc(): void {
         try {
             return { success: true, status: PostingSchedulerService.getInstance().getStatus(zaloId) };
         } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    // Post the oldest approved draft to all selected groups RIGHT NOW (test button),
+    // bypassing the schedule window. Returns counts + per-group results.
+    ipcMain.handle('posting:test.postNow', async (_e, { zaloId, draftId }: { zaloId: string; draftId?: number }) => {
+        try {
+            const r = await PostingSchedulerService.getInstance().postNow(zaloId, draftId);
+            return { success: true, ...r };
+        } catch (e: any) {
+            Logger.error(`[postingIpc] test.postNow: ${e.message}`);
+            return { success: false, ok: false, error: e.message };
+        }
     });
 
     // ─── Image Library ────────────────────────────────────────────────────────

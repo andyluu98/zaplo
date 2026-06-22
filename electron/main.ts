@@ -836,8 +836,13 @@ app.whenReady().then(async () => {
   }), 3000);
   // Resume any active CRM campaigns after restart
   setTimeout(() => CRMQueueService.getInstance().resumeActiveCampaigns(), 3000);
-  // Resume enabled posting bot schedules after restart
+  // Resume enabled posting bot schedules after restart (legacy single-schedule)
   setTimeout(() => PostingSchedulerService.getInstance().resumeActiveSchedules(), 3500);
+  // Resume enabled posting AGENTS after restart (agent-centric module)
+  setTimeout(() => {
+    try { require('../src/services/posting/agent-scheduler-service').default.getInstance().resumeActiveAgents(); }
+    catch (err: any) { console.error('[main] resumeActiveAgents error:', err.message); }
+  }, 3800);
   // Initialize ERP Calendar reminders scheduler
   setTimeout(() => {
     try {

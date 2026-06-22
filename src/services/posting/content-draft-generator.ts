@@ -25,18 +25,26 @@ class ContentDraftGenerator {
      *
      * @throws if no AI assistant is available or pillar not found
      */
-    public async generateDrafts(zaloId: string, pillarId: number, count: number): Promise<number[]> {
+    public async generateDrafts(
+        zaloId: string,
+        pillarId: number,
+        count: number,
+        opts?: { agentId?: number | null; agentAssistantId?: string | null; approve?: boolean },
+    ): Promise<number[]> {
         const db = DatabaseService.getInstance();
         const ai = AIAssistantService.getInstance();
 
         const pillar = db.getContentPillar(zaloId, pillarId);
         if (!pillar) throw new Error(`Pillar ${pillarId} not found for account ${zaloId}`);
 
-        // Resolve assistant: pillar may not have a direct binding — use default
-        // (The data model doesn't store assistant_id on the pillar row, so always fall back to default)
-        const assistant = ai.getDefaultAssistant();
+        // Resolve assistant: pillar's assistant → agent's assistant → default.
+        const assistant =
+            (pillar.assistant_id ? ai.getAssistant(pillar.assistant_id) : null) ||
+            (opts?.agentAssistantId ? ai.getAssistant(opts.agentAssistantId) : null) ||
+            ai.getDefaultAssistant();
         if (!assistant) throw new Error('Không có trợ lý AI nào khả dụng. Vui lòng thêm và bật ít nhất 1 trợ lý AI.');
         if (!assistant.enabled) throw new Error(`Trợ lý AI "${assistant.name}" đã bị tắt`);
+        Logger.log(`[DraftGenerator] pillar ${pillarId} agent ${opts?.agentId ?? '-'} using assistant "${assistant.name}" (${assistant.id})`);
 
         const prompt = buildPillarPrompt(pillar);
         const savedIds: number[] = [];
@@ -51,9 +59,10 @@ class ContentDraftGenerator {
                 const id = db.saveContentDraft({
                     owner_zalo_id: zaloId,
                     pillar_id: pillarId,
+                    agent_id: opts?.agentId ?? null,
                     text: result.trim(),
                     image_asset_id: null,
-                    approval_status: 'pending',
+                    approval_status: opts?.approve ? 'approved' : 'pending',
                     source: 'ai',
                 });
                 if (id) savedIds.push(id);

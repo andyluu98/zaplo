@@ -56,7 +56,7 @@ export default function ScheduleTab({ zaloId }: { zaloId: string }) {
 
   // Local form state (derived from store on load)
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [postsPerDay, setPostsPerDay] = useState<1 | 2 | 3>(1);
+  const [postsPerDay, setPostsPerDay] = useState<number>(1);
   const [windowStart, setWindowStart] = useState('08:00');
   const [windowEnd, setWindowEnd] = useState('21:00');
   const [enabled, setEnabled] = useState(false);
@@ -68,7 +68,7 @@ export default function ScheduleTab({ zaloId }: { zaloId: string }) {
   const applySchedule = useCallback((s: PostSchedule | null) => {
     const src = s ?? { ...DEFAULT_SCHEDULE, owner_zalo_id: zaloId };
     setSelectedIds(parseGroupIds(src.group_ids));
-    setPostsPerDay((Math.min(3, Math.max(1, src.posts_per_day)) as 1 | 2 | 3));
+    setPostsPerDay(Math.min(12, Math.max(1, src.posts_per_day)));
     setWindowStart(src.window_start ?? '08:00');
     setWindowEnd(src.window_end ?? '21:00');
     setEnabled(src.enabled === 1);
@@ -113,7 +113,7 @@ export default function ScheduleTab({ zaloId }: { zaloId: string }) {
   };
 
   const handleSave = async () => {
-    if (timeError || saving) return;
+    if (timeError || saving || loadingSchedule) return;
     setSaving(true);
     try {
       const payload: PostSchedule = {
@@ -185,8 +185,8 @@ export default function ScheduleTab({ zaloId }: { zaloId: string }) {
             {/* Posts per day */}
             <div>
               <label className="block text-xs text-gray-400 mb-2">Số bài mỗi ngày / nhóm</label>
-              <div className="flex gap-2">
-                {([1, 2, 3] as const).map(n => (
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 3, 4, 6, 8, 12].map(n => (
                   <button key={n} type="button" onClick={() => setPostsPerDay(n)}
                     className={`w-10 h-10 rounded-xl text-sm font-semibold transition-colors ${postsPerDay === n ? 'bg-blue-600 text-white' : 'bg-gray-800 border border-gray-600 text-gray-300 hover:border-gray-400'}`}>
                     {n}

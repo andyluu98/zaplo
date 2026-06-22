@@ -19,6 +19,10 @@ import FileStorageService from '../file/FileStorageService';
 import Logger from '../../utils/Logger';
 import { ThreadType } from 'zca-js';
 
+// Upper bound on posts/day per group (UI offers presets up to this). Bumped from 3
+// so the bot can post multiple times/day spread across the window.
+export const MAX_POSTS_PER_DAY = 12;
+
 // ─── Pure helper — independently testable ────────────────────────────────────
 
 /**
@@ -50,7 +54,7 @@ export function planDailySlots(
 
     if (endMs <= startMs) return [];
 
-    const count = Math.max(1, Math.min(3, postsPerDay));
+    const count = Math.max(1, Math.min(MAX_POSTS_PER_DAY, postsPerDay));
     const slots: number[] = [];
 
     for (let i = 0; i < count; i++) {
@@ -109,7 +113,7 @@ class PostingSchedulerService {
         }
         const timer = setInterval(() => this.tick(zaloId), this.CHECK_INTERVAL_MS);
         this.timers.set(zaloId, timer);
-        EventBroadcaster.emit('postingBot:update', { zaloId, type: 'started', running: true });
+        EventBroadcaster.emit('postingBot:update', { zaloId, type: 'started', ...this.buildStatus(zaloId) });
     }
 
     /**
@@ -137,26 +141,45 @@ class PostingSchedulerService {
         this.planDay.delete(zaloId);
         this.planDayExhausted.delete(zaloId);
         Logger.log(`[PostingScheduler] Stopped for ${zaloId}`);
-        EventBroadcaster.emit('postingBot:update', {
-            zaloId, type: 'stopped', running: false,
-        });
+        EventBroadcaster.emit('postingBot:update', { zaloId, type: 'stopped', ...this.buildStatus(zaloId) });
     }
 
-    public getStatus(zaloId: string): { running: boolean; tokens: number; maxTokens: number; lastSentAt: number } {
+    /**
+     * Build the full status snapshot the UI consumes (seed + realtime events).
+     * Includes nextRunAt (next planned slot) and pendingDrafts (approved count)
+     * so the user can see WHY nothing posts even when the bot is "Đang chạy".
+     */
+    private buildStatus(zaloId: string) {
+        const slots = this.dailySlots.get(zaloId) ?? [];
+        const lastSentAt = this.lastSentAt.get(zaloId) ?? 0;
+        let pendingDrafts = 0;
+        try { pendingDrafts = DatabaseService.getInstance().getContentDrafts(zaloId, 'approved').length; } catch {}
         return {
             running:    this.timers.has(zaloId),
             tokens:     this.tokens.get(zaloId) ?? this.MAX_TOKENS,
             maxTokens:  this.MAX_TOKENS,
-            lastSentAt: this.lastSentAt.get(zaloId) ?? 0,
+            lastSentAt,
+            lastRunAt:  lastSentAt || null,
+            nextRunAt:  slots.length > 0 ? slots[0] : null,
+            pendingDrafts,
         };
+    }
+
+    public getStatus(zaloId: string) {
+        return this.buildStatus(zaloId);
     }
 
     /** Resume enabled schedules at app startup (mirrors resumeActiveCampaigns) */
     public resumeActiveSchedules(): void {
         try {
             const db = DatabaseService.getInstance();
-            // Find all accounts that have an enabled schedule
-            const rows = db.query<any>(`SELECT DISTINCT owner_zalo_id FROM post_schedule WHERE enabled=1`);
+            // Clean up any pre-existing duplicate schedule rows first so the enabled
+            // flag read here matches the row getPostSchedule returns to the UI.
+            db.dedupePostSchedules();
+            // Find accounts with an enabled legacy schedule, EXCLUDING those already
+            // migrated to the agent-centric system (posting_agent owns them now) —
+            // prevents double-posting (legacy + agent both firing).
+            const rows = db.query<any>(`SELECT DISTINCT owner_zalo_id FROM post_schedule WHERE enabled=1 AND owner_zalo_id NOT IN (SELECT DISTINCT owner_zalo_id FROM posting_agent)`);
             for (const row of rows) {
                 Logger.log(`[PostingScheduler] Resuming for ${row.owner_zalo_id}`);
                 this.startForAccount(row.owner_zalo_id);
@@ -234,7 +257,8 @@ class PostingSchedulerService {
 
         const db = DatabaseService.getInstance();
         const schedule = db.getPostSchedule(zaloId);
-        if (!schedule || !schedule.enabled) return;
+        if (!schedule) { Logger.warn(`[PostingScheduler] ${zaloId}: no schedule row in DB — nothing to post`); return; }
+        if (!schedule.enabled) { Logger.warn(`[PostingScheduler] ${zaloId}: schedule disabled (enabled=0) — bot will not post`); return; }
 
         this.ensureDailyPlan(zaloId, schedule);
         this.refillTokens(zaloId);
@@ -266,12 +290,18 @@ class PostingSchedulerService {
         const drafts = db.getContentDrafts(zaloId, 'approved');
         // getContentDrafts returns ORDER BY updated_at DESC — take oldest (last element)
         const draft = drafts.length > 0 ? drafts[drafts.length - 1] : null;
-        if (!draft || !draft.id) return; // no draft available — slot stays (retry next tick)
+        if (!draft || !draft.id) {
+            Logger.warn(`[PostingScheduler] ${zaloId}: no approved draft available — slot deferred. Duyệt thêm bài ở tab "Duyệt bài".`);
+            return; // no draft available — slot stays (retry next tick)
+        }
 
         // Parse group IDs BEFORE consuming slot
         let groupIds: string[] = [];
         try { groupIds = JSON.parse(schedule.group_ids); } catch {}
-        if (!Array.isArray(groupIds) || groupIds.length === 0) return;
+        if (!Array.isArray(groupIds) || groupIds.length === 0) {
+            Logger.warn(`[PostingScheduler] ${zaloId}: no target groups selected (group_ids empty/invalid) — nothing to post`);
+            return;
+        }
 
         // All preconditions met — NOW consume the slot
         slots.shift();
@@ -279,21 +309,10 @@ class PostingSchedulerService {
 
         this.isProcessing.set(zaloId, true);
         try {
-            const hardCap = Math.min(schedule.posts_per_day, 3);
+            const hardCap = Math.min(schedule.posts_per_day, MAX_POSTS_PER_DAY);
 
-            // Resolve image path once (if draft has image_asset_id)
-            let absImagePath: string | null = null;
-            if (draft.image_asset_id) {
-                try {
-                    const assets = db.getImageAssets(zaloId);
-                    const asset = assets.find(a => a.id === draft.image_asset_id);
-                    if (asset?.rel_path) {
-                        absImagePath = FileStorageService.resolveAbsolutePath(asset.rel_path);
-                    }
-                } catch (imgErr: any) {
-                    Logger.warn(`[PostingScheduler] ${zaloId}: image resolve error: ${imgErr.message}`);
-                }
-            }
+            // Resolve images: draft's linked image, else auto-pick 2–3 random from library.
+            const absImagePaths = this.resolveImagePaths(zaloId, draft);
 
             let sentCount = 0;
 
@@ -321,7 +340,7 @@ class PostingSchedulerService {
                 }
 
                 // FIX I2: sendToGroup returns boolean success
-                const sent = await this.sendToGroup(zaloId, draft.id!, draft.text, groupId, absImagePath, conn.api);
+                const sent = await this.sendToGroup(zaloId, draft.id!, draft.text, groupId, absImagePaths, conn.api);
                 if (sent) sentCount++;
             }
 
@@ -341,9 +360,7 @@ class PostingSchedulerService {
                 type: 'slot_done',
                 draftId: draft.id,
                 sentCount,
-                tokens: this.tokens.get(zaloId) ?? 0,
-                maxTokens: this.MAX_TOKENS,
-                lastSentAt: this.lastSentAt.get(zaloId) ?? 0,
+                ...this.buildStatus(zaloId),
             });
 
         } catch (err: any) {
@@ -354,44 +371,102 @@ class PostingSchedulerService {
     }
 
     /**
-     * Send text (+ optional image) to one group and log the result.
-     * FIX I2: returns true if text was sent successfully, false on error.
-     * Image send failure is non-fatal (logged as warning, text still counts as sent).
+     * Resolve the image(s) to attach to a draft.
+     * Priority: the draft's explicitly-linked image → else auto-pick 2–3 random images
+     * from the account's library (user preference). Returns absolute file paths.
+     * Empty array = post text-only (library empty or no rel_path).
+     */
+    private resolveImagePaths(zaloId: string, draft: { id?: number; image_asset_id?: number | null }): string[] {
+        try {
+            const db = DatabaseService.getInstance();
+            const assets = db.getImageAssets(zaloId);
+            if (!assets.length) {
+                Logger.warn(`[PostingScheduler] ${zaloId}: Thư viện ảnh trống — đăng text-only. Thêm ảnh ở tab "Thư viện ảnh".`);
+                return [];
+            }
+
+            let chosen: typeof assets = [];
+            if (draft.image_asset_id) {
+                const linked = assets.find(a => a.id === draft.image_asset_id);
+                if (linked) chosen = [linked];
+            }
+            if (!chosen.length) {
+                // Auto-pick 2–3 random distinct images (or fewer if library is smaller)
+                const want = Math.min(assets.length, 2 + Math.floor(Math.random() * 2)); // 2 or 3
+                const pool = [...assets];
+                while (chosen.length < want && pool.length) {
+                    const i = Math.floor(Math.random() * pool.length);
+                    chosen.push(pool.splice(i, 1)[0]);
+                }
+                Logger.log(`[PostingScheduler] ${zaloId}: draft ${draft.id} auto-picked ${chosen.length} image(s) from library`);
+            }
+
+            return chosen
+                .map(a => (a.rel_path ? FileStorageService.resolveAbsolutePath(a.rel_path) : null))
+                .filter((p): p is string => !!p);
+        } catch (e: any) {
+            Logger.warn(`[PostingScheduler] ${zaloId}: image resolve error: ${e.message}`);
+            return [];
+        }
+    }
+
+    /**
+     * Send text + 0..N images to one group and log the result.
+     * Each image is sent as its own message (robust, matches the known-good single-image path).
+     * Returns true if the post was delivered (text and/or at least one image), false on error.
      */
     private async sendToGroup(
         zaloId: string,
         draftId: number,
         text: string,
         groupId: string,
-        absImagePath: string | null,
+        absImagePaths: string[],
         api: any,
     ): Promise<boolean> {
         const db = DatabaseService.getInstance();
+        const hasText = !!text?.trim();
+        if (!hasText && absImagePaths.length === 0) {
+            Logger.warn(`[PostingScheduler] ${zaloId} group ${groupId}: draft ${draftId} has no text and no image — skipped`);
+            return false;
+        }
         try {
-            // Send text
-            await api.sendMessage({ msg: text }, groupId, ThreadType.Group);
+            // Send text first (if any)
+            if (hasText) {
+                await api.sendMessage({ msg: text }, groupId, ThreadType.Group);
+            }
 
-            // Send image if available (mirrors CRMQueueService attachment pattern)
-            if (absImagePath) {
+            // Send each image as its own message (mirrors CRMQueueService attachment pattern)
+            let imagesSent = 0;
+            for (let i = 0; i < absImagePaths.length; i++) {
+                const imgPath = absImagePaths[i];
                 try {
-                    const buffer = fs.readFileSync(absImagePath);
-                    const baseName = path.basename(absImagePath);
+                    const buffer = fs.readFileSync(imgPath);
+                    const baseName = path.basename(imgPath);
                     const ext = path.extname(baseName) || '.jpg';
                     const safeFilename = (path.extname(baseName) ? baseName : `${baseName}${ext}`) as `${string}.${string}`;
                     let width = 0, height = 0;
                     try { const dim = imageSize(buffer); width = dim.width ?? 0; height = dim.height ?? 0; } catch {}
+                    // small gap between images to avoid rate limits
+                    if (i > 0 || hasText) await new Promise(r => setTimeout(r, 1200));
                     await api.sendMessage(
                         { msg: '', attachments: [{ data: buffer, filename: safeFilename, metadata: { totalSize: buffer.length, width, height } }] },
                         groupId,
                         ThreadType.Group,
                     );
+                    imagesSent++;
                 } catch (imgErr: any) {
-                    Logger.warn(`[PostingScheduler] ${zaloId} group ${groupId}: image send failed: ${imgErr.message}`);
+                    Logger.warn(`[PostingScheduler] ${zaloId} group ${groupId}: image send failed (${imgPath}): ${imgErr.message}`);
                 }
             }
 
+            // If the draft was image-only and every image failed, treat as failure
+            if (!hasText && imagesSent === 0) {
+                db.addPostLog({ owner_zalo_id: zaloId, draft_id: draftId, group_id: groupId, status: 'failed', error: 'all images failed', posted_at: Date.now() });
+                return false;
+            }
+
             db.addPostLog({ owner_zalo_id: zaloId, draft_id: draftId, group_id: groupId, status: 'sent', posted_at: Date.now() });
-            Logger.log(`[PostingScheduler] ${zaloId} group ${groupId}: sent draft ${draftId}`);
+            Logger.log(`[PostingScheduler] ${zaloId} group ${groupId}: sent draft ${draftId} (text=${hasText}, images=${imagesSent})`);
             return true;
 
         } catch (err: any) {
@@ -400,6 +475,64 @@ class PostingSchedulerService {
             db.addPostLog({ owner_zalo_id: zaloId, draft_id: draftId, group_id: groupId, status: 'failed', error: errMsg, posted_at: Date.now() });
             return false;
         }
+    }
+
+    /**
+     * Post the oldest approved draft to all selected groups IMMEDIATELY,
+     * bypassing the daily window/slot/token gates. For the "Đăng ngay" test button.
+     * Returns a per-group result so the UI can show exactly what happened.
+     */
+    public async postNow(zaloId: string, draftId?: number): Promise<{
+        ok: boolean; sentCount: number; total: number;
+        results: Array<{ group: string; ok: boolean }>; postedText?: string; error?: string;
+    }> {
+        const db = DatabaseService.getInstance();
+        const schedule = db.getPostSchedule(zaloId);
+        if (!schedule) return { ok: false, sentCount: 0, total: 0, results: [], error: 'Chưa có lịch đăng — chọn nhóm và bấm "Lưu cài đặt" trước.' };
+
+        let groupIds: string[] = [];
+        try { groupIds = JSON.parse(schedule.group_ids); } catch {}
+        if (!Array.isArray(groupIds) || groupIds.length === 0) {
+            return { ok: false, sentCount: 0, total: 0, results: [], error: 'Chưa chọn nhóm đăng bài nào.' };
+        }
+
+        // Post the EXPLICITLY chosen draft if a draftId is given (UI selection);
+        // otherwise fall back to the oldest approved draft (queue order).
+        let draft = null;
+        if (draftId) {
+            draft = db.getContentDraft(zaloId, draftId);
+            if (!draft || !draft.id) return { ok: false, sentCount: 0, total: groupIds.length, results: [], error: 'Không tìm thấy bài đã chọn.' };
+        } else {
+            const drafts = db.getContentDrafts(zaloId, 'approved');
+            draft = drafts.length > 0 ? drafts[drafts.length - 1] : null;
+            if (!draft || !draft.id) return { ok: false, sentCount: 0, total: groupIds.length, results: [], error: 'Không có bài "Đã duyệt" để đăng. Sinh bài và phê duyệt trước.' };
+        }
+
+        const conn = ConnectionManager.getConnection(zaloId);
+        if (!conn?.api) return { ok: false, sentCount: 0, total: groupIds.length, results: [], error: 'Tài khoản chưa kết nối Zalo — đăng nhập lại tài khoản rồi thử lại.' };
+
+        const absImagePaths = this.resolveImagePaths(zaloId, draft);
+        const results: Array<{ group: string; ok: boolean }> = [];
+        let sentCount = 0;
+        for (let gi = 0; gi < groupIds.length; gi++) {
+            if (gi > 0) await new Promise(r => setTimeout(r, 2000)); // gap between groups
+            const ok = await this.sendToGroup(zaloId, draft.id!, draft.text, groupIds[gi], absImagePaths, conn.api);
+            results.push({ group: groupIds[gi], ok });
+            if (ok) sentCount++;
+        }
+
+        if (sentCount > 0) db.updateDraftStatus(zaloId, draft.id!, 'posted');
+        this.lastSentAt.set(zaloId, Date.now());
+        EventBroadcaster.emit('postingBot:update', { zaloId, type: 'slot_done', draftId: draft.id, sentCount, ...this.buildStatus(zaloId) });
+
+        return {
+            ok: sentCount > 0,
+            sentCount,
+            total: groupIds.length,
+            results,
+            postedText: draft.text?.slice(0, 60),
+            error: sentCount > 0 ? undefined : 'Tất cả nhóm đều gửi thất bại — kiểm tra tài khoản còn là thành viên nhóm không.',
+        };
     }
 }
 

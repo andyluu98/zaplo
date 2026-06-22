@@ -59,4 +59,5 @@ export type { ErpRole, ErpPermissionAction, ErpPermissionOverrideMode, ErpPermis
 export type {
     ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog,
     DraftApprovalStatus, DraftSource, ImageAssetOrigin, PostLogStatus,
+    PostingAgent, AgentSchedule, AgentScheduleKind, AgentApprovalMode, AgentImageMode,
 } from './automation';

@@ -8,7 +8,7 @@ import type { ImageAsset } from '@/../../src/models/automation';
 
 // ─── Thumbnail tile ───────────────────────────────────────────────────────────
 
-function ImageTile({ asset, onDelete }: { asset: ImageAsset; onDelete: (a: ImageAsset) => void }) {
+function ImageTile({ asset, onDelete, onOpen }: { asset: ImageAsset; onDelete: (a: ImageAsset) => void; onOpen: (src: string) => void }) {
   const [errored, setErrored] = useState(false);
   const src = toLocalMediaUrl(asset.rel_path);
 
@@ -22,7 +22,8 @@ function ImageTile({ asset, onDelete }: { asset: ImageAsset; onDelete: (a: Image
         <img
           src={src}
           alt={asset.rel_path}
-          className="w-full h-full object-cover"
+          onClick={() => onOpen(src)}
+          className="w-full h-full object-cover cursor-zoom-in"
           onError={() => setErrored(true)}
           loading="lazy"
         />
@@ -62,6 +63,8 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
   const [uploading, setUploading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [originFilter, setOriginFilter] = useState<'all' | 'ai' | 'upload'>('all');
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   const fetchImages = useCallback(async () => {
     if (!zaloId) return;
@@ -147,6 +150,11 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
     }
   };
 
+  // Client-side filter by origin.
+  const filteredImages = originFilter === 'all'
+    ? imageLibrary
+    : imageLibrary.filter(a => a.origin === originFilter);
+
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
       {/* Toolbar */}
@@ -175,7 +183,8 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
       </div>
 
       {/* AI image generation row */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-700/60 flex-shrink-0">
+      <div className="px-4 py-2 border-b border-gray-700/60 flex-shrink-0">
+      <div className="flex items-center gap-2">
         <input
           type="text"
           value={aiPrompt}
@@ -206,6 +215,30 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
           )}
         </button>
       </div>
+        {/* AI key requirement note — image generation backend uses an OpenAI key */}
+        <p className="text-[11px] text-amber-500 mt-1.5">⚠ Cần trợ lý OpenAI đang bật (có API key) — cấu hình tại Tích hợp → Trợ lý AI.</p>
+      </div>
+
+      {/* Origin filter chips */}
+      <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-700/60 flex-shrink-0">
+        {([
+          { key: 'all', label: 'Tất cả' },
+          { key: 'ai', label: '🤖 AI' },
+          { key: 'upload', label: '⬆ Upload' },
+        ] as const).map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setOriginFilter(opt.key)}
+            className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+              originFilter === opt.key
+                ? 'bg-blue-600 text-white font-semibold'
+                : 'bg-gray-800 text-gray-400 hover:text-gray-200 border border-gray-700'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       <div className="flex-1 overflow-y-auto p-4">
         {loadingImages ? (
@@ -218,14 +251,33 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
             <p className="text-gray-400 text-sm">Thư viện ảnh trống</p>
             <p className="text-gray-600 text-xs">Tải ảnh lên để dùng cho bài đăng</p>
           </div>
+        ) : filteredImages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
+            <p className="text-gray-400 text-sm">Không có ảnh phù hợp bộ lọc</p>
+            <p className="text-gray-600 text-xs">Thử chọn "Tất cả" để xem mọi ảnh</p>
+          </div>
         ) : (
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {imageLibrary.map(asset => (
-              <ImageTile key={asset.id} asset={asset} onDelete={handleDelete} />
+            {filteredImages.map(asset => (
+              <ImageTile key={asset.id} asset={asset} onDelete={handleDelete} onOpen={setLightboxSrc} />
             ))}
           </div>
         )}
       </div>
+
+      {/* Lightbox overlay — click anywhere to close */}
+      {lightboxSrc && (
+        <div
+          onClick={() => setLightboxSrc(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-zoom-out p-6"
+        >
+          <img
+            src={lightboxSrc}
+            alt=""
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   );
 }
