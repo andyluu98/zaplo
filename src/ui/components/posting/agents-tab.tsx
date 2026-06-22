@@ -176,6 +176,7 @@ export default function AgentsTab({ zaloId }: { zaloId: string }) {
                       {a.enabled ? <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-900/40 text-green-400">Đang chạy</span>
                         : <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900/40 text-amber-400">Tạm dừng</span>}
                       {/^agent mặc định$/i.test(a.name || '') && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-700 text-gray-400" title="Tạo tự động từ cấu hình cũ">tự chuyển từ bản cũ</span>}
+                      {st.lastError && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-900/40 text-red-400" title={st.lastError}>⚠ Lỗi lần cuối</span>}
                     </div>
                     <div className="text-xs text-gray-400 mt-1.5">🔑 {assistantLabel(a)} · 🧩 {(a.pillar_ids || []).length} chủ đề</div>
                     <div className="text-xs text-gray-400 mt-1">👥 {(a.groupNames || []).join(', ') || 'Chưa chọn nhóm'}</div>
@@ -187,6 +188,8 @@ export default function AgentsTab({ zaloId }: { zaloId: string }) {
                     </div>
                     {a.approval_mode === 'manual' && (st.approvedDrafts ?? 0) === 0 && a.enabled &&
                       <div className="mt-2 text-[11px] text-amber-400 bg-amber-900/10 border border-amber-700/30 rounded-lg px-2.5 py-1.5">Chưa có bài đã duyệt → chưa đăng được. Vào "Duyệt bài" để duyệt.</div>}
+                    {st.lastError &&
+                      <div className="mt-2 text-[11px] text-red-300 bg-red-900/10 border border-red-700/30 rounded-lg px-2.5 py-1.5">⚠ Lần đăng gần nhất lỗi: <b>{st.lastError}</b></div>}
                     <div className="flex flex-wrap gap-1.5 mt-2.5">
                       <button disabled={busy === a.id} className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-700/30 text-emerald-300 disabled:opacity-50" onClick={() => postNow(a)}>⚡ Đăng thử</button>
                       <button className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-gray-700 text-gray-300" onClick={() => setEditing({ open: true, id: a.id, cloneFrom: null })}>Sửa</button>

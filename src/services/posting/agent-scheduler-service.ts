@@ -29,6 +29,7 @@ class AgentSchedulerService {
     private lastRefillAt = new Map<number, number>();
     private slots        = new Map<number, ResolvedSlot[]>();
     private planDay      = new Map<number, string>();
+    private lastError    = new Map<number, string>();   // last runtime failure reason (cleared on success)
 
     public readonly MAX_TOKENS = 20;
     private readonly REFILL_MS = 3 * 60 * 1000;   // 1 token / 3 min → 20/hr
@@ -82,6 +83,7 @@ class AgentSchedulerService {
             tokens: this.tokens.get(agentId) ?? this.MAX_TOKENS, maxTokens: this.MAX_TOKENS,
             nextRunAt: s.length ? s[0].at : null, lastRunAt: last || null,
             pendingDrafts: pending, approvedDrafts: approved,
+            lastError: this.lastError.get(agentId) || null,
         };
     }
 
@@ -116,7 +118,7 @@ class AgentSchedulerService {
 
         const zaloId = agent.owner_zalo_id;
         const conn = ConnectionManager.getConnection(zaloId);
-        if (!conn?.api) { Logger.warn(`[AgentScheduler] agent ${agentId}: tài khoản chưa kết nối — hoãn`); return; }
+        if (!conn?.api) { this.lastError.set(agentId, 'Tài khoản Zalo chưa kết nối'); Logger.warn(`[AgentScheduler] agent ${agentId}: tài khoản chưa kết nối — hoãn`); return; }
 
         const groupIds = agent.group_ids || [];
         if (!groupIds.length) { Logger.warn(`[AgentScheduler] agent ${agentId}: chưa chọn nhóm`); return; }
@@ -146,13 +148,15 @@ class AgentSchedulerService {
                 if (await sendDraftToGroup(conn.api, { zaloId, agentId, draftId: draft.id!, text: draft.text, groupId, imagePaths })) sent++;
             }
 
-            if (sent > 0) db.updateDraftStatus(zaloId, draft.id!, 'posted');
+            if (sent > 0) { db.updateDraftStatus(zaloId, draft.id!, 'posted'); this.lastError.delete(agentId); }
+            else this.lastError.set(agentId, 'Tất cả nhóm gửi thất bại');
             if (slot.kind === 'once') db.deleteAgentSchedule(slot.scheduleId); // consume one-off
 
             this.tokens.set(agentId, Math.max(0, (this.tokens.get(agentId) ?? 1) - 1));
             this.lastSentAt.set(agentId, Date.now());
             EventBroadcaster.emit('postingBot:update', { agentId, type: 'slot_done', sentCount: sent, ...this.buildStatus(agentId) });
         } catch (err: any) {
+            this.lastError.set(agentId, err.message || 'Lỗi không xác định');
             Logger.error(`[AgentScheduler] agent ${agentId}: tick error: ${err.message}`);
         } finally {
             this.isProcessing.set(agentId, false);
@@ -192,7 +196,7 @@ class AgentSchedulerService {
             if (!draft) return { ok: false, sentCount: 0, total: groupIds.length, error: 'Không có bài để đăng (duyệt hoặc sinh bài trước)' };
         }
         const conn = ConnectionManager.getConnection(zaloId);
-        if (!conn?.api) return { ok: false, sentCount: 0, total: groupIds.length, error: 'Tài khoản chưa kết nối Zalo' };
+        if (!conn?.api) { this.lastError.set(agentId, 'Tài khoản Zalo chưa kết nối'); return { ok: false, sentCount: 0, total: groupIds.length, error: 'Tài khoản chưa kết nối Zalo' }; }
 
         const imagePaths = resolveAgentImagePaths(zaloId, agent, draft);
         let sent = 0;
@@ -200,7 +204,8 @@ class AgentSchedulerService {
             if (gi > 0) await new Promise(r => setTimeout(r, 2000));
             if (await sendDraftToGroup(conn.api, { zaloId, agentId, draftId: draft.id!, text: draft.text, groupId: groupIds[gi], imagePaths })) sent++;
         }
-        if (sent > 0) db.updateDraftStatus(zaloId, draft.id!, 'posted');
+        if (sent > 0) { db.updateDraftStatus(zaloId, draft.id!, 'posted'); this.lastError.delete(agentId); }
+        else this.lastError.set(agentId, 'Tất cả nhóm gửi thất bại');
         EventBroadcaster.emit('postingBot:update', { agentId, type: 'slot_done', sentCount: sent, ...this.buildStatus(agentId) });
         return { ok: sent > 0, sentCount: sent, total: groupIds.length, postedText: draft.text?.slice(0, 60), error: sent > 0 ? undefined : 'Tất cả nhóm gửi thất bại' };
     }
