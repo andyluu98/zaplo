@@ -139,8 +139,11 @@ jobs:
         env:
           NODE_ENV: production
           BUILD_TARGET: production
-      - name: 📦 Build macOS app (arm64)
-        run: npx electron-builder --mac --arm64 --publish never
+      - name: 📦 Build macOS app (zip — reliable, no hdiutil)
+        run: npx electron-builder --mac zip --arm64 --publish never
+      - name: 📀 Try building .dmg (best-effort; hdiutil flaky on CI)
+        continue-on-error: true
+        run: npx electron-builder --mac dmg --arm64 --publish never
       - name: 🚀 Publish macOS → GitHub Releases
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
