@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thiết kế Smart — 6 tab (logic chuẩn)</title>
+<style>
+  :root{
+    --bg:#0b1120;--panel:#111827;--card:#1f2937;--card2:#172033;--line:#374151;--line2:#1f2a3a;
+    --txt:#e5e7eb;--mut:#9ca3af;--mut2:#6b7280;--blue:#3b82f6;--blue-bg:rgba(59,130,246,.08);
+    --green:#22c55e;--amber:#f59e0b;--red:#ef4444;--purple:#a78bfa;--emerald:#34d399;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#060a14;color:var(--txt);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;line-height:1.5}
+  .wrap{max-width:1120px;margin:0 auto;padding:22px 16px 90px}
+  h1{font-size:20px;margin:0 0 4px}.sub{color:var(--mut);font-size:13px;margin:0 0 16px}
+  .new{background:rgba(34,197,94,.15);color:#4ade80;font-size:9px;font-weight:800;padding:1px 5px;border-radius:5px;margin-left:5px;vertical-align:middle;letter-spacing:.03em}
+  .fix{background:rgba(239,68,68,.16);color:#fca5a5;font-size:9px;font-weight:800;padding:1px 5px;border-radius:5px;margin-left:5px;vertical-align:middle}
+  .legend-top{display:flex;gap:14px;font-size:12px;color:var(--mut2);margin-bottom:14px;flex-wrap:wrap}
+
+  .app{background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+  .head{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--line)}
+  .head h2{font-size:15px;margin:0;font-weight:600}
+  .acct{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--mut)}
+  .acct .av{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#a78bfa)}
+  .tabs{display:flex;gap:2px;padding:10px 14px 0;border-bottom:1px solid var(--line2);flex-wrap:wrap}
+  .tab{padding:9px 13px;font-size:12.5px;font-weight:600;color:var(--mut);border:0;border-bottom:2px solid transparent;background:transparent;border-radius:8px 8px 0 0;cursor:pointer}
+  .tab:hover{color:#d1d5db;background:rgba(55,65,81,.3)}
+  .tab.on{color:#60a5fa;border-bottom-color:var(--blue);background:var(--blue-bg)}
+  .body{padding:16px 18px;min-height:460px}
+
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .inp{background:#0d1626;border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--txt);font-size:12px}
+  .sel{background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:6px 9px;font-size:12px}
+  .btn{font-size:11px;font-weight:700;padding:6px 12px;border-radius:8px;border:0;cursor:pointer}
+  .btn-blue{background:var(--blue);color:#fff}.btn-purple{background:#7c3aed;color:#fff}
+  .btn-em{background:rgba(4,120,87,.3);color:#6ee7b7}.btn-gr{background:#374151;color:#d1d5db}.btn-rd{background:rgba(153,27,27,.25);color:#fca5a5}
+  .chip{font-size:11px;font-weight:600;padding:5px 11px;border-radius:999px;color:var(--mut);background:transparent;border:1px solid transparent;cursor:pointer}
+  .chip.on{background:var(--blue);color:#fff}
+  .chip.cnt{border-color:var(--line)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .agent{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:13px}.agent.run{border-color:rgba(21,128,61,.45)}
+  .agent.err{border-color:rgba(153,27,27,.5)}
+  .row{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.name{font-weight:600;color:#fff}
+  .badge{font-size:10px;padding:2px 7px;border-radius:999px}
+  .b-green{background:rgba(21,128,61,.4);color:#4ade80}.b-amber{background:rgba(146,64,14,.4);color:#fbbf24}
+  .b-gray{background:#374151;color:#9ca3af}.b-purple{background:rgba(91,33,182,.4);color:#c4b5fd}
+  .b-red{background:rgba(153,27,27,.45);color:#fca5a5}.b-blue{background:rgba(30,58,95,.6);color:#93c5fd}
+  .meta{font-size:12px;color:var(--mut);margin-top:6px}.acts{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap}
+
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  .draft{border:1px solid var(--line);background:var(--card);border-radius:11px;padding:12px;margin-bottom:9px}
+  .draft.next{border-color:#2563eb;box-shadow:0 0 0 1px rgba(37,99,235,.3)}
+  .draft p{margin:7px 0 0;color:#cdd5e0;font-size:13px}
+  .ck{width:15px;height:15px;accent-color:var(--blue)}
+  .bulkbar{position:sticky;top:0;display:flex;gap:8px;align-items:center;background:#152033;border:1px solid #2563eb;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:12px}
+
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .cal .dow{font-size:11px;color:var(--mut2);text-align:center;font-weight:700}
+  .cell{min-height:58px;border:1px solid var(--line);border-radius:9px;padding:5px;background:rgba(31,41,55,.5);font-size:12px;cursor:pointer}
+  .cell:hover{border-color:#4b5563}.cell.today{background:rgba(59,130,246,.07);border-color:#1e3a5f}.cell.past{opacity:.45}
+  .cell.sel{border-color:#3b82f6;box-shadow:0 0 0 1px #3b82f6}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin:1px 1px 0 0}
+  .d-green{background:var(--green)}.d-red{background:var(--red)}.d-amber{background:var(--amber)}.d-blue{background:#60a5fa;opacity:.55}
+  .legend{display:flex;gap:13px;font-size:11px;color:var(--mut2);margin-top:11px;flex-wrap:wrap}
+  .daypanel{margin-top:12px;background:var(--card2);border:1px solid var(--line);border-radius:11px;padding:13px}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:14px}@media(max-width:760px){.kpis{grid-template-columns:1fr 1fr}}
+  .kpi{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:13px}.kpi .v{font-size:25px;font-weight:800}.kpi .l{font-size:11px;color:var(--mut2);margin-top:2px}
+  .bar-track{height:11px;border-radius:999px;background:#0b1322;overflow:hidden;display:flex}
+
+  .pill-item{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .varchip{font-size:10px;border:1px solid var(--line);background:#0d1626;border-radius:6px;padding:3px 8px;color:#93c5fd;cursor:pointer;font-family:monospace}
+  .imgs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}@media(max-width:760px){.imgs{grid-template-columns:repeat(3,1fr)}}
+  .im{aspect-ratio:1;border-radius:10px;border:1px solid var(--line);background:linear-gradient(135deg,#1e293b,#334155);display:flex;align-items:center;justify-content:center;color:#64748b;font-size:10px;position:relative}
+  .im .src{position:absolute;top:3px;left:3px;font-size:8px;padding:1px 4px;border-radius:4px}
+
+  .callout{border-radius:10px;padding:9px 12px;font-size:12px;margin:10px 0}
+  .c-blue{background:var(--blue-bg);border:1px solid rgba(59,130,246,.25);color:#93c5fd}
+  .c-amber{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
+  .c-green{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);color:#86efac}
+  .sec-h{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut2);margin:0 0 9px;font-weight:700}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:30}.scrim.on{display:block}
+  .pop{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;z-index:40;width:min(420px,92vw);display:none}.pop.on{display:block}
+  .field{margin-bottom:11px}.field label{font-size:11px;color:var(--mut2);text-transform:uppercase;font-weight:700;display:block;margin-bottom:4px}
+  .field .inp{width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Thiết kế Smart — giữ 6 tab, logic chuẩn</h1>
+  <p class="sub">Cùng cấu trúc 6 tab bạn thấy dễ dùng, nhưng bổ sung phần thiếu + sửa lỗi logic. Click tab để xem từng màn.</p>
+  <div class="legend-top">
+    <span><span class="new">MỚI</span> phần bổ sung theo audit</span>
+    <span><span class="fix">FIX</span> sửa lỗi logic phát hiện</span>
+  </div>
+
+  <div class="app">
+    <div class="head"><h2>Đăng bài nhóm</h2><div class="acct"><span class="av"></span> Lê Tuấn Anh · LMak ▾</div></div>
+    <div class="tabs" id="tabs"></div>
+    <div class="body" id="body"></div>
+  </div>
+
+  <div class="callout c-green" style="margin-top:16px"><b>🔧 Fix logic backend (vô hình nhưng quan trọng):</b>
+    ① <b>Double-post</b>: <code>countPostsToday</code> đếm theo <b>agent_id</b>+group (không phải account) ·
+    ② tách rõ <code>posts_per_day</code> = số chu kỳ/ngày, trần/nhóm riêng ·
+    ③ thêm IPC <code>calendar.add/delete</code> · ④ Stats lọc đúng theo khoảng ngày ·
+    ⑤ xóa agent dọn draft/log + dọn mốc once quá khứ · ⑥ cố định timezone Asia/Ho_Chi_Minh · ⑦ thêm <code>draft.delete</code>.
+  </div>
+</div>
+
+<div class="scrim" id="scrim" onclick="closePop()"></div>
+<div class="pop" id="pop">
+  <b style="font-size:15px">＋ Thêm mốc đăng cho ngày 24/06 <span class="new">MỚI</span></b>
+  <div style="margin-top:14px">
+    <div class="field"><label>Agent</label><select class="inp sel"><option>quản lý content tạo bài viết lmak</option><option>Agent mặc định</option></select></div>
+    <div class="field"><label>Giờ</label><input class="inp" type="time" value="09:30"></div>
+    <div class="field"><label>Bài (tùy chọn — để trống = AI tự sinh)</label><select class="inp sel"><option>— AI tự sinh khi tới giờ —</option><option>Bài đã duyệt #12</option></select></div>
+    <div class="row" style="justify-content:flex-end;margin-top:6px"><button class="btn btn-gr" onclick="closePop()">Hủy</button><button class="btn btn-blue" onclick="closePop()">Thêm mốc</button></div>
+  </div>
+</div>
+
+<script>
+const TABS=[
+  {id:'agents',label:'🤖 Agents'},{id:'calendar',label:'📅 Lịch'},{id:'drafts',label:'📝 Bài đăng'},
+  {id:'pillars',label:'🧩 Chủ đề'},{id:'images',label:'🖼️ Thư viện ảnh'},{id:'stats',label:'📊 Thống kê'},
+];
+let active='agents';
+function render(){
+  document.getElementById('tabs').innerHTML=TABS.map(t=>`<button class="tab ${t.id===active?'on':''}" onclick="go('${t.id}')">${t.label}</button>`).join('');
+  document.getElementById('body').innerHTML=({agents:agentsTab,calendar:calTab,drafts:draftsTab,pillars:pillarsTab,images:imagesTab,stats:statsTab})[active]();
+}
+function go(id){active=id;render()}
+
+function agentsTab(){
+  return `<div class="toolbar">
+    <input class="inp" placeholder="🔍 Tìm agent…" style="flex:1;min-width:140px"><span class="new" style="margin:0">MỚI</span>
+    <button class="chip on">Tất cả</button><button class="chip">Đang chạy</button><button class="chip">Tạm dừng</button>
+    <button class="btn btn-blue" style="margin-left:auto">＋ Tạo Agent</button>
+  </div>
+  <div class="grid2">
+    <div class="agent run">
+      <div class="row"><span class="name">quản lý content tạo bài viết lmak</span><span class="badge b-green">Đang chạy</span></div>
+      <div class="meta">🔑 <b style="color:#c4b5fd">Trợ lý LMak (GPT-4o)</b><span class="new">MỚI tên thật</span> · 🧩 Cho thuê VP LMak · 📱 LMak<span class="new">MỚI account</span></div>
+      <div class="meta">👥 test_ai_agent</div>
+      <div class="meta">🕒 Hằng ngày 09:00–20:00 · 2 bài/ngày</div>
+      <div class="meta">▶ Chạy kế: <b style="color:#e5e7eb">22/06 18:30</b> · Lần cuối: 15:17 ✓</div>
+      <div class="row" style="margin-top:7px"><span class="badge b-green">✓ 3 đã duyệt</span><span class="badge b-amber">⏳ 1 chờ duyệt</span></div>
+      <div class="acts">
+        <button class="btn btn-em">⚡ Đăng thử</button><button class="btn btn-gr">Sửa</button>
+        <button class="btn btn-gr">Tạm dừng</button>
+        <button class="btn btn-gr">⧉ Nhân bản<span class="new" style="margin-left:3px">MỚI</span></button>
+        <button class="btn btn-gr">📜 Nhật ký<span class="new" style="margin-left:3px">MỚI</span></button>
+        <button class="btn btn-rd">Xóa</button>
+      </div>
+    </div>
+    <div class="agent err">
+      <div class="row"><span class="name">Agent mặc định</span><span class="badge b-green">Đang chạy</span>
+        <span class="badge b-gray">tự chuyển từ bản cũ</span><span class="badge b-red">⚠ Lỗi lần cuối<span class="fix" style="margin-left:3px">FIX</span></span></div>
+      <div class="meta">🔑 <b style="color:#c4b5fd">Mặc định</b> · 🧩 Cho thuê VP LMak · 📱 LMak</div>
+      <div class="meta">👥 🏢 [Lite space]_Tech</div>
+      <div class="meta">🕒 Hằng ngày 08:00–21:00 · 2 bài/ngày</div>
+      <div class="meta">▶ Chạy kế: <b style="color:#e5e7eb">22/06 17:00</b> · Lần cuối: 11:24 <span style="color:#fca5a5">✗ tài khoản chưa kết nối</span></div>
+      <div class="callout c-amber" style="margin:8px 0 0;padding:7px 10px">⚠ Lần đăng gần nhất thất bại: <b>tài khoản Zalo chưa kết nối</b>. Kiểm tra kết nối rồi "Đăng thử".</div>
+      <div class="acts"><button class="btn btn-em">⚡ Đăng thử</button><button class="btn btn-gr">Sửa</button><button class="btn btn-gr">Tạm dừng</button><button class="btn btn-gr">⧉ Nhân bản</button><button class="btn btn-gr">📜 Nhật ký</button><button class="btn btn-rd">Xóa</button></div>
+    </div>
+  </div>
+  <div class="callout c-blue"><b>Editor (khi bấm Sửa)</b> bổ sung: chọn tài khoản Zalo · sửa nhanh trợ lý inline · <b>nhiều luật lịch</b> (vd Hằng ngày + Thứ 7 riêng) · validate Tháng (1–31) &amp; Tuần (≥1 thứ) <span class="fix">FIX</span> · chặn mốc quá khứ <span class="fix">FIX</span>.</div>`;
+}
+
+function calTab(){
+  const data={1:['g'],10:['g','g'],11:['g','g','g'],21:['g','g'],22:['g','g'],23:['b'],24:['a'],25:['b'],26:['b'],28:['b'],30:['b']};
+  let cells='';const today=22;
+  for(let d=1;d<=30;d++){const ds=data[d]||[];const dots=ds.map(x=>`<span class="dot d-${x==='g'?'green':x==='a'?'amber':'blue'}"></span>`).join('');
+    cells+=`<div class="cell ${d===today?'today':''} ${d<today?'past':''} ${d===24?'sel':''}" ${d===24?'':'onclick="void 0"'}><b style="color:${d===today?'#60a5fa':'#d1d5db'}">${d}</b><div>${dots}</div></div>`;}
+  return `<div class="toolbar">
+    <span>‹</span><b>Tháng 6 / 2026</b><span>›</span>
+    <div style="display:flex;gap:3px;margin-left:10px"><button class="chip on">Tháng</button><button class="chip">Tuần</button><button class="chip">Ngày</button><span class="new" style="align-self:center">MỚI 3 view</span></div>
+    <select class="sel" style="margin-left:auto"><option>Mọi agent</option><option>quản lý content lmak</option></select><span class="new" style="align-self:center">MỚI lọc agent</span>
+  </div>
+  <div class="cal">${['T2','T3','T4','T5','T6','T7','CN'].map(d=>`<div class="dow">${d}</div>`).join('')}${cells}</div>
+  <div class="legend"><span><span class="dot d-green"></span>Đã đăng</span><span><span class="dot d-red"></span>Lỗi</span><span><span class="dot d-amber"></span>Mốc riêng (once)</span><span><span class="dot d-blue"></span>Dự kiến (định kỳ)<span class="new">MỚI</span></span></div>
+  <div class="daypanel">
+    <div class="row" style="justify-content:space-between"><b>Ngày 24/06/2026</b><button class="btn btn-blue" onclick="openPop()">＋ Thêm mốc<span class="new" style="margin-left:3px">MỚI</span></button></div>
+    <div class="row" style="margin-top:9px"><span class="badge b-amber">⏰ 09:30</span><span class="badge b-purple">quản lý content lmak</span><span style="color:var(--mut);font-size:12px">mốc riêng (sắp tới)</span>
+      <span style="margin-left:auto"><button class="btn btn-gr">✏️ Sửa giờ<span class="fix" style="margin-left:3px">FIX</span></button> <button class="btn btn-rd">🗑️ Xóa<span class="fix" style="margin-left:3px">FIX</span></button></span></div>
+    <div class="row" style="margin-top:7px"><span class="badge b-blue">● định kỳ</span><span style="color:var(--mut);font-size:12px">Agent mặc định · cửa sổ 08:00–21:00 (dự kiến 2 bài)</span></div>
+  </div>
+  <div class="callout c-green">Calendar giờ <b>tương tác thật</b>: thêm/sửa/xóa mốc ngay trên ngày (cần IPC <code>calendar.add/delete</code> — đang thiếu, sẽ thêm). Lịch định kỳ hiện dạng chấm xanh "dự kiến".</div>`;
+}
+
+function draftsTab(){
+  return `<div class="toolbar">
+    <span style="font-size:12px;color:var(--mut2)">Sinh bài cho:</span><select class="sel"><option>quản lý content lmak</option></select>
+    <input class="inp" style="width:46px;text-align:center" value="3"><button class="btn btn-purple">Sinh bài AI</button>
+    <input class="inp" placeholder="🔍 Tìm nội dung…" style="margin-left:auto;flex:1;min-width:120px"><span class="new" style="align-self:center">MỚI</span>
+  </div>
+  <div class="toolbar" style="margin-bottom:10px">
+    <button class="chip on">Chờ duyệt</button><button class="chip">Đã duyệt</button><button class="chip">Từ chối</button><button class="chip">Đã đăng</button>
+    <button class="chip cnt" style="color:#fca5a5">⚠ Lỗi <span class="fix">FIX</span></button>
+    <select class="sel"><option>Mọi agent</option></select>
+  </div>
+  <div class="bulkbar">☑ Đã chọn 2 bài<span class="new" style="margin:0">MỚI bulk</span><button class="btn btn-em" style="margin-left:auto">Duyệt 2</button><button class="btn btn-rd">Từ chối 2</button></div>
+  <div class="draft next">
+    <div class="row"><input type="checkbox" class="ck" checked><span class="badge b-blue">→ Tiếp theo (FIFO)<span class="new" style="margin-left:3px">MỚI</span></span><span class="badge b-green">Đã duyệt</span><span class="badge b-purple">🤖 quản lý content lmak</span><span style="font-size:11px;color:var(--mut2)">→ test_ai_agent</span><span class="badge b-gray">✍️ Tay</span><span style="font-size:11px;color:var(--mut2);margin-left:auto">🕒 22/06 14:02</span></div>
+    <p># Cho thuê văn phòng TP.HCM – Giải pháp tối ưu chi phí cho doanh nghiệp vừa &amp; nhỏ…</p>
+    <div class="acts"><button class="btn btn-em">⚡ Đăng ngay</button><button class="btn btn-rd">Từ chối</button><button class="btn btn-gr">Sửa</button><button class="btn btn-rd">🗑️ Xóa<span class="new" style="margin-left:3px">MỚI</span></button></div>
+  </div>
+  <div class="draft" style="border-color:rgba(153,27,27,.5)">
+    <div class="row"><input type="checkbox" class="ck"><span class="badge b-red">⚠ Lỗi đăng</span><span class="badge b-purple">🤖 Agent mặc định</span><span style="font-size:11px;color:var(--mut2)">→ [Lite space]_Tech</span><span class="badge b-purple">🤖 AI</span><span style="font-size:11px;color:var(--mut2);margin-left:auto">🕒 22/06 15:15</span></div>
+    <p>🏢 Tìm văn phòng cho thuê chưa bao giờ dễ đến thế…</p>
+    <div class="callout c-amber" style="margin:8px 0 0;padding:7px 10px">Lý do lỗi: <b>tài khoản Zalo chưa kết nối</b> (từ post_log) <span class="fix">FIX đọc post_log</span></div>
+    <div class="acts"><button class="btn btn-em">↻ Đăng lại</button><button class="btn btn-gr">Sửa</button><button class="btn btn-rd">🗑️ Xóa</button></div>
+  </div>
+  <div class="draft"><div class="row"><input type="checkbox" class="ck" checked><span class="badge b-amber">Chờ duyệt</span><span class="badge b-purple">🤖 quản lý content lmak</span><span class="badge b-purple">🤖 AI</span><span style="font-size:11px;color:var(--mut2);margin-left:auto">🕒 22/06 15:40</span></div>
+    <p>🏢 Không Gian Văn Phòng Lý Tưởng Đang Chờ Bạn — Tòa nhà LMak…</p>
+    <div class="acts"><button class="btn btn-em">Phê duyệt</button><button class="btn btn-rd">Từ chối</button><button class="btn btn-gr">Sửa</button></div></div>`;
+}
+
+function pillarsTab(){
+  return `<div class="row" style="justify-content:space-between;margin-bottom:12px"><div class="sec-h" style="margin:0">Chủ đề nội dung</div><button class="btn btn-blue">＋ Tạo chủ đề</button></div>
+  <div class="pill-item"><div><b>Cho thuê văn phòng LMak</b>
+    <div style="font-size:11px;color:var(--mut2);margin-top:2px">tone: chuyên nghiệp · 🔑 Trợ lý LMak</div>
+    <div class="row" style="margin-top:5px"><span style="font-size:11px;color:var(--mut2)">Dùng bởi:</span><span class="badge b-purple">quản lý content lmak</span><span class="badge b-purple">Agent mặc định</span><span class="new">MỚI</span></div></div>
+    <div class="acts" style="margin:0"><button class="btn btn-gr">Sửa</button><button class="btn btn-rd">Xóa</button></div></div>
+  <div class="pill-item"><div><b>Ưu đãi &amp; sự kiện</b><div style="font-size:11px;color:var(--mut2);margin-top:2px">tone: thân thiện</div>
+    <div class="row" style="margin-top:5px"><span style="font-size:11px;color:#f59e0b">⚠ Chưa agent nào dùng</span><span class="new">MỚI</span></div></div>
+    <div class="acts" style="margin:0"><button class="btn btn-gr">Sửa</button><button class="btn btn-rd">Xóa</button></div></div>
+  <div class="daypanel" style="margin-top:14px"><div class="sec-h">Editor chủ đề — ô Prompt</div>
+    <div style="background:#0d1626;border:1px solid var(--line);border-radius:9px;padding:10px;color:#cdd5e0;font-size:12px">Viết bài quảng cáo về {description} với giọng {tone}…</div>
+    <div class="row" style="margin-top:8px"><span style="font-size:11px;color:var(--mut2)">Chèn biến:</span><span class="varchip">{name}</span><span class="varchip">{description}</span><span class="varchip">{tone}</span><span class="new">MỚI gợi ý biến</span></div>
+  </div>`;
+}
+
+function imagesTab(){
+  let g='';const src=['AI','AI','Up','AI','Up','Up','AI','Up','AI','Up'];
+  for(let i=0;i<10;i++)g+=`<div class="im"><span class="src ${src[i]==='AI'?'b-purple':'b-blue'}">${src[i]}</span>ảnh ${i+1}</div>`;
+  return `<div class="toolbar"><div class="sec-h" style="margin:0">Thư viện ảnh — <span style="color:var(--mut)">10 ảnh</span></div>
+    <div style="display:flex;gap:3px;margin-left:8px"><button class="chip on">Tất cả</button><button class="chip">🤖 AI</button><button class="chip">⬆ Upload</button><span class="new" style="align-self:center">MỚI lọc nguồn</span></div>
+    <button class="btn btn-blue" style="margin-left:auto">⬆ Tải ảnh</button></div>
+  <div class="row" style="margin-bottom:6px"><input class="inp" placeholder="Mô tả ảnh muốn sinh…" style="flex:1"><button class="btn btn-purple">✨ Sinh ảnh AI</button></div>
+  <div class="callout c-amber" style="margin:0 0 12px">⚠ Sinh ảnh AI cần <b>trợ lý OpenAI đang bật (có API key)</b> — cấu hình tại Tích hợp → Trợ lý AI. <span class="new">MỚI chú thích</span></div>
+  <div class="imgs">${g}</div>
+  <div class="callout c-blue">Click ảnh → xem lớn (lightbox) <span class="new">MỚI</span>. Badge góc: 🤖 AI / ⬆ Upload.</div>`;
+}
+
+function statsTab(){
+  return `<div class="toolbar"><div class="sec-h" style="margin:0">Hiệu suất</div>
+    <div style="display:flex;gap:3px;margin-left:6px"><button class="chip">Hôm nay</button><button class="chip">7 ngày</button><button class="chip on">30 ngày</button><button class="chip">Tất cả</button><span class="fix" style="align-self:center">FIX số khớp nhãn</span></div>
+    <select class="sel" style="margin-left:auto"><option>Mọi agent</option></select><span class="new" style="align-self:center">MỚI</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v" style="color:var(--green)">12</div><div class="l">Đã đăng (30 ngày)</div></div>
+    <div class="kpi"><div class="v" style="color:var(--red)">1</div><div class="l">Lỗi</div></div>
+    <div class="kpi"><div class="v" style="color:var(--green)">92%</div><div class="l">Tỷ lệ thành công</div></div>
+    <div class="kpi"><div class="v" style="color:var(--blue)">2</div><div class="l">Agent hoạt động</div></div>
+  </div>
+  <div class="kpi" style="margin-bottom:14px"><b style="font-size:13px">Hiệu suất theo agent</b>
+    <div style="margin-top:11px"><div class="row" style="justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Agent mặc định</span><span style="color:var(--mut2)">10 gửi · 1 lỗi</span></div>
+      <div class="bar-track" style="width:83%"><div style="background:var(--green);width:91%"></div><div style="background:var(--red);width:9%"></div></div>
+      <div class="row" style="justify-content:space-between;font-size:12px;margin:10px 0 4px"><span>quản lý content lmak</span><span style="color:var(--mut2)">2 gửi</span></div>
+      <div class="bar-track" style="width:17%"><div style="background:var(--green);width:100%"></div></div></div></div>
+  <div class="kpi"><b style="font-size:13px">Hoạt động gần đây</b>
+    <div style="margin-top:7px;font-size:12px;color:var(--mut)">
+      <div style="padding:5px 0;border-top:1px solid var(--line2)">✓ 15:17 · <span class="badge b-purple">lmak</span> → test_ai_agent</div>
+      <div style="padding:5px 0;border-top:1px solid var(--line2)">✗ 15:15 · <span class="badge b-purple">Agent mặc định</span> → [Lite space]_Tech · <span style="color:#fca5a5">chưa kết nối</span></div>
+      <div style="padding:5px 0;border-top:1px solid var(--line2)">✓ 11:24 · <span class="badge b-purple">Agent mặc định</span> → [Lite space]_Tech</div>
+    </div></div>`;
+}
+
+function openPop(){document.getElementById('scrim').classList.add('on');document.getElementById('pop').classList.add('on')}
+function closePop(){document.getElementById('scrim').classList.remove('on');document.getElementById('pop').classList.remove('on')}
+render();
+</script>
+</body>
+</html>
