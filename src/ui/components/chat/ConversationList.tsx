@@ -96,6 +96,9 @@ export default function ConversationList() {
   const [localPinnedThreads, setLocalPinnedThreads] = useState<Set<string>>(new Set());
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [failedAvatars, setFailedAvatars] = useState<Set<string>>(() => new Set());
+  // AI badge cho hội thoại đang mở (active-only — tránh N call IPC cho cả list).
+  // status: 'on' = AI trả lời, 'pause' = người xử lý, 'off' = không agent.
+  const [activeAiStatus, setActiveAiStatus] = useState<'on' | 'pause' | 'off' | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ contactId: string; zaloId: string; x: number; y: number } | null>(null);
   const [labelPickerId, setLabelPickerId] = useState<string | null>(null);
   const [muteSubmenuId, setMuteSubmenuId] = useState<string | null>(null);
@@ -672,6 +675,31 @@ export default function ConversationList() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [ctxMenu, filterDropdownOpen, moreMenuOpen]);
+
+  // ── AI badge cho hội thoại ĐANG MỞ: 1 call convState (không gọi cho từng item) ──
+  useEffect(() => {
+    setActiveAiStatus(null);
+    const zid = activeAccountId;
+    const chatAgent = ipc.chatAgent;
+    if (!chatAgent || !zid || !activeThreadId) return;
+    const tid = activeThreadId;
+    let cancelled = false;
+    (async () => {
+      try {
+        const isGroupThread = activeThreadType === 1;
+        const [stateRes, resolveRes] = await Promise.all([
+          chatAgent.convState({ zaloId: zid, threadId: tid }),
+          chatAgent.resolveThread({ zaloId: zid, threadId: tid, threadType: isGroupThread ? 'group' : 'user' }),
+        ]);
+        if (cancelled) return;
+        const st = stateRes?.state;
+        const paused = !!(st && Number(st.paused) === 1);
+        const effAgentId = st?.pinned_agent_id ?? resolveRes?.agentId ?? null;
+        setActiveAiStatus(paused ? 'pause' : effAgentId != null ? 'on' : 'off');
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [activeAccountId, activeThreadId, activeThreadType]);
 
   const accountContacts = activeAccountId ? (contacts[activeAccountId] || []) : [];
   // Không tính unread của hội thoại trong thư mục "Khác"
@@ -1963,6 +1991,13 @@ export default function ConversationList() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-sm font-medium text-gray-200 truncate flex items-center gap-1">
+                    {/* Badge trạng thái AI — chỉ hội thoại đang mở (active-only, tránh N call IPC) */}
+                    {activeThreadId === contact.contact_id && activeAccountId === contact.owner_zalo_id && activeAiStatus && (
+                      <span
+                        className={`w-2 h-2 rounded-full flex-shrink-0 ${activeAiStatus === 'on' ? 'bg-green-500' : activeAiStatus === 'pause' ? 'bg-amber-500' : 'bg-gray-400'}`}
+                        title={activeAiStatus === 'on' ? 'AI đang trả lời' : activeAiStatus === 'pause' ? 'Người đang xử lý' : 'AI đang tắt'}
+                      />
+                    )}
                     {isLocalPinned && <span title="Ghim trong app">📎</span>}
                     {isPinned && <span title="Ghim Zalo">📌</span>}
                     {contact.alias || contact.display_name || contact.contact_id}

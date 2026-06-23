@@ -108,7 +108,7 @@ function OverviewPanel() {
       <div className="flex items-start gap-3">
         <span className="text-4xl leading-none">🤖</span>
         <div>
-          <h3 className="text-white font-bold text-base">Deplao</h3>
+          <h3 className="text-white font-bold text-base">Zaplo</h3>
           <p className="text-gray-400 text-xs mt-0.5">Phần mềm desktop quản lý Zalo & Facebook cá nhân Đa tài khoản tích hợp CRM, ERP, POS, Workflow và AI Assistant giúp đội nhóm bán hàng, chăm sóc khách hàng và marketing trên Zalo và Facebook vận hành tập trung trong một ứng dụng duy nhất.</p>
           <div className="flex gap-1.5 mt-2 flex-wrap">
             <Badge text="Desktop App" color="bg-blue-600/30 text-blue-300" />
@@ -183,7 +183,7 @@ function MultiAccountPanel() {
       <Card>
         <SectionTitle>👤 Đăng nhập nhiều tài khoản Zalo & Facebook</SectionTitle>
         <Paragraph>
-          Deplao cho phép bạn đăng nhập và quản lý <strong className="text-white font-semibold">không giới hạn tài khoản Zalo và Facebook</strong> trong một giao diện duy nhất.
+          Zaplo cho phép bạn đăng nhập và quản lý <strong className="text-white font-semibold">không giới hạn tài khoản Zalo và Facebook</strong> trong một giao diện duy nhất.
           Mỗi tài khoản hoạt động độc lập, an toàn và không ảnh hưởng lẫn nhau.
         </Paragraph>
         <StepList steps={[
@@ -203,7 +203,7 @@ function MultiAccountPanel() {
           <p className="text-blue-300 text-xs font-medium">Mỗi tài khoản Zalo có thể dùng proxy riêng — không ảnh hưởng lẫn nhau</p>
         </div>
         <Paragraph>
-          Deplao hỗ trợ cấu hình proxy trước khi đăng nhập tài khoản Zalo. Hữu ích khi cần tách biệt IP cho từng tài khoản,
+          Zaplo hỗ trợ cấu hình proxy trước khi đăng nhập tài khoản Zalo. Hữu ích khi cần tách biệt IP cho từng tài khoản,
           sử dụng proxy doanh nghiệp, hoặc đăng nhập tài khoản từ vùng địa lý khác.
         </Paragraph>
         <BulletList items={[
@@ -381,7 +381,7 @@ function MessagingPanel() {
           <div className="space-y-1">
             <p className="text-yellow-300 text-xs font-semibold">Không hỗ trợ nghe & gọi (thoại / video call)</p>
             <p className="text-gray-400 text-xs leading-relaxed">
-              Deplao tập trung vào nhắn tin và Tự động hoá. Các cuộc gọi thoại và video call qua Zalo
+              Zaplo tập trung vào nhắn tin và Tự động hoá. Các cuộc gọi thoại và video call qua Zalo
               không được hỗ trợ trong phiên bản hiện tại. Để thực hiện cuộc gọi, bạn cần dùng
               ứng dụng Zalo trên điện thoại hoặc Zalo PC chính thức.
             </p>
@@ -401,7 +401,7 @@ function ErpPanel() {
           <div>
             <SectionTitle>ERP quản trị nội bộ — giao việc, lịch, note, nhân sự</SectionTitle>
             <Paragraph>
-              Module ERP giúp đội nhóm quản lý công việc nội bộ ngay trong Deplao: từ giao task, theo dõi deadline,
+              Module ERP giúp đội nhóm quản lý công việc nội bộ ngay trong Zaplo: từ giao task, theo dõi deadline,
               quản lý lịch, ghi chú nghiệp vụ đến phân quyền nhân sự giữa boss và nhân viên.
             </Paragraph>
           </div>
@@ -455,7 +455,7 @@ function ErpPanel() {
       </Card>
 
       <Card>
-        <SectionTitle>💡 Khi nào nên dùng ERP trong Deplao?</SectionTitle>
+        <SectionTitle>💡 Khi nào nên dùng ERP trong Zaplo?</SectionTitle>
         <BulletList items={[
           'Khi bạn muốn <strong class="text-gray-200">giao việc từ ngay sau hội thoại khách hàng</strong> mà không cần chuyển sang app khác',
           'Khi boss cần nhìn được <strong class="text-gray-200">ai đang làm gì, ai theo dõi việc gì, việc nào sắp quá hạn</strong>',
@@ -722,7 +722,7 @@ function IntegrationPOSPanel() {
       <Card>
         <SectionTitle>🛒 Tích hợp POS / Bán hàng</SectionTitle>
         <Paragraph>
-          Kết nối Deplao với phần mềm quản lý bán hàng (POS) cho phép tra cứu đơn hàng, khách hàng, sản phẩm
+          Kết nối Zaplo với phần mềm quản lý bán hàng (POS) cho phép tra cứu đơn hàng, khách hàng, sản phẩm
           ngay trong khung chat Zalo — không cần chuyển qua lại giữa các ứng dụng.
           Bạn cũng có thể tạo đơn hàng trực tiếp từ hội thoại hoặc tự động hoá qua Workflow.
         </Paragraph>
@@ -811,7 +811,7 @@ function IntegrationPaymentPanel() {
       <Card>
         <SectionTitle>💳 Tích hợp Thanh toán — Tự động xác nhận chuyển khoản</SectionTitle>
         <Paragraph>
-          Kết nối Deplao với các cổng thanh toán để nhận thông báo ngay khi có giao dịch chuyển khoản vào tài khoản ngân hàng.
+          Kết nối Zaplo với các cổng thanh toán để nhận thông báo ngay khi có giao dịch chuyển khoản vào tài khoản ngân hàng.
           Kết hợp Workflow để tự động xác nhận đơn hàng, gửi tin cảm ơn và kích hoạt các bước chăm sóc tiếp theo —
           không cần ngồi kiểm tra sao kê thủ công.
         </Paragraph>
@@ -875,7 +875,7 @@ function IntegrationPaymentPanel() {
       <Card>
         <SectionTitle>🌐 Tunnel là gì và tại sao cần?</SectionTitle>
         <Paragraph>
-          Deplao chạy webhook server trên máy tính cá nhân (cục bộ). Để Casso/SePay có thể gửi webhook đến máy bạn,
+          Zaplo chạy webhook server trên máy tính cá nhân (cục bộ). Để Casso/SePay có thể gửi webhook đến máy bạn,
           máy cần có một địa chỉ công khai trên Internet. Tunnel (Cloudflare Quick Tunnel) tạo một URL công khai
           tạm thời trỏ về máy bạn — <strong className="text-white font-semibold">không cần VPS, không cần cấu hình router</strong>.
         </Paragraph>
@@ -905,7 +905,7 @@ function IntegrationShippingPanel() {
       <Card>
         <SectionTitle>📦 Tích hợp Vận chuyển — Tạo & Tra cứu vận đơn tự động</SectionTitle>
         <Paragraph>
-          Kết nối Deplao với các đơn vị vận chuyển để tạo đơn giao hàng, tra cứu trạng thái vận đơn
+          Kết nối Zaplo với các đơn vị vận chuyển để tạo đơn giao hàng, tra cứu trạng thái vận đơn
           ngay trong hội thoại Zalo. Khi khách hỏi "đơn hàng tới đâu rồi?", Workflow tự động tra cứu và trả lời —
           không cần copy tracking ID qua các tab trình duyệt.
         </Paragraph>
@@ -998,7 +998,7 @@ function AIAssistantPanel() {
       <Card>
         <SectionTitle>🤖 Trợ lý AI — Tăng tốc chăm sóc khách hàng</SectionTitle>
         <Paragraph>
-          Trợ lý AI trong Deplao cho phép bạn tạo nhiều chatbot AI với tính cách, prompt và mục đích khác nhau.
+          Trợ lý AI trong Zaplo cho phép bạn tạo nhiều chatbot AI với tính cách, prompt và mục đích khác nhau.
           Mỗi trợ lý có thể được gán cho một hội thoại cụ thể hoặc dùng trong Workflow để tự động trả lời tin nhắn.
         </Paragraph>
         <div className="flex items-center gap-3 bg-blue-900/20 border border-blue-700/40 rounded-lg px-3 py-2">
@@ -1056,7 +1056,7 @@ function AIAssistantPanel() {
         </div>
 
         <Card>
-          <SectionTitle>🎯 Tại sao dùng 9Router với Deplao?</SectionTitle>
+          <SectionTitle>🎯 Tại sao dùng 9Router với Zaplo?</SectionTitle>
           <BulletList items={[
             '<strong class="text-gray-200">Giảm 30-50% chi phí AI</strong> — 9Router tự động chọn provider rẻ nhất cho mỗi request',
             '<strong class="text-gray-200">Quản lý tập trung</strong> — Một API key duy nhất cho tất cả model, quên chuyện key hết hạn hay leak key',
@@ -1092,7 +1092,7 @@ function AIAssistantPanel() {
             { title: 'Cài đặt 9Router', desc: 'Mở Terminal (CMD/PowerShell) và chạy: <code style={{color:"#86efac",background:"#1f2937",padding:"1px 5px",borderRadius:"3px"}}>npm install -g 9router</code>' },
             { title: 'Chạy 9Router', desc: 'Sau khi cài xong, gõ lệnh: <code style={{color:"#86efac",background:"#1f2937",padding:"1px 5px",borderRadius:"3px"}}>9router</code> — giữ Terminal chạy nền.' },
             { title: 'Kết nối Provider', desc: 'Mở Dashboard tại <strong class="text-gray-200">http://localhost:20128</strong> → Settings → Add Provider → nhập API Key (OpenAI, Claude, Gemini...).' },
-            { title: 'Dùng trong Deplao', desc: 'Vào <strong class="text-gray-200">Cài đặt → Giới thiệu → Trợ lý AI</strong> hoặc <strong class="text-gray-200">Tích hợp → Trợ lý AI</strong>, chọn nền tảng <strong class="text-gray-200">9Router</strong> và chọn model miễn phí.' },
+            { title: 'Dùng trong Zaplo', desc: 'Vào <strong class="text-gray-200">Cài đặt → Giới thiệu → Trợ lý AI</strong> hoặc <strong class="text-gray-200">Tích hợp → Trợ lý AI</strong>, chọn nền tảng <strong class="text-gray-200">9Router</strong> và chọn model miễn phí.' },
           ]} />
         </Card>
 
@@ -1157,7 +1157,7 @@ function AIAssistantPanel() {
               <div className="w-9 h-9 rounded-xl bg-blue-900/50 border border-blue-700/40 flex items-center justify-center text-blue-400 font-bold text-sm flex-shrink-0 group-hover:bg-blue-800/50 group-hover:border-blue-600/50 transition-colors">4</div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-gray-200 text-xs font-semibold">Cấu hình trong Deplao</span>
+                  <span className="text-gray-200 text-xs font-semibold">Cấu hình trong Zaplo</span>
                   <span className="text-[10px] text-green-400 bg-green-900/30 px-1.5 py-0.5 rounded-full">done ✅</span>
                 </div>
                 <p className="text-gray-400 text-[11px] leading-relaxed">
@@ -1176,10 +1176,10 @@ function AIAssistantPanel() {
               <div>
                 <p className="text-blue-300 text-[11px] font-semibold">Model tự động đồng bộ từ 9Router</p>
                 <p className="text-gray-400 text-[10px] leading-relaxed mt-0.5">
-                  Sau khi kết nối thành công, danh sách model trong Deplao sẽ tự động cập nhật theo các provider bạn đã thêm vào 9Router.
-                  Nếu có model mới xuất hiện trong Dashboard 9Router, bạn chỉ cần reload trang Deplao để thấy — không cần cấu hình thêm.{' '}
+                  Sau khi kết nối thành công, danh sách model trong Zaplo sẽ tự động cập nhật theo các provider bạn đã thêm vào 9Router.
+                  Nếu có model mới xuất hiện trong Dashboard 9Router, bạn chỉ cần reload trang Zaplo để thấy — không cần cấu hình thêm.{' '}
                   <button
-                    onClick={() => ipc.shell?.openExternal('https://github.com/babyvibe/deplao-builder/issues/31')}
+                    onClick={() => ipc.shell?.openExternal('https://github.com/andyluu98/zaplo/issues/31')}
                     className="text-blue-400 hover:text-blue-300 underline underline-offset-2 inline-flex items-center gap-0.5"
                   >
                     Theo dõi issue #31 →
@@ -1191,9 +1191,9 @@ function AIAssistantPanel() {
         </Card>
 
         <Card>
-          <SectionTitle>🔧 Cấu hình trong Deplao</SectionTitle>
+          <SectionTitle>🔧 Cấu hình trong Zaplo</SectionTitle>
           <Paragraph>
-            Sau khi đã cài đặt và chạy 9Router, cấu hình Deplao để sử dụng 9Router làm proxy AI:
+            Sau khi đã cài đặt và chạy 9Router, cấu hình Zaplo để sử dụng 9Router làm proxy AI:
           </Paragraph>
           <div className="mt-2 space-y-2">
             <div className="bg-gray-800/60 border border-gray-700/50 rounded-lg p-3">
@@ -1248,11 +1248,11 @@ function AIAssistantPanel() {
         <Card>
           <SectionTitle>💡 Mẹo & Lưu ý</SectionTitle>
           <BulletList items={[
-            '<strong class="text-gray-200">9Router phải chạy cùng lúc với Deplao</strong> — nếu tắt 9Router, AI request qua 9Router sẽ thất bại',
+            '<strong class="text-gray-200">9Router phải chạy cùng lúc với Zaplo</strong> — nếu tắt 9Router, AI request qua 9Router sẽ thất bại',
             '<strong class="text-gray-200">Dashboard 9Router</strong> mở tại <strong class="text-gray-200">http://localhost:20128</strong> — theo dõi request, chi phí, provider health',
             '<strong class="text-gray-200">Tự động chạy cùng Windows:</strong> Thêm 9Router vào startup (Task Scheduler) để không phải chạy thủ công mỗi lần',
             '<strong class="text-gray-200">Nạp key nhiều provider:</strong> Càng nhiều provider, 9Router càng tối ưu được giá và fallback khi có lỗi',
-            '<strong class="text-gray-200">Kiểm tra kết nối:</strong> Sau khi cấu hình, dùng thử AI Assistant trong Deplao để xác nhận hoạt động',
+            '<strong class="text-gray-200">Kiểm tra kết nối:</strong> Sau khi cấu hình, dùng thử AI Assistant trong Zaplo để xác nhận hoạt động',
           ]} />
         </Card>
 
@@ -1458,7 +1458,7 @@ function SecurityPanel() {
       <Card>
         <SectionTitle>🔒 Bảo mật tài khoản & Dữ liệu</SectionTitle>
         <Paragraph>
-          Deplao được xây dựng theo kiến trúc toàn bộ dữ liệu được xử lý và lưu trữ ngay trên máy tính của bạn.
+          Zaplo được xây dựng theo kiến trúc toàn bộ dữ liệu được xử lý và lưu trữ ngay trên máy tính của bạn.
         </Paragraph>
         <BulletList items={[
           '<strong class="text-gray-200">Dữ liệu lưu cục bộ 100%:</strong> Tin nhắn, danh bạ, CRM, cài đặt — tất cả được lưu trong cơ sở dữ liệu ngay trên máy bạn',
@@ -1476,7 +1476,7 @@ function SecurityPanel() {
             <p className="text-yellow-300 text-xs font-semibold">Mặc định dữ liệu lưu tại ổ C — có thể đầy nhanh!</p>
             <p className="text-gray-400 text-xs leading-relaxed">
               Theo mặc định, toàn bộ tin nhắn, ảnh, video, file đính kèm được lưu tại
-              <code style={{color:'#86efac',background:'#1f2937',padding:'0.0625rem 0.375rem',borderRadius:'0.25rem',margin:'0 0.1875rem'}}>C:\Users\...\AppData\Roaming\Deplao</code>.
+              <code style={{color:'#86efac',background:'#1f2937',padding:'0.0625rem 0.375rem',borderRadius:'0.25rem',margin:'0 0.1875rem'}}>C:\Users\...\AppData\Roaming\Zaplo</code>.
               Với nhiều tài khoản Zalo hoạt động, <strong style={{color:'#fbbf24'}}>thư mục media có thể chiếm vài GB đến hàng chục GB</strong> sau vài tháng sử dụng,
               đặc biệt khi nhận nhiều ảnh và video từ nhóm Zalo.
             </p>
@@ -1505,7 +1505,7 @@ function SecurityPanel() {
       <Card>
         <SectionTitle>📦 Nơi lưu trữ dữ liệu</SectionTitle>
         <Paragraph>
-          Mặc định, dữ liệu được lưu tại thư mục <code style={{color:'#86efac',background:'#1f2937',padding:'0.0625rem 0.375rem',borderRadius:'0.25rem'}}>%AppData%\Deplao</code> trên Windows (ổ C).
+          Mặc định, dữ liệu được lưu tại thư mục <code style={{color:'#86efac',background:'#1f2937',padding:'0.0625rem 0.375rem',borderRadius:'0.25rem'}}>%AppData%\Zaplo</code> trên Windows (ổ C).
           Bạn có thể thay đổi sang bất kỳ thư mục nào trong <strong className="text-white font-semibold">Cài đặt → Lưu trữ</strong>.
         </Paragraph>
         <div className="grid grid-cols-2 gap-2 mt-2">
@@ -1545,7 +1545,7 @@ function EmployeesPanel() {
       <Card>
         <SectionTitle>🏢 Mô hình hoạt động</SectionTitle>
         <Paragraph>
-          Deplao hỗ trợ mô hình <strong>1 Boss — nhiều nhân viên</strong>: Boss chạy app trên máy chủ, bật Relay Server,
+          Zaplo hỗ trợ mô hình <strong>1 Boss — nhiều nhân viên</strong>: Boss chạy app trên máy chủ, bật Relay Server,
           nhân viên kết nối từ máy riêng qua <strong>mạng nội bộ (LAN)</strong> hoặc <strong>từ xa qua WAN / Cloudflare Tunnel</strong>.
           Dữ liệu workspace (DB, media) vẫn lưu trữ trên máy nhân viên. Do Zalo chỉ cho phép 1 kết nối cùng lúc, toàn bộ request Zalo sẽ được chuyển tiếp về máy Boss để xử lý.
         </Paragraph>
@@ -1583,7 +1583,7 @@ function EmployeesPanel() {
         <StepList steps={[
           { title: 'Boss bật Relay Server', desc: 'Cài đặt → Nhân viên → Relay Server → nhập cổng → "Bật server". Bật "Tự động bật khi khởi động" để không phải làm thủ công mỗi lần.' },
           { title: '(Tuỳ chọn) Bật Tunnel WAN', desc: 'Nhấn "Bật Tunnel WAN" — app tự cài cloudflared và tạo URL công khai dạng https://xxx.trycloudflare.com. Copy URL này gửi cho nhân viên remote.' },
-          { title: 'Nhân viên cài app', desc: 'Nhân viên cài Deplao trên máy của họ, nhập địa chỉ LAN (IP:cổng) hoặc URL WAN từ boss.' },
+          { title: 'Nhân viên cài app', desc: 'Nhân viên cài Zaplo trên máy của họ, nhập địa chỉ LAN (IP:cổng) hoặc URL WAN từ boss.' },
           { title: 'Nhân viên đăng nhập', desc: 'Nhập tài khoản/mật khẩu được boss tạo sẵn. App kết nối relay và nhận dữ liệu từ boss.' },
           { title: 'Làm việc bình thường', desc: 'Nhân viên xem hội thoại, gửi tin nhắn được phân công — mọi thao tác đều đi qua relay về máy boss.' },
         ]} />
@@ -1681,7 +1681,7 @@ function PolicyPanel() {
       <Card>
         <SectionTitle>1. Mục đích sử dụng hợp pháp</SectionTitle>
         <Paragraph>
-          Deplao là phần mềm hỗ trợ quản lý giao tiếp trên nền tảng Zalo dành cho mục đích
+          Zaplo là phần mềm hỗ trợ quản lý giao tiếp trên nền tảng Zalo dành cho mục đích
           <strong className="text-white font-semibold"> kinh doanh hợp pháp</strong>, chăm sóc khách hàng và Tự động hoá quy trình làm việc.
           Phần mềm <strong style={{color:'#fbbf24'}}>không được thiết kế</strong> và <strong style={{color:'#fbbf24'}}>không khuyến khích sử dụng</strong> cho các hành vi:
         </Paragraph>
@@ -1698,7 +1698,7 @@ function PolicyPanel() {
         <SectionTitle>2. Dữ liệu người dùng & Quyền riêng tư</SectionTitle>
         <BulletList items={[
           '<strong class="text-gray-200">Dữ liệu lưu hoàn toàn cục bộ</strong> trên máy tính của người dùng. Chúng tôi <em>không</em> thu thập, lưu trữ hoặc xử lý nội dung tin nhắn, danh bạ hay thông tin khách hàng của bạn trên bất kỳ server nào của chúng tôi.',
-          '<strong class="text-gray-200">Không chia sẻ với bên thứ 3</strong>: Deplao không tích hợp bất kỳ SDK thu thập dữ liệu, analytics hay quảng cáo của bên thứ 3.',
+          '<strong class="text-gray-200">Không chia sẻ với bên thứ 3</strong>: Zaplo không tích hợp bất kỳ SDK thu thập dữ liệu, analytics hay quảng cáo của bên thứ 3.',
           '<strong class="text-gray-200">Phiên Zalo</strong>: Cookie phiên Zalo được mã hóa AES và lưu cục bộ, chỉ dùng để duy trì kết nối Zalo từ máy bạn.',
         ]} />
       </Card>
@@ -1716,7 +1716,7 @@ function PolicyPanel() {
       <Card>
         <SectionTitle>4. Tuyên bố miễn trách nhiệm</SectionTitle>
         <BulletList items={[
-          'Deplao là công cụ hỗ trợ. Người dùng <strong class="text-gray-200">hoàn toàn chịu trách nhiệm</strong> về cách sử dụng phần mềm và tuân thủ pháp luật hiện hành.',
+          'Zaplo là công cụ hỗ trợ. Người dùng <strong class="text-gray-200">hoàn toàn chịu trách nhiệm</strong> về cách sử dụng phần mềm và tuân thủ pháp luật hiện hành.',
           'Chúng tôi không chịu trách nhiệm nếu tài khoản Zalo của bạn bị Zalo hạn chế do sử dụng không đúng cách hoặc vi phạm điều khoản Zalo.',
           'Dữ liệu lưu trên máy bạn là trách nhiệm của bạn. Hãy sao lưu định kỳ để tránh mất mát.',
           'Phần mềm được cung cấp "nguyên trạng" (as-is). Chúng tôi không đảm bảo phần mềm hoạt động hoàn toàn không có lỗi trong mọi môi trường.',
@@ -1726,7 +1726,7 @@ function PolicyPanel() {
       <Card>
         <SectionTitle>5. Sở hữu trí tuệ</SectionTitle>
         <Paragraph>
-          Deplao và tất cả tài liệu liên quan là tài sản trí tuệ của <strong className="text-white font-semibold">DepLao Team</strong>.
+          Zaplo và tất cả tài liệu liên quan là tài sản trí tuệ của <strong className="text-white font-semibold">Zaplo Team</strong>.
           Nghiêm cấm sao chép, phân phối lại, reverse-engineer hoặc bán lại phần mềm dưới bất kỳ hình thức nào
           khi chưa có sự đồng ý bằng văn bản.
         </Paragraph>
@@ -1735,7 +1735,7 @@ function PolicyPanel() {
       <Card>
         <SectionTitle>6. Liên hệ & Hỗ trợ</SectionTitle>
         <BulletList items={[
-          'Link github: <strong class="text-gray-200">https://github.com/babyvibe</strong>',
+          'Link github: <strong class="text-gray-200">https://github.com/andyluu98/zaplo</strong>',
         ]} />
       </Card>
     </div>
@@ -1758,13 +1758,13 @@ function BugReportPanel() {
 
       <div className="flex justify-center gap-2">
         <button
-          onClick={() => ipc.shell?.openExternal('https://github.com/babyvibe/deplao-builder/issues/new')}
+          onClick={() => ipc.shell?.openExternal('https://github.com/andyluu98/zaplo/issues/new')}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-colors"
         >
           Tạo Issue mới trên GitHub →
         </button>
         <button
-          onClick={() => ipc.shell?.openExternal('https://github.com/babyvibe/deplao-builder/issues')}
+          onClick={() => ipc.shell?.openExternal('https://github.com/andyluu98/zaplo/issues')}
           className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-xs font-medium rounded-lg transition-colors"
         >
           Xem danh sách Issues
@@ -1776,7 +1776,7 @@ function BugReportPanel() {
         <StepList steps={[
           {
             title: '1. Tái hiện lỗi',
-            desc: 'Lặp lại thao tác khi gặp lỗi. Ghi nhận từng bước cụ thể (VD: "Mở CRM → Nhấn Chiến dịch → Nhấn Tạo mới → Lỗi"). Xác nhận lỗi xảy ra mỗi lần hay chỉ thỉnh thoảng. Thử trên phiên bản Deplao mới nhất.',
+            desc: 'Lặp lại thao tác khi gặp lỗi. Ghi nhận từng bước cụ thể (VD: "Mở CRM → Nhấn Chiến dịch → Nhấn Tạo mới → Lỗi"). Xác nhận lỗi xảy ra mỗi lần hay chỉ thỉnh thoảng. Thử trên phiên bản Zaplo mới nhất.',
           },
           {
             title: '2. Chụp ảnh / quay video minh hoạ',
@@ -1784,7 +1784,7 @@ function BugReportPanel() {
           },
           {
             title: '3. Thu thập thông tin kỹ thuật',
-            desc: 'Phiên bản Deplao (thanh trên cùng bên trái). Hệ điều hành (Windows 10/11, macOS Intel/Apple Silicon). Tài khoản nào gặp lỗi (Zalo cá nhân, Business, Facebook). Tính năng liên quan. Nếu có lỗi Console (Ctrl+Shift+I → Console) — copy-paste nội dung.',
+            desc: 'Phiên bản Zaplo (thanh trên cùng bên trái). Hệ điều hành (Windows 10/11, macOS Intel/Apple Silicon). Tài khoản nào gặp lỗi (Zalo cá nhân, Business, Facebook). Tính năng liên quan. Nếu có lỗi Console (Ctrl+Shift+I → Console) — copy-paste nội dung.',
           },
           {
             title: '4. Viết mô tả Issue trên GitHub',
@@ -1792,7 +1792,7 @@ function BugReportPanel() {
           },
           {
             title: '5. Gửi Issue và theo dõi',
-            desc: 'Nhấn Submit trên GitHub. Theo dõi email thông báo khi có phản hồi. Phản hồi sớm khi nhóm yêu cầu thêm thông tin. Khi lỗi đã sửa, cập nhật Deplao và xác nhận lại.',
+            desc: 'Nhấn Submit trên GitHub. Theo dõi email thông báo khi có phản hồi. Phản hồi sớm khi nhóm yêu cầu thêm thông tin. Khi lỗi đã sửa, cập nhật Zaplo và xác nhận lại.',
           },
         ]} />
       </Card>
@@ -1818,7 +1818,7 @@ function BugReportPanel() {
             </ol>
           </div>
           <p className="text-gray-400 leading-relaxed">
-            <strong className="text-gray-200">Môi trường:</strong> Deplao v26.4.5, Windows 11, Zalo cá nhân.
+            <strong className="text-gray-200">Môi trường:</strong> Zaplo v26.4.5, Windows 11, Zalo cá nhân.
             Đã test 50 người (bình thường), 100 người (bình thường), 150 người (lỗi).
           </p>
           <div className="bg-green-900/20 border border-green-700/30 rounded-lg p-2 mt-2">
@@ -1873,7 +1873,7 @@ function DonateCoffeePanel() {
         <div>
           <h3 className="text-white font-bold text-base">Donate & Ủng hộ</h3>
           <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">
-            Dự án phát triển bởi <strong className="text-gray-200">Deplao</strong> với mục tiêu mang công cụ all-in-one tất cả mọi thứ người dùng cần để quản lý và marketing
+            Dự án phát triển bởi <strong className="text-gray-200">Zaplo</strong> với mục tiêu mang công cụ all-in-one tất cả mọi thứ người dùng cần để quản lý và marketing
             trên Zalo, Facebook đến mọi cá nhân và doanh nghiệp nhỏ hoàn toàn <strong className="text-green-400">miễn phí</strong>.
             Mỗi ly cà phê của bạn giúp tụi mình có thêm token AI, duy trì server và phát triển tính năng mới.
           </p>
@@ -1909,7 +1909,7 @@ function DonateCoffeePanel() {
       <Card>
         <SectionTitle>💼 Nhận dự án — Team nhận làm phần mềm theo yêu cầu</SectionTitle>
         <Paragraph>
-          Ngoài Deplao, team còn nhận phát triển phần mềm theo yêu cầu riêng (custom software development).
+          Ngoài Zaplo, team còn nhận phát triển phần mềm theo yêu cầu riêng (custom software development).
           Nếu bạn cần một công cụ quản lý, tự động hoá hoặc bất cứ giải pháp công nghệ nào, đừng ngần ngại liên hệ!
         </Paragraph>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
@@ -1941,10 +1941,10 @@ function DonateCoffeePanel() {
             <div>
               <p className="text-xs text-gray-200 font-medium">GitHub Issues</p>
               <button
-                onClick={() => ipc.shell?.openExternal('https://github.com/babyvibe/deplao-builder/issues')}
+                onClick={() => ipc.shell?.openExternal('https://github.com/andyluu98/zaplo/issues')}
                 className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors text-left"
               >
-                github.com/babyvibe/deplao-builder
+                github.com/andyluu98/zaplo
               </button>
             </div>
           </div>

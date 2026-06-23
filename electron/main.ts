@@ -24,6 +24,9 @@ import { registerErpNoteIpc } from './ipc/erpNoteIpc';
 import { registerErpNotificationIpc } from './ipc/erpNotificationIpc';
 import { registerErpHrmIpc } from './ipc/erpHrmIpc';
 import { registerLockScreenIpc } from './ipc/lockScreenIpc';
+import { registerPostingIpc } from './ipc/postingIpc';
+import { registerChatAgentIpc } from './ipc/chatAgentIpc';
+import PostingSchedulerService from '../src/services/posting/posting-scheduler-service';
 import WorkspaceManager from '../src/utils/WorkspaceManager';
 import HttpConnectionManager from '../src/services/http/HttpConnectionManager';
 import WorkflowEngineService from '../src/services/workflow/WorkflowEngineService';
@@ -108,20 +111,20 @@ app.commandLine.appendSwitch('lang', 'vi-VN');
 app.commandLine.appendSwitch('accept-lang', 'vi-VN,vi;q=0.9');
 
 // Đặt tên app (hiện trên taskbar, tray, macOS dock)
-app.setName('Deplao');
+app.setName('Zaplo');
 
 // Windows: đặt AppUserModelId để taskbar/notification hiển thị đúng icon & tên
 // Dev: AUMID unique mỗi lần chạy → Windows tạo icon cache mới → hiện đúng icon
 // Production: AUMID cố định (khớp appId electron-builder, exe đã embed icon qua afterPack)
 if (process.platform === 'win32') {
-  app.setAppUserModelId(isDev ? `com.Deplao.dev.${Date.now()}` : 'com.Deplao.app');
+  app.setAppUserModelId(isDev ? `com.zaplo.dev.${Date.now()}` : 'com.zaplo.app');
 }
 
 // ─── Register custom protocol BEFORE app ready (required by Electron) ─────────
 // local-media://abs-path  →  serve file from absolute path on disk
 // Usage in renderer: local-media:///D:/path/to/file.jpg
 //
-// deplao://openChat?accountId=xxx&threadId=yyy&threadType=0&channel=zalo
+// zaplo://openChat?accountId=xxx&threadId=yyy&threadType=0&channel=zalo
 //   → deep link: mở app + active đúng hội thoại
 protocol.registerSchemesAsPrivileged([
   {
@@ -135,7 +138,7 @@ protocol.registerSchemesAsPrivileged([
     },
   },
   {
-    scheme: 'deplao',
+    scheme: 'zaplo',
     privileges: {
       secure: true,
       bypassCSP: true,
@@ -172,7 +175,7 @@ function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    title: 'Deplao',
+    title: 'Zaplo',
     // Windows: frameless → custom title bar
     // macOS: hiddenInset → ẩn title bar, giữ traffic light buttons
     frame: isMac,
@@ -336,7 +339,7 @@ function createWindow() {
     }
 
     // Parse deep link URL từ command line (Windows protocol handler)
-    const deepLinkUrl = argv.find((arg: string) => arg.startsWith('deplao://'));
+    const deepLinkUrl = argv.find((arg: string) => arg.startsWith('zaplo://'));
     if (deepLinkUrl) {
       handleDeepLink(deepLinkUrl);
     }
@@ -344,7 +347,7 @@ function createWindow() {
 
   // macOS: open-url event khi click deep link
   app.on('open-url', (_event, url) => {
-    if (url.startsWith('deplao://')) {
+    if (url.startsWith('zaplo://')) {
       handleDeepLink(url);
     }
   });
@@ -369,7 +372,7 @@ function createTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Mở Deplao',
+      label: 'Mở Zaplo',
       click: () => { mainWindow?.show(); mainWindow?.focus(); },
     },
     { type: 'separator' },
@@ -384,7 +387,7 @@ function createTray() {
     },
   ]);
 
-  tray.setToolTip('Deplao');
+  tray.setToolTip('Zaplo');
   tray.setContextMenu(contextMenu);
 
   // Double-click tray → mở app
@@ -404,7 +407,7 @@ function createTray() {
 function showTrayNotification() {
   if (!Notification.isSupported()) return;
   const notif = new Notification({
-    title: 'Deplao đang chạy ngầm',
+    title: 'Zaplo đang chạy ngầm',
     body: 'Ứng dụng vẫn đang hoạt động và nhận tin nhắn bình thường. Nhấn vào biểu tượng tray để mở lại.',
     silent: false,
   });
@@ -509,7 +512,7 @@ function registerWindowControls() {
             tray?.setImage(cachedDotIcon);
           }
         }
-        tray?.setToolTip(`Deplao — ${count} tin chưa đọc`);
+        tray?.setToolTip(`Zaplo — ${count} tin chưa đọc`);
       } else {
         if (currentIconIsDot) {
           currentIconIsDot = false;
@@ -518,7 +521,7 @@ function registerWindowControls() {
             tray?.setImage(cachedNormalIcon);
           }
         }
-        tray?.setToolTip('Deplao');
+        tray?.setToolTip('Zaplo');
       }
     } else {
       try { app.setBadgeCount(count > 0 ? count : 0); } catch {}
@@ -565,10 +568,10 @@ function registerWindowControls() {
 }
 
 /**
- * Xử lý deep link URL từ custom protocol deplao://
+ * Xử lý deep link URL từ custom protocol zaplo://
  *
  * Định dạng:
- *   deplao://openChat?accountId=xxx&threadId=yyy&threadType=0&channel=zalo
+ *   zaplo://openChat?accountId=xxx&threadId=yyy&threadType=0&channel=zalo
  *
  * Hỗ trợ thêm action mới bằng cách mở rộng switch(action) bên dưới.
  */
@@ -655,7 +658,7 @@ async function startupAllWorkspaces(): Promise<void> {
 
   for (const ws of localWorkspaces) {
     try {
-      const dbPath = wsMgr.resolveDbPath(ws.dbPath || 'deplao-tool.db');
+      const dbPath = wsMgr.resolveDbPath(ws.dbPath || 'zaplo-tool.db');
       if (!dbPath || !require('fs').existsSync(dbPath)) continue;
 
       // Read accounts from this workspace's DB (without switching active DB)
@@ -741,6 +744,31 @@ app.whenReady().then(async () => {
     });
   });
 
+  // ── One-time rebrand migration: inherit data from a legacy "Deplao" install ──
+  // Zaplo uses a new userData dir (…/Zaplo). On first launch, if a legacy Deplao
+  // install exists, copy its whole data folder once so existing users keep their
+  // Zalo session, DB, assistants, agents and media. File names are preserved
+  // (deplao-config.json / deplao-tool.db) so the copied config still resolves.
+  try {
+    const zaploDir = app.getPath('userData');
+    const sentinel = path.join(zaploDir, '.migrated-from-deplao');
+    const legacyDir = path.join(path.dirname(zaploDir), 'Deplao');
+    if (!fs.existsSync(sentinel) && legacyDir !== zaploDir && fs.existsSync(path.join(legacyDir, 'deplao-tool.db'))) {
+      const copyDir = (src: string, dst: string) => {
+        fs.mkdirSync(dst, { recursive: true });
+        for (const e of fs.readdirSync(src, { withFileTypes: true })) {
+          if (e.name === '.migrated-from-deplao') continue;
+          const s = path.join(src, e.name), d = path.join(dst, e.name);
+          if (e.isDirectory()) copyDir(s, d);
+          else { try { fs.copyFileSync(s, d); } catch { /* skip locked/transient files */ } }
+        }
+      };
+      copyDir(legacyDir, zaploDir);
+      console.log('[main] Migrated legacy Deplao data → Zaplo (one-time)');
+    }
+    try { fs.mkdirSync(zaploDir, { recursive: true }); fs.writeFileSync(sentinel, String(Date.now())); } catch {}
+  } catch (err: any) { console.error('[main] Deplao→Zaplo data migration:', err?.message); }
+
   // Initialize workspace manager (must be BEFORE database init)
   WorkspaceManager.getInstance().initialize();
 
@@ -778,15 +806,15 @@ app.whenReady().then(async () => {
 
   loadIcons();
 
-  // ── Register deplao:// as default protocol client ─────────────────────
-  // Cho phép OS mở app khi click link deplao:// trong trình duyệt
+  // ── Register zaplo:// as default protocol client ─────────────────────
+  // Cho phép OS mở app khi click link zaplo:// trong trình duyệt
   //
   // ⚠️ Production: app đã đóng gói → setAsDefaultProtocolClient hoạt động đúng.
   // ⚠️ Development: KHÔNG gọi setAsDefaultProtocolClient — dùng manual reg script
   //    (xem hướng dẫn trong agents/references/deep-link-feature.md)
   if (app.isPackaged) {
-    if (!app.isDefaultProtocolClient('deplao')) {
-      app.setAsDefaultProtocolClient('deplao');
+    if (!app.isDefaultProtocolClient('zaplo')) {
+      app.setAsDefaultProtocolClient('zaplo');
     }
   }
 
@@ -795,10 +823,10 @@ app.whenReady().then(async () => {
   registerWindowControls();
 
   // ── Handle deep link từ initial launch (first instance) ──────────
-  // Khi click deplao:// link lần đầu:
+  // Khi click zaplo:// link lần đầu:
   //   - Production đúng: URL nằm ở process.argv[1] hoặc sau dấu `--`
   //   - Dev / sai config: Electron nhận URL ở argv[1] thay vì main script path
-  const initialDeepLink = process.argv.find((arg) => arg.startsWith('deplao://'));
+  const initialDeepLink = process.argv.find((arg) => arg.startsWith('zaplo://'));
   if (initialDeepLink) {
     setTimeout(() => handleDeepLink(initialDeepLink), 3000);
   }
@@ -825,6 +853,8 @@ app.whenReady().then(async () => {
   registerErpNotificationIpc();
   registerErpHrmIpc();
   registerLockScreenIpc();
+  registerPostingIpc();
+  registerChatAgentIpc();
   // Auto-reconnect Facebook accounts
   setTimeout(() => reconnectAllFBAccounts(), 4000);
   // Ordered startup: relay + Zalo for all local workspaces FIRST, then remote workspaces
@@ -833,6 +863,18 @@ app.whenReady().then(async () => {
   }), 3000);
   // Resume any active CRM campaigns after restart
   setTimeout(() => CRMQueueService.getInstance().resumeActiveCampaigns(), 3000);
+  // Resume enabled posting bot schedules after restart (legacy single-schedule)
+  setTimeout(() => PostingSchedulerService.getInstance().resumeActiveSchedules(), 3500);
+  // Resume enabled posting AGENTS after restart (agent-centric module)
+  setTimeout(() => {
+    try { require('../src/services/posting/agent-scheduler-service').default.getInstance().resumeActiveAgents(); }
+    catch (err: any) { console.error('[main] resumeActiveAgents error:', err.message); }
+  }, 3800);
+  // Start Chat Agent auto-reply dispatcher (listens to live incoming messages)
+  setTimeout(() => {
+    try { require('../src/services/chat-agent/chat-agent-dispatcher').default.getInstance().start(); }
+    catch (err: any) { console.error('[main] ChatAgentDispatcher start error:', err.message); }
+  }, 3900);
   // Initialize ERP Calendar reminders scheduler
   setTimeout(() => {
     try {

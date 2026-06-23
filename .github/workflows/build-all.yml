@@ -1,14 +1,13 @@
-# ─── Build Deplao — Windows + macOS cùng lúc ─────────────────────────────────
-# Workflow tổng hợp: trigger cả 2 job song song, publish lên cùng 1 Release tag
+# ─── Build Zaplo — Windows + macOS + Linux ───────────────────────────────────
+# Single release pipeline: builds all 3 platforms in parallel and publishes them
+# to one GitHub Release in THIS repository (andyluu98/zaplo).
+# Trigger: push a tag (v*) to publish, or run manually via workflow_dispatch.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: Build All Platforms
 
 permissions:
   contents: write
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
   workflow_dispatch:
@@ -22,7 +21,7 @@ on:
           - 'false'
           - 'true'
       tag_name:
-        description: 'Tag cho release (vd: v26.4.0). Bỏ trống = tự lấy từ package.json'
+        description: 'Tag cho release (vd: v26.7.4). Bỏ trống = tự lấy từ package.json'
         required: false
         default: ''
         type: string
@@ -31,12 +30,9 @@ on:
     tags:
       - 'v*'
 
-# ─── SECRETS cần cấu hình ────────────────────────────────────────────────────
-#   GH_TOKEN — GitHub Personal Access Token (repo scope)
-
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
-  # Resolve tag một lần — chia sẻ cho cả 2 job build
+  # Resolve tag once — shared by all build jobs
   # ═══════════════════════════════════════════════════════════════════════════
   resolve-tag:
     runs-on: ubuntu-latest
@@ -72,39 +68,37 @@ jobs:
     needs: resolve-tag
     runs-on: windows-latest
     timeout-minutes: 30
-
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: 🟢 Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-
+      - name: 🐹 Setup Go (E2EE bridge)
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: false
       - name: 📦 Install dependencies
         run: npm ci --legacy-peer-deps
-
+      - name: 🏗️ Build E2EE bridge (Go)
+        run: npm run build:bridge-e2ee
       - name: 🏗️ Compile TypeScript (electron)
         run: npx tsc -p tsconfig.electron.prod.json
-
       - name: 🏗️ Build renderer (Vite)
         run: npx vite build
         env:
           NODE_ENV: production
           BUILD_TARGET: production
-
       - name: 📦 Build Windows app (x64)
         run: npx electron-builder --win --x64 --publish never
-
       - name: 🚀 Publish Windows → GitHub Releases
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          repository: babyvibe/deplao-builder
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
-          name: "Deplao ${{ needs.resolve-tag.outputs.tag }}"
+          name: "Zaplo ${{ needs.resolve-tag.outputs.tag }}"
           files: |
             dist-electron-build/*.exe
             dist-electron-build/*.blockmap
@@ -122,41 +116,43 @@ jobs:
     needs: resolve-tag
     runs-on: macos-14
     timeout-minutes: 30
-
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: 🟢 Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-
+      - name: 🐹 Setup Go (E2EE bridge)
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: false
       - name: 📦 Install dependencies
         run: npm ci --legacy-peer-deps
-
+      - name: 🏗️ Build E2EE bridge (Go)
+        run: npm run build:bridge-e2ee
       - name: 🏗️ Compile TypeScript (electron)
         run: npx tsc -p tsconfig.electron.prod.json
-
       - name: 🏗️ Build renderer (Vite)
         run: npx vite build
         env:
           NODE_ENV: production
           BUILD_TARGET: production
-
-      - name: 📦 Build macOS app (arm64)
-        run: npx electron-builder --mac --arm64 --publish never
-
+      - name: 📦 Build macOS app (zip — reliable, no hdiutil)
+        run: npx electron-builder --mac zip --arm64 --publish never
+      - name: 📀 Try building .dmg (best-effort; hdiutil flaky on CI)
+        continue-on-error: true
+        run: npx electron-builder --mac dmg --arm64 --publish never
       - name: 🚀 Publish macOS → GitHub Releases
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          repository: babyvibe/deplao-builder
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
-          name: "Deplao ${{ needs.resolve-tag.outputs.tag }}"
+          name: "Zaplo ${{ needs.resolve-tag.outputs.tag }}"
           files: |
             dist-electron-build/*.dmg
+            dist-electron-build/*.zip
             dist-electron-build/*.blockmap
             dist-electron-build/latest-mac.yml
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -172,56 +168,41 @@ jobs:
     needs: resolve-tag
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: 🟢 Setup Node.js 22.x
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
-
-      - name: 🟢 Setup Go 1.x
+      - name: 🐹 Setup Go (E2EE bridge)
         uses: actions/setup-go@v5
         with:
           go-version: 'stable'
           cache: false
-
       - name: 📦 Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            libfuse2 \
-            dpkg-dev \
-          || echo 'WARN: some system deps may be missing'
-
+          sudo apt-get install -y -qq libfuse2 dpkg-dev || echo 'WARN: some system deps may be missing'
       - name: 📦 Install npm dependencies
         run: npm ci --legacy-peer-deps
-
       - name: 🏗️ Build E2EE bridge (Go)
         run: npm run build:bridge-e2ee
-
       - name: 🏗️ Compile TypeScript (electron)
         run: npx tsc -p tsconfig.electron.prod.json
-
       - name: 🏗️ Build renderer (Vite)
         run: npx vite build
         env:
           NODE_ENV: production
           BUILD_TARGET: production
-
       - name: 📦 Build Linux app (x64 — AppImage + deb)
         run: npx electron-builder --linux --x64 --publish never
-
       - name: 🚀 Publish Linux → GitHub Releases
         if: needs.resolve-tag.outputs.should_publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          repository: babyvibe/deplao-builder
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
-          name: "Deplao ${{ needs.resolve-tag.outputs.tag }}"
+          name: "Zaplo ${{ needs.resolve-tag.outputs.tag }}"
           files: |
             dist-electron-build/*.AppImage
             dist-electron-build/*.deb
@@ -232,4 +213,3 @@ jobs:
           prerelease: false
           make_latest: false
           fail_on_unmatched_files: false
-

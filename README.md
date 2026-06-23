@@ -1,4 +1,4 @@
-# Deplao
+# Zaplo
 *Website giới thiệu*:  https://deplaoapp.com/
 
 <p>
@@ -22,7 +22,7 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](#)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-MIT-22c55e)](#giấy-phép)
-[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/babyvibe/deplao-builder/issues)
+[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/andyluu98/zaplo/issues)
 
 
 <p align="center">
@@ -43,54 +43,54 @@
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Deplao-Setup-26.6.4.exe">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-Setup-26.6.4.exe">
 <img src="https://img.shields.io/badge/🪟_Windows_10/11-v26.6.4-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows" />
 </a>
 
-<big><strong>Deplao-Setup-26.6.4.exe</strong></big>
+<big><strong>Zaplo-Setup-26.6.4.exe</strong></big>
 
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Deplao-26.6.4-arm64.dmg">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.6.4-arm64.dmg">
 <img src="https://img.shields.io/badge/🍎_macOS_M1+-v26.6.4-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Apple Silicon" />
 </a>
 
-<big><strong>Deplao-26.6.4-arm64.dmg</strong></big>
+<big><strong>Zaplo-26.6.4-arm64.dmg</strong></big>
 
 </td>
 </tr>
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Deplao-26.6.4.AppImage">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.6.4.AppImage">
 <img src="https://img.shields.io/badge/🐧_Ubuntu_Linux-v26.6.4-e95420?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Download Ubuntu" />
 </a>
 
-<big><strong>Deplao-26.6.4.AppImage</strong></big><br>
+<big><strong>Zaplo-26.6.4.AppImage</strong></big><br>
 <big>chạy mọi distro — <code>chmod +x</code> là dùng được</big>
 
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Deplao-26.6.4.dmg">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.6.4.dmg">
 <img src="https://img.shields.io/badge/🍎_macOS_Intel-v26.6.4-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Intel" />
 </a>
 
-<big><strong>Deplao-26.6.4.dmg</strong></big>
+<big><strong>Zaplo-26.6.4.dmg</strong></big>
 
 </td>
 </tr>
 </table>
 
 <p align="center">
-👉 <strong><a href="https://github.com/babyvibe/deplao-builder/releases">Xem tất cả phiên bản</a></strong>
+👉 <strong><a href="https://github.com/andyluu98/zaplo/releases">Xem tất cả phiên bản</a></strong>
 </p>
 
 <details>
 <summary>⚠️ Lưu ý khi mở file cài đặt (bị chặn bởi Windows / macOS / Linux)</summary>
 
-Do Deplao chưa được ký chứng chỉ (code signing) - nói thẳng ra là nghèo, nên hệ điều hành có thể hiển thị cảnh báo khi mở file. Bạn có thể làm theo hướng dẫn dưới đây:
+Do Zaplo chưa được ký chứng chỉ (code signing) - nói thẳng ra là nghèo, nên hệ điều hành có thể hiển thị cảnh báo khi mở file. Bạn có thể làm theo hướng dẫn dưới đây:
 
 ---
 
@@ -126,8 +126,8 @@ Khi mở file `.dmg`, macOS có thể báo **"cannot be opened because it is fro
 Sau khi tải file `.AppImage`:
 
 ```bash
-chmod +x Deplao-*.AppImage
-./Deplao-*.AppImage
+chmod +x Zaplo-*.AppImage
+./Zaplo-*.AppImage
 ```
 
 > Nếu gặp lỗi "FUSE: fuse2 not available", cài `libfuse2`:
@@ -137,18 +137,18 @@ chmod +x Deplao-*.AppImage
 
 Hoặc cài bản `.deb`:
 ```bash
-sudo dpkg -i Deplao_*_amd64.deb
+sudo dpkg -i Zaplo_*_amd64.deb
 ```
 
 </details>
 
 <p align="center">
-  <img src="./assets/deplao-overview-map.svg" alt="Sơ đồ trực quan mô tả Deplao là workspace desktop tập trung cho bán hàng và chăm sóc khách hàng trên Zalo" width="960" />
+  <img src="./assets/deplao-overview-map.svg" alt="Sơ đồ trực quan mô tả Zaplo là workspace desktop tập trung cho bán hàng và chăm sóc khách hàng trên Zalo" width="960" />
 </p>
 
 ## 🛠️ Công nghệ & ngôn ngữ sử dụng
 
-Deplao hiện được xây dựng trên các công nghệ chính sau:
+Zaplo hiện được xây dựng trên các công nghệ chính sau:
 
 - **Thư viện chính:** zca-js & fbchat-v2
 - **AI Gateway:** 9router
@@ -241,7 +241,7 @@ flowchart LR
 
 ```mermaid
 mindmap
-  root((🖥️ Deplao))
+  root((🖥️ Zaplo))
     ⚙️ Main Process
       📡 IPC Handlers
         login · zalo · crm
@@ -299,7 +299,7 @@ flowchart TB
     end
 
     subgraph EMP["💻 Nhân Viên — Remote Workspace"]
-        EA("📲 Deplao App\nEmployee Mode")
+        EA("📲 Zaplo App\nEmployee Mode")
         EP("🔐 Permission Filter\nerp · crm · workflow · ...")
         EU("👁️ UI\nchỉ thấy TK được gán")
     end
@@ -330,7 +330,7 @@ flowchart LR
     end
 
     subgraph STORE["💾 Lưu trữ cục bộ"]
-        DB[("🗄️ SQLite\ndeplao-tool.db\nmessages · contacts\ncrm · workflow · erp")]
+        DB[("🗄️ SQLite\nzaplo-tool.db\nmessages · contacts\ncrm · workflow · erp")]
         MED("📁 FileStorage\n~/media/\nảnh · video · file")
         ES("🔑 electron-store\ncookies · tokens\nsettings")
     end
@@ -353,10 +353,10 @@ flowchart LR
 ---
 
 
-## 🚀 Deplao là gì?
+## 🚀 Zaplo là gì?
 
 
-Nếu nhìn nhanh, có thể hiểu Deplao là:
+Nếu nhìn nhanh, có thể hiểu Zaplo là:
 
 - **trung tâm vận hành Zalo**: nhiều tài khoản, inbox tập trung, trả lời nhanh
 - **lớp quản lý khách hàng**: CRM, nhãn, lịch sử tương tác, campaign
@@ -380,75 +380,75 @@ Nếu nhìn nhanh, có thể hiểu Deplao là:
 - 🔐 **Dữ liệu lưu cục bộ** — ưu tiên quyền kiểm soát dữ liệu và bảo mật trên máy người dùng
 
 
-### Xem nhanh giao diện Deplao
+### Xem nhanh giao diện Zaplo
 
 Các màn hình dưới đây được sắp theo luồng sử dụng thực tế: từ dashboard → chat → CRM → workflow → POS / báo cáo / ERP.
 
 <table>
   <tr>
     <td>
-      <img src="./assets/dashboard.png" alt="Dashboard quản lý đa tài khoản Zalo trong Deplao" width="360" />
+      <img src="./assets/dashboard.png" alt="Dashboard quản lý đa tài khoản Zalo trong Zaplo" width="360" />
       <br />
       <sub><strong>Dashboard đa tài khoản</strong></sub>
     </td>
     <td>
-      <img src="./assets/chat.png" alt="Giao diện chat tập trung trong Deplao" width="360" />
+      <img src="./assets/chat.png" alt="Giao diện chat tập trung trong Zaplo" width="360" />
       <br />
       <sub><strong>Chat tập trung tích hợp AI gợi ý trả lời</strong></sub>
     </td>
     <td>
-      <img src="./assets/crm.png" alt="Màn hình CRM và quản lý liên hệ trong Deplao" width="360" />
+      <img src="./assets/crm.png" alt="Màn hình CRM và quản lý liên hệ trong Zaplo" width="360" />
       <br />
       <sub><strong>CRM & liên hệ</strong></sub>
     </td>
   </tr>
   <tr>
     <td>
-      <img src="./assets/scan-members-group.png" alt="Quét thành viên nhóm Zalo trong Deplao" width="360" />
+      <img src="./assets/scan-members-group.png" alt="Quét thành viên nhóm Zalo trong Zaplo" width="360" />
       <br />
       <sub><strong>Quét thành viên nhóm</strong></sub>
     </td>
     <td>
-      <img src="./assets/campaign.png" alt="Chiến dịch gửi tin hàng loạt trong Deplao" width="360" />
+      <img src="./assets/campaign.png" alt="Chiến dịch gửi tin hàng loạt trong Zaplo" width="360" />
       <br />
       <sub><strong>Chiến dịch gửi tin hàng loạt</strong></sub>
     </td>
     <td>
-      <img src="./assets/workflow.png" alt="Trình thiết kế workflow kéo thả trong Deplao" width="360" />
+      <img src="./assets/workflow.png" alt="Trình thiết kế workflow kéo thả trong Zaplo" width="360" />
       <br />
       <sub><strong>Workflow editor</strong></sub>
     </td>
   </tr>
   <tr>
     <td>
-      <img src="./assets/detail-workflow.png" alt="Chi tiết cấu hình workflow trong Deplao" width="360" />
+      <img src="./assets/detail-workflow.png" alt="Chi tiết cấu hình workflow trong Zaplo" width="360" />
       <br />
       <sub><strong>Chi tiết workflow</strong></sub>
     </td>
     <td>
-      <img src="./assets/workflow-ai.png" alt="Workflow kết hợp AI trong Deplao" width="360" />
+      <img src="./assets/workflow-ai.png" alt="Workflow kết hợp AI trong Zaplo" width="360" />
       <br />
       <sub><strong>Ra lệnh tạo Workflow bằng AI</strong></sub>
     </td>
     <td>
-      <img src="./assets/pos.png" alt="Tích hợp POS và bán hàng trong Deplao" width="360" />
+      <img src="./assets/pos.png" alt="Tích hợp POS và bán hàng trong Zaplo" width="360" />
       <br />
       <sub><strong>Tích hợp POS, VC, Thanh toán</strong></sub>
     </td>
   </tr>
   <tr>
     <td>
-      <img src="./assets/report.jpg" alt="Báo cáo và phân tích hiệu suất trong Deplao" width="360" />
+      <img src="./assets/report.jpg" alt="Báo cáo và phân tích hiệu suất trong Zaplo" width="360" />
       <br />
       <sub><strong>Báo cáo & phân tích</strong></sub>
     </td>
     <td>
-      <img src="./assets/report-employee.png" alt="Báo cáo hiệu suất nhân viên trong Deplao" width="360" />
+      <img src="./assets/report-employee.png" alt="Báo cáo hiệu suất nhân viên trong Zaplo" width="360" />
       <br />
       <sub><strong>Báo cáo nhân viên</strong></sub>
     </td>
     <td>
-      <img src="./assets/erp.png" alt="ERP nội bộ và phối hợp vận hành trong Deplao" width="360" />
+      <img src="./assets/erp.png" alt="ERP nội bộ và phối hợp vận hành trong Zaplo" width="360" />
       <br />
       <sub><strong>ERP nội bộ</strong></sub>
     </td>
@@ -457,7 +457,7 @@ Các màn hình dưới đây được sắp theo luồng sử dụng thực t�
 
 ## 🎯 Phù hợp với ai?
 
-Deplao phù hợp cho:
+Zaplo phù hợp cho:
 
 - shop online và đội ngũ chốt đơn qua Zalo
 - doanh nghiệp SME cần nhiều nhân viên xử lý inbox cùng lúc
@@ -518,7 +518,7 @@ Deplao phù hợp cho:
 
 ## 🔒 Bảo mật & dữ liệu
 
-Deplao ưu tiên kiến trúc chạy cục bộ trên máy người dùng:
+Zaplo ưu tiên kiến trúc chạy cục bộ trên máy người dùng:
 
 - tất cả dữ liệu tin nhắn, danh bạ, CRM, cài đặt và media được lưu trên máy
 - đăng nhập bằng QR Code, không yêu cầu lưu mật khẩu Zalo, Cookie được mã hóa lưu trên máy
@@ -535,11 +535,11 @@ Deplao ưu tiên kiến trúc chạy cục bộ trên máy người dùng:
 
 ## 📣 Liên hệ
 
-- Báo lỗi, góp ý hoặc cần hỗ trợ: 👉 [Tạo issue tại đây](https://github.com/babyvibe/deplao-builder/issues)
+- Báo lỗi, góp ý hoặc cần hỗ trợ: 👉 [Tạo issue tại đây](https://github.com/andyluu98/zaplo/issues)
 
 ## 🙏 Lời cảm ơn
 
-Deplao xin gửi lời cảm ơn đến dự án:  
+Zaplo xin gửi lời cảm ơn đến dự án:  
 👉 https://github.com/RFS-ADRENO/zca-js
 👉 https://github.com/m008v/fbchat-v2
 Nhờ những đóng góp và nền tảng từ dự án này 💙

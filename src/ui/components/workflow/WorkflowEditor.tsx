@@ -430,7 +430,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
       try {
         const data = JSON.parse(ev.target?.result as string);
         if (!data._deplaoWorkflow) {
-          showNotification('File không phải workflow Deplao hợp lệ', 'error');
+          showNotification('File không phải workflow Zaplo hợp lệ', 'error');
           return;
         }
         // File cũ không có channel → mặc định Zalo

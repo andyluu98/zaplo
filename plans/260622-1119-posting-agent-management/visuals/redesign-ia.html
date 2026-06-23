@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Redesign IA — Đăng bài theo Agent</title>
+<style>
+  :root{
+    --bg:#0b1120; --panel:#111827; --card:#1f2937; --card2:#172033;
+    --line:#374151; --line2:#1f2a3a; --txt:#e5e7eb; --mut:#9ca3af; --mut2:#6b7280;
+    --blue:#3b82f6; --blue-bg:rgba(59,130,246,.08); --green:#22c55e; --amber:#f59e0b;
+    --red:#ef4444; --purple:#a78bfa; --emerald:#34d399;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#060a14;color:var(--txt);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;line-height:1.5}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 16px 80px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:13px;margin:0 0 20px}
+  .toggle{display:inline-flex;gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:18px}
+  .toggle button{background:var(--panel);color:var(--mut);border:0;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+  .toggle button.on{background:var(--blue);color:#fff}
+  .note{font-size:12px;color:var(--mut2);margin:6px 0 18px}
+
+  /* App frame */
+  .app{background:var(--bg);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+  .head{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--line)}
+  .head h2{font-size:15px;margin:0;font-weight:600}
+  .head-right{display:flex;align-items:center;gap:8px}
+  .acct{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:12px;color:var(--mut)}
+  .acct .av{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#a78bfa)}
+  .res-btn{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:12px;color:var(--txt);cursor:pointer;font-weight:600}
+  .res-btn:hover{border-color:#4b5563;background:#243042}
+  .res-btn .pill{background:#243042;color:var(--mut);border-radius:6px;font-size:10px;padding:1px 6px}
+
+  .tabs{display:flex;gap:2px;padding:10px 18px 0;border-bottom:1px solid var(--line2);flex-wrap:wrap}
+  .tab{padding:9px 16px;font-size:12.5px;font-weight:600;color:var(--mut);border:0;border-bottom:2px solid transparent;background:transparent;border-radius:8px 8px 0 0;cursor:pointer}
+  .tab:hover{color:#d1d5db;background:rgba(55,65,81,.3)}
+  .tab.on{color:#60a5fa;border-bottom-color:var(--blue);background:var(--blue-bg)}
+  .tab .role{display:block;font-size:9px;font-weight:500;color:var(--mut2);margin-top:1px}
+  .body{padding:18px;min-height:430px}
+
+  /* cards */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .agent{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:14px}
+  .agent.run{border-color:rgba(21,128,61,.45)}
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .name{font-weight:600;color:#fff}
+  .badge{font-size:10px;padding:2px 7px;border-radius:999px}
+  .b-green{background:rgba(21,128,61,.4);color:#4ade80}
+  .b-amber{background:rgba(146,64,14,.4);color:#fbbf24}
+  .b-gray{background:#374151;color:#9ca3af}
+  .b-purple{background:rgba(91,33,182,.4);color:#c4b5fd}
+  .meta{font-size:12px;color:var(--mut);margin-top:7px}
+  .acts{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}
+  .btn{font-size:11px;font-weight:600;padding:5px 11px;border-radius:8px;border:0;cursor:pointer}
+  .btn-em{background:rgba(4,120,87,.3);color:#6ee7b7}
+  .btn-gr{background:#374151;color:#d1d5db}
+  .btn-rd{background:rgba(153,27,27,.25);color:#fca5a5}
+  .btn-blue{background:var(--blue);color:#fff}
+  .btn-purple{background:#7c3aed;color:#fff}
+
+  .sec-h{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut2);margin:0 0 10px;font-weight:700}
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:34px 16px;gap:8px}
+  .onb{border:1px dashed var(--line);border-radius:14px;padding:22px;background:var(--card2);max-width:460px;margin:0 auto;text-align:center}
+  .onb .step{display:flex;gap:10px;align-items:flex-start;text-align:left;margin-top:10px;font-size:13px;color:var(--mut)}
+  .onb .n{flex:0 0 22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+
+  /* drafts */
+  .filtbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .chip{font-size:11px;font-weight:600;padding:5px 11px;border-radius:999px;color:var(--mut);background:transparent;border:0;cursor:pointer}
+  .chip.on{background:var(--blue);color:#fff}
+  .sel{background:var(--card);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:5px 9px;font-size:12px}
+  .draft{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:13px;margin-bottom:10px}
+  .draft p{margin:8px 0 0;color:#cdd5e0;font-size:13px}
+
+  /* calendar */
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .cal .dow{font-size:11px;color:var(--mut2);text-align:center;font-weight:700;padding-bottom:2px}
+  .cell{min-height:54px;border:1px solid var(--line);border-radius:9px;padding:6px;background:rgba(31,41,55,.5);font-size:12px}
+  .cell.today{background:rgba(59,130,246,.07);border-color:#1e3a5f}
+  .cell.past{opacity:.5}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:2px}
+  .d-green{background:var(--green)} .d-red{background:var(--red)} .d-amber{background:var(--amber)} .d-blue{background:#60a5fa;opacity:.6}
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--mut2);margin-top:12px;flex-wrap:wrap}
+
+  /* stats */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  @media(max-width:720px){.kpis{grid-template-columns:1fr 1fr}}
+  .kpi{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:14px}
+  .kpi .v{font-size:26px;font-weight:800}
+  .kpi .l{font-size:11px;color:var(--mut2);margin-top:2px}
+  .bar-track{height:12px;border-radius:999px;background:#0b1322;overflow:hidden;display:flex}
+  .period{display:flex;gap:5px;margin-left:auto}
+
+  /* drawer */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:.2s;z-index:40}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:min(520px,92vw);background:var(--panel);border-left:1px solid var(--line);transform:translateX(100%);transition:.25s;z-index:50;display:flex;flex-direction:column}
+  .drawer.on{transform:translateX(0)}
+  .drawer .dh{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .drawer .dh b{font-size:15px}
+  .x{background:#374151;border:0;color:#d1d5db;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:16px}
+  .dtabs{display:flex;gap:2px;padding:10px 18px 0;border-bottom:1px solid var(--line2)}
+  .dbody{padding:18px;overflow:auto}
+  .pill-item{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .imgs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .imgs .im{aspect-ratio:1;border-radius:10px;border:1px solid var(--line);background:linear-gradient(135deg,#1e293b,#334155);display:flex;align-items:center;justify-content:center;color:#475569;font-size:11px}
+
+  .hint{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:10px;padding:9px 12px;font-size:12px;color:#93c5fd;margin-top:14px}
+  .callout{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:9px 12px;font-size:12px;color:#fcd34d;margin:10px 0}
+
+  /* editor modal mock */
+  .modal-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px;max-width:560px;margin:0 auto}
+  .field{margin-bottom:13px}
+  .field label{font-size:11px;color:var(--mut2);text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:5px;font-weight:700}
+  .input{width:100%;background:#0d1626;border:1px solid var(--line);border-radius:9px;padding:8px 10px;color:var(--txt);font-size:13px}
+  .inline-link{color:#60a5fa;font-size:11px;cursor:pointer;font-weight:600}
+  .inline-link:hover{text-decoration:underline}
+  .chips-pick{display:flex;gap:6px;flex-wrap:wrap}
+  .pickchip{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;color:var(--mut);cursor:pointer}
+  .pickchip.on{background:rgba(59,130,246,.15);border-color:#2563eb;color:#93c5fd}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Redesign IA — Module "Đăng bài theo Agent"</h1>
+  <p class="sub">Bản tương tác để duyệt thiết kế mới. Click các tab, nút <b>⚙ Tài nguyên</b>, và <b>Sửa</b> agent để thử luồng.</p>
+
+  <div class="toggle">
+    <button id="tg-new" class="on" onclick="setView('new')">✦ Thiết kế MỚI (4 tab)</button>
+    <button id="tg-old" onclick="setView('old')">Hiện tại (6 tab)</button>
+  </div>
+  <p class="note" id="viewnote">Nav chính 4 tab = nhịp công việc thật. Chủ đề + Thư viện ảnh chuyển thành <b>Tài nguyên dùng chung</b> (nút header + link trong editor).</p>
+
+  <div class="app">
+    <div class="head">
+      <h2>Đăng bài nhóm</h2>
+      <div class="head-right">
+        <button class="res-btn" id="resBtn" onclick="openDrawer()">⚙ Tài nguyên <span class="pill">Chủ đề · Ảnh</span></button>
+        <div class="acct"><span class="av"></span> Lê Tuấn Anh · LMak ▾</div>
+      </div>
+    </div>
+
+    <div class="tabs" id="tabs"></div>
+    <div class="body" id="body"></div>
+  </div>
+
+  <div class="hint" id="rationale"></div>
+</div>
+
+<!-- Resources drawer -->
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="dh"><b>⚙ Tài nguyên dùng chung</b><button class="x" onclick="closeDrawer()">×</button></div>
+  <div class="dtabs">
+    <button class="tab on" id="dt-p" onclick="dTab('p')">🧩 Chủ đề</button>
+    <button class="tab" id="dt-i" onclick="dTab('i')">🖼️ Thư viện ảnh</button>
+  </div>
+  <div class="dbody" id="dbody"></div>
+</div>
+
+<script>
+const AGENTS = [
+  {name:'Agent mặc định', run:true, legacy:true, assistant:'Mặc định', pillars:1, groups:'🏢 [Lite space]_Tech', sched:'Hằng ngày 08:00–21:00 · 2 bài/ngày', next:'22/06 17:00', last:'22/06 11:24', appr:0, pend:0},
+  {name:'quản lý content tạo bài viết lmak', run:true, legacy:false, assistant:'Trợ lý riêng', pillars:1, groups:'test_ai_agent', sched:'Hằng ngày 09:00–20:00 · 2 bài/ngày', next:'22/06 18:30', last:'22/06 15:17', appr:3, pend:1},
+];
+
+const TABS_NEW = [
+  {id:'agents', label:'🤖 Agents', role:'setup'},
+  {id:'drafts', label:'📝 Bài đăng', role:'vận hành'},
+  {id:'calendar', label:'📅 Lịch', role:'theo dõi'},
+  {id:'stats', label:'📊 Thống kê', role:'theo dõi'},
+];
+const TABS_OLD = [
+  {id:'agents', label:'🤖 Agents'}, {id:'calendar', label:'📅 Lịch'}, {id:'drafts', label:'📝 Bài đăng'},
+  {id:'pillars', label:'🧩 Chủ đề'}, {id:'images', label:'🖼️ Thư viện ảnh'}, {id:'stats', label:'📊 Thống kê'},
+];
+
+let view='new', active='agents';
+
+function setView(v){ view=v; active='agents';
+  document.getElementById('tg-new').classList.toggle('on', v==='new');
+  document.getElementById('tg-old').classList.toggle('on', v==='old');
+  document.getElementById('resBtn').style.display = v==='new'?'flex':'none';
+  document.getElementById('viewnote').innerHTML = v==='new'
+    ? 'Nav chính 4 tab = nhịp công việc thật. Chủ đề + Thư viện ảnh chuyển thành <b>Tài nguyên dùng chung</b> (nút header + link trong editor).'
+    : '6 tab phẳng: tài nguyên (Chủ đề, Ảnh) đứng ngang hàng tab chính → luồng setup vỡ, phải nhảy tab.';
+  render();
+}
+function render(){
+  const tabs = view==='new'?TABS_NEW:TABS_OLD;
+  if(!tabs.find(t=>t.id===active)) active=tabs[0].id;
+  document.getElementById('tabs').innerHTML = tabs.map(t=>`
+    <button class="tab ${t.id===active?'on':''}" onclick="go('${t.id}')">${t.label}${t.role?`<span class="role">${t.role}</span>`:''}</button>`).join('');
+  document.getElementById('body').innerHTML = content(active);
+  const rat = {
+    agents:'<b>Agents</b> là xương sống — mọi thứ orbit quanh agent. Card hiện đủ: trạng thái, nhóm (tên thật), lịch, bài chờ duyệt. Editor = cockpit setup 1 chỗ.',
+    drafts:'<b>Bài đăng</b> = hàng đợi vận hành hằng ngày. Lọc theo agent + trạng thái. "Đăng ngay" gắn đúng agent_id (đã fix).',
+    calendar:'<b>Lịch</b> = theo dõi. Dot xanh (đã đăng) · đỏ (lỗi) · vàng (mốc sắp tới) · <span style="color:#60a5fa">xanh dương = dự kiến recurring (polish mới)</span>.',
+    stats:'<b>Thống kê</b> = theo dõi hiệu suất. Thêm bộ lọc thời gian (polish mới): hôm nay / 7d / 30d / tháng.',
+    pillars:'⚠️ Vấn đề: Chủ đề là tài nguyên <b>dùng chung</b> nhưng lại là tab chính ngang hàng Agents → user phải rời luồng setup.',
+    images:'⚠️ Vấn đề: Thư viện ảnh dùng chung cho mọi agent, không nên là tab top-level cạnh workflow.',
+  };
+  document.getElementById('rationale').innerHTML = rat[active]||'';
+}
+function go(id){ active=id; render(); }
+
+function content(id){
+  if(id==='agents') return agentsTab();
+  if(id==='drafts') return draftsTab();
+  if(id==='calendar') return calTab();
+  if(id==='stats') return statsTab();
+  if(id==='pillars') return pillarsContent(true);
+  if(id==='images') return imagesContent(true);
+  return '';
+}
+
+function agentsTab(){
+  const cards = AGENTS.map((a,i)=>`
+    <div class="agent ${a.run?'run':''}">
+      <div class="row">
+        <span class="name">${a.name}</span>
+        ${a.run?'<span class="badge b-green">Đang chạy</span>':'<span class="badge b-amber">Tạm dừng</span>'}
+        ${a.legacy?'<span class="badge b-gray" title="Tạo tự động từ bản cũ">tự chuyển từ bản cũ</span>':''}
+      </div>
+      <div class="meta">🔑 ${a.assistant} · 🧩 ${a.pillars} chủ đề</div>
+      <div class="meta">👥 ${a.groups}</div>
+      <div class="meta">🕒 ${a.sched}</div>
+      <div class="meta">▶ Chạy kế: <b style="color:#e5e7eb">${a.next}</b> · Lần cuối: ${a.last}</div>
+      <div class="row" style="margin-top:8px">
+        <span class="badge ${a.appr?'b-green':'b-gray'}">✓ ${a.appr} đã duyệt</span>
+        <span class="badge ${a.pend?'b-amber':'b-gray'}">⏳ ${a.pend} chờ duyệt</span>
+      </div>
+      <div class="acts">
+        <button class="btn btn-em">⚡ Đăng thử</button>
+        <button class="btn btn-gr" onclick="openEditor()">Sửa</button>
+        <button class="btn btn-gr">${a.run?'Tạm dừng':'Bật lại'}</button>
+        <button class="btn btn-rd">Xóa</button>
+      </div>
+    </div>`).join('');
+  return `<div class="row" style="justify-content:space-between;margin-bottom:14px">
+      <span style="font-size:12px;color:var(--mut2)">${AGENTS.length} agent</span>
+      <button class="btn btn-blue" onclick="openEditor()">＋ Tạo Agent</button>
+    </div>
+    <div class="grid2">${cards}</div>
+    <div style="margin-top:18px"><div class="sec-h">Onboarding (khi chưa có agent — polish mới)</div>
+    <div class="onb">
+      <div style="font-weight:700;color:#fff;font-size:15px">Chào mừng đến Đăng bài tự động 👋</div>
+      <div style="color:var(--mut);font-size:13px;margin-top:4px">3 bước để agent tự viết &amp; đăng đều theo lịch:</div>
+      <div class="step"><span class="n">1</span><span>Chọn <b>nhóm Zalo</b> muốn đăng &amp; đặt tên agent</span></div>
+      <div class="step"><span class="n">2</span><span>Gán <b>chủ đề</b> (AI viết bài theo đó) — tạo ngay trong editor</span></div>
+      <div class="step"><span class="n">3</span><span>Đặt <b>lịch</b> → bật agent → xong</span></div>
+      <button class="btn btn-blue" style="margin-top:14px" onclick="openEditor()">＋ Tạo Agent đầu tiên</button>
+    </div></div>`;
+}
+
+function draftsTab(){
+  return `<div class="filtbar">
+      <span style="font-size:12px;color:var(--mut2)">Sinh bài cho agent:</span>
+      <select class="sel"><option>quản lý content tạo bài viết lmak</option><option>Agent mặc định</option></select>
+      <input class="sel" style="width:48px;text-align:center" value="3">
+      <button class="btn btn-purple">Sinh bài bằng AI</button>
+    </div>
+    <div class="filtbar">
+      <button class="chip on">Chờ duyệt</button><button class="chip">Đã duyệt</button>
+      <button class="chip">Từ chối</button><button class="chip">Đã đăng</button>
+      <select class="sel" style="margin-left:6px"><option>Mọi agent</option></select>
+      <span style="margin-left:auto;font-size:11px;color:var(--mut2)">4 bài</span>
+    </div>
+    <div class="draft">
+      <div class="row"><span class="badge b-amber">Chờ duyệt</span>
+        <span class="badge b-purple">🤖 quản lý content tạo bài viết lmak</span>
+        <span style="font-size:11px;color:var(--mut2)">→ test_ai_agent</span></div>
+      <p>🏢 Không Gian Văn Phòng Lý Tưởng Đang Chờ Bạn — Tòa nhà LMak, vị trí trung tâm, giá thuê linh hoạt…</p>
+      <div class="acts"><button class="btn btn-em">Phê duyệt</button><button class="btn btn-rd">Từ chối</button><button class="btn btn-gr">Sửa</button></div>
+    </div>
+    <div class="draft">
+      <div class="row"><span class="badge b-green">Đã duyệt</span>
+        <span class="badge b-purple">🤖 quản lý content tạo bài viết lmak</span>
+        <span style="font-size:11px;color:var(--mut2)">→ test_ai_agent</span></div>
+      <p># Cho thuê văn phòng TP.HCM – Giải pháp tối ưu chi phí cho doanh nghiệp vừa &amp; nhỏ…</p>
+      <div class="acts"><button class="btn btn-em">⚡ Đăng ngay</button><button class="btn btn-rd">Từ chối</button><button class="btn btn-gr">Sửa</button></div>
+    </div>`;
+}
+
+function calTab(){
+  let cells='';
+  const today=22;
+  const data={1:['g'],10:['g','g'],11:['g','g','g'],21:['g','g'],22:['g','g'],24:['b'],26:['a'],28:['b']};
+  for(let i=1;i<1;i++) cells+='<div></div>'; // June 2026 starts Monday => firstDow handled simply
+  // June 1 2026 is a Monday → no leading blanks
+  for(let d=1;d<=30;d++){
+    const ds=data[d]||[];
+    const dots=ds.map(x=>`<span class="dot d-${x==='g'?'green':x==='a'?'amber':'blue'}"></span>`).join('');
+    cells+=`<div class="cell ${d===today?'today':''} ${d<today?'past':''}"><b style="color:${d===today?'#60a5fa':'#d1d5db'}">${d}</b><div style="margin-top:4px">${dots}</div></div>`;
+  }
+  return `<div class="row" style="margin-bottom:12px"><span>‹</span><b>Tháng 6 / 2026</b><span>›</span></div>
+    <div class="cal">${['T2','T3','T4','T5','T6','T7','CN'].map(d=>`<div class="dow">${d}</div>`).join('')}${cells}</div>
+    <div class="legend">
+      <span><span class="dot d-green"></span>Đã đăng</span>
+      <span><span class="dot d-red"></span>Lỗi</span>
+      <span><span class="dot d-amber"></span>Mốc sắp tới</span>
+      <span><span class="dot d-blue"></span>Dự kiến (recurring) — <i>polish mới</i></span>
+    </div>
+    <div class="callout">Trước đây Lịch chỉ hiện mốc "once" → đăng xong trống trơn. Nay JOIN <code>post_log</code> → 12 bài đã đăng hiện đủ (đã fix BUG-1).</div>`;
+}
+
+function statsTab(){
+  return `<div class="row" style="margin-bottom:14px"><div class="sec-h" style="margin:0">Hiệu suất</div>
+    <div class="period"><button class="chip">Hôm nay</button><button class="chip">7 ngày</button><button class="chip">30 ngày</button><button class="chip on">Tháng này</button></div></div>
+    <div class="kpis">
+      <div class="kpi"><div class="v" style="color:var(--green)">12</div><div class="l">Đã đăng (tháng này)</div></div>
+      <div class="kpi"><div class="v" style="color:var(--red)">0</div><div class="l">Lỗi</div></div>
+      <div class="kpi"><div class="v" style="color:var(--green)">100%</div><div class="l">Tỷ lệ thành công</div></div>
+      <div class="kpi"><div class="v" style="color:var(--blue)">2</div><div class="l">Agent hoạt động</div></div>
+    </div>
+    <div class="kpi" style="margin-bottom:14px">
+      <b style="font-size:13px">Hiệu suất theo agent</b>
+      <div style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Agent mặc định</span><span style="color:var(--mut2)">10 gửi</span></div>
+        <div class="bar-track" style="width:83%"><div style="background:var(--green);width:100%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin:10px 0 4px"><span>quản lý content tạo bài viết lmak</span><span style="color:var(--mut2)">2 gửi</span></div>
+        <div class="bar-track" style="width:17%"><div style="background:var(--green);width:100%"></div></div>
+      </div>
+    </div>
+    <div class="kpi"><b style="font-size:13px">Hoạt động gần đây</b>
+      <div style="margin-top:8px;font-size:12px;color:var(--mut)">
+        <div style="padding:5px 0;border-top:1px solid var(--line2)">✓ 15:17 · <span class="badge b-purple">lmak</span> → test_ai_agent</div>
+        <div style="padding:5px 0;border-top:1px solid var(--line2)">✓ 11:24 · <span class="badge b-purple">Agent mặc định</span> → [Lite space]_Tech</div>
+      </div></div>`;
+}
+
+function pillarsContent(asTab){
+  return `${asTab?'<div class="callout">Trong thiết kế mới, màn này nằm trong drawer <b>⚙ Tài nguyên</b>, không phải tab chính.</div>':''}
+    <div class="row" style="justify-content:space-between;margin-bottom:12px"><div class="sec-h" style="margin:0">Chủ đề nội dung (dùng chung)</div><button class="btn btn-blue">＋ Tạo chủ đề</button></div>
+    <div class="pill-item"><div><b>Cho thuê văn phòng LMak</b><div style="font-size:11px;color:var(--mut2)">tone: chuyên nghiệp · dùng bởi 2 agent</div></div><div class="acts" style="margin:0"><button class="btn btn-gr">Sửa</button><button class="btn btn-rd">Xóa</button></div></div>
+    <div class="pill-item"><div><b>Ưu đãi &amp; sự kiện</b><div style="font-size:11px;color:var(--mut2)">tone: thân thiện · chưa agent nào dùng</div></div><div class="acts" style="margin:0"><button class="btn btn-gr">Sửa</button><button class="btn btn-rd">Xóa</button></div></div>`;
+}
+function imagesContent(asTab){
+  let g=''; for(let i=0;i<8;i++) g+=`<div class="im">ảnh ${i+1}</div>`;
+  return `${asTab?'<div class="callout">Trong thiết kế mới, màn này nằm trong drawer <b>⚙ Tài nguyên</b>.</div>':''}
+    <div class="row" style="justify-content:space-between;margin-bottom:12px"><div class="sec-h" style="margin:0">Thư viện ảnh (dùng chung — mọi agent)</div><button class="btn btn-blue">＋ Tải ảnh / Sinh AI</button></div>
+    <div class="imgs">${g}</div>`;
+}
+
+/* drawer */
+let dtab='p';
+function openDrawer(){ document.getElementById('scrim').classList.add('on'); document.getElementById('drawer').classList.add('on'); dTab(dtab); }
+function closeDrawer(){ document.getElementById('scrim').classList.remove('on'); document.getElementById('drawer').classList.remove('on'); }
+function dTab(t){ dtab=t;
+  document.getElementById('dt-p').classList.toggle('on',t==='p');
+  document.getElementById('dt-i').classList.toggle('on',t==='i');
+  document.getElementById('dbody').innerHTML = t==='p'?pillarsContent(false):imagesContent(false);
+}
+
+/* editor modal mock — shows inline resource links */
+function openEditor(){
+  document.getElementById('scrim').classList.add('on');
+  const d=document.getElementById('drawer'); d.classList.add('on');
+  document.querySelector('.drawer .dh b').textContent='✏️ Cấu hình Agent';
+  document.querySelector('.dtabs').style.display='none';
+  document.getElementById('dbody').innerHTML = editorContent();
+}
+function backToRes(){ document.querySelector('.drawer .dh b').textContent='⚙ Tài nguyên dùng chung'; document.querySelector('.dtabs').style.display='flex'; dTab('p'); }
+function editorContent(){
+  return `<div class="modal-card">
+    <div class="field"><label>Tên agent</label><input class="input" value="quản lý content tạo bài viết lmak"></div>
+    <div class="field"><label>Tài khoản Zalo</label><input class="input" value="Lê Tuấn Anh · LMak"></div>
+    <div class="field"><label>Nhóm Zalo (dùng chung 1 bài)</label>
+      <div class="chips-pick"><span class="pickchip on">test_ai_agent ✓</span><span class="pickchip">[Lite space]_Tech</span><span class="pickchip">+ tìm nhóm…</span></div></div>
+    <div class="field">
+      <div class="row" style="justify-content:space-between"><label style="margin:0">Chủ đề (AI viết theo)</label><span class="inline-link" onclick="backToRes()">+ Tạo / quản lý chủ đề ↗</span></div>
+      <div class="chips-pick" style="margin-top:6px"><span class="pickchip on">Cho thuê VP LMak ✓</span><span class="pickchip">Ưu đãi &amp; sự kiện</span></div></div>
+    <div class="field">
+      <div class="row" style="justify-content:space-between"><label style="margin:0">Ảnh</label><span class="inline-link" onclick="backToRes()">Mở thư viện ảnh ↗</span></div>
+      <div class="chips-pick" style="margin-top:6px"><span class="pickchip on">Tự chọn 2 ảnh</span><span class="pickchip">Ảnh cố định</span><span class="pickchip">Không ảnh</span></div></div>
+    <div class="field"><label>Lịch</label><input class="input" value="Hằng ngày · 09:00–20:00 · 2 bài/ngày"></div>
+    <div class="hint" style="margin:0">💡 Link <b>"+ Tạo chủ đề"</b> / <b>"Mở thư viện"</b> mở đúng drawer Tài nguyên — không phải rời màn, không nhảy tab. Luồng setup liền mạch.</div>
+    <div class="acts" style="margin-top:14px;justify-content:flex-end"><button class="btn btn-gr" onclick="closeDrawer()">Hủy</button><button class="btn btn-blue">Lưu &amp; Bật ngay</button></div>
+  </div>`;
+}
+
+setView('new');
+</script>
+</body>
+</html>

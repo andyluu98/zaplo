@@ -346,6 +346,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAccountAssistants: (zaloId: string) => ipcRenderer.invoke('ai:getAccountAssistants', { zaloId }),
     getUsageLogs:  (opts?: any) => ipcRenderer.invoke('ai:getUsageLogs', opts || {}),
     getUsageStats: (opts?: any) => ipcRenderer.invoke('ai:getUsageStats', opts || {}),
+    toggleAutoReply:   (zaloId: string, enabled: boolean, assistantId?: string) => ipcRenderer.invoke('ai:toggleAutoReply', { zaloId, enabled, assistantId }),
+    getAutoReplyStatus: (zaloId: string) => ipcRenderer.invoke('ai:getAutoReplyStatus', { zaloId }),
   },
 
   // ─── Tunnel ───────────────────────────────────────────────────────
@@ -571,6 +573,57 @@ contextBridge.exposeInMainWorld('electronAPI', {
     notifyDelete:       (params: any) => ipcRenderer.invoke('erp:notify:delete', params),
     notifyDeleteAll:    (params: any) => ipcRenderer.invoke('erp:notify:deleteAll', params),
   },
+  // ─── Group Posting Bot ────────────────────────────────────────────
+  posting: {
+    pillarList:     (params: any) => ipcRenderer.invoke('posting:pillar.list', params),
+    pillarSave:     (params: any) => ipcRenderer.invoke('posting:pillar.save', params),
+    pillarDelete:   (params: any) => ipcRenderer.invoke('posting:pillar.delete', params),
+    draftGenerate:  (params: any) => ipcRenderer.invoke('posting:draft.generate', params),
+    draftList:      (params: any) => ipcRenderer.invoke('posting:draft.list', params),
+    draftApprove:   (params: any) => ipcRenderer.invoke('posting:draft.approve', params),
+    draftReject:    (params: any) => ipcRenderer.invoke('posting:draft.reject', params),
+    draftUpdate:    (params: any) => ipcRenderer.invoke('posting:draft.update', params),
+    draftDelete:    (params: any) => ipcRenderer.invoke('posting:draft.delete', params),
+    scheduleGet:    (params: any) => ipcRenderer.invoke('posting:schedule.get', params),
+    scheduleSave:   (params: any) => ipcRenderer.invoke('posting:schedule.save', params),
+    scheduleEnable: (params: any) => ipcRenderer.invoke('posting:schedule.enable', params),
+    groupsList:     (params: any) => ipcRenderer.invoke('posting:groups.list', params),
+    logList:        (params: any) => ipcRenderer.invoke('posting:log.list', params),
+    botStatus:      (params: any) => ipcRenderer.invoke('posting:bot.status', params),
+    botPostNow:     (params: any) => ipcRenderer.invoke('posting:test.postNow', params),
+    // ─── Agents (agent-centric) ───────────────────────────────────────
+    agentList:      (params: any) => ipcRenderer.invoke('posting:agent.list', params),
+    agentGet:       (params: any) => ipcRenderer.invoke('posting:agent.get', params),
+    agentSave:      (params: any) => ipcRenderer.invoke('posting:agent.save', params),
+    agentEnable:    (params: any) => ipcRenderer.invoke('posting:agent.enable', params),
+    agentDelete:    (params: any) => ipcRenderer.invoke('posting:agent.delete', params),
+    agentStatus:    (params: any) => ipcRenderer.invoke('posting:agent.status', params),
+    agentPostNow:   (params: any) => ipcRenderer.invoke('posting:agent.postNow', params),
+    calendarList:   (params: any) => ipcRenderer.invoke('posting:calendar.list', params),
+    calendarAdd:    (params: any) => ipcRenderer.invoke('posting:calendar.add', params),
+    calendarDelete: (params: any) => ipcRenderer.invoke('posting:calendar.delete', params),
+    logMonth:       (params: any) => ipcRenderer.invoke('posting:log.month', params),
+    stats:          (params: any) => ipcRenderer.invoke('posting:stats', params),
+    // ─── Image Library ────────────────────────────────────────────────
+    imageUpload:    (params: { zaloId: string; filePath: string }) => ipcRenderer.invoke('posting:image.upload', params),
+    imageList:      (params: { zaloId: string }) => ipcRenderer.invoke('posting:image.list', params),
+    imageDelete:    (params: { zaloId: string; id: number }) => ipcRenderer.invoke('posting:image.delete', params),
+    imageGenerate:  (params: { zaloId: string; prompt: string }) => ipcRenderer.invoke('posting:image.generate', params),
+  },
+
+  // ─── Chat Agent (auto-reply agent-centric) ────────────────────────
+  chatAgent: {
+    list:          (params: { zaloId: string }) => ipcRenderer.invoke('chat-agent:list', params),
+    get:           (params: { id: number }) => ipcRenderer.invoke('chat-agent:get', params),
+    save:          (params: { zaloId: string; agent: any }) => ipcRenderer.invoke('chat-agent:save', params),
+    enable:        (params: { id: number; enabled: boolean }) => ipcRenderer.invoke('chat-agent:enable', params),
+    delete:        (params: { id: number }) => ipcRenderer.invoke('chat-agent:delete', params),
+    convState:     (params: { zaloId: string; threadId: string }) => ipcRenderer.invoke('chat-agent:convState', params),
+    setAiState:    (params: { zaloId: string; threadId: string; paused: boolean }) => ipcRenderer.invoke('chat-agent:setAiState', params),
+    pin:           (params: { zaloId: string; threadId: string; agentId?: number | null }) => ipcRenderer.invoke('chat-agent:pin', params),
+    resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => ipcRenderer.invoke('chat-agent:resolveThread', params),
+  },
+
   lockScreen: {
     status:           () => ipcRenderer.invoke('lockScreen:status'),
     setup:            (params: { password: string }) => ipcRenderer.invoke('lockScreen:setup', params),
@@ -669,6 +722,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'erp:event:noteShared',
       'erp:event:departmentUpdated',
       'erp:event:employeeProfileUpdated',
+      // ─── Posting Bot ─────────────────────────────────────────────────
+      'postingBot:update',
     ];
     if (validChannels.includes(channel)) {
       const subscription = (_event: any, ...args: any[]) => callback(...args);

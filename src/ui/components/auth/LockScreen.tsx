@@ -208,7 +208,7 @@ export default function LockScreen({ onUnlock }: Props) {
               </svg>
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white-important tracking-tight" style={{ textShadow: '0 0 30px rgba(147,51,234,0.5)' }}>Deplao</h1>
+          <h1 className="text-3xl font-bold text-white-important tracking-tight" style={{ textShadow: '0 0 30px rgba(147,51,234,0.5)' }}>Zaplo</h1>
           <p className="text-white/50 text-sm mt-1 font-medium tracking-wide">Ứng dụng đã được bảo vệ</p>
         </div>
 

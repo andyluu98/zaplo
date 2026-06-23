@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nhật ký Agent chat — Tư vấn thuê VP LMak</title>
+<style>
+:root{--bg:#0b1120;--panel:#111827;--card:#1f2937;--card2:#172033;--line:#374151;--line2:#1f2a3a;--txt:#e5e7eb;--mut:#9ca3af;--mut2:#6b7280;--blue:#3b82f6;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--purple:#a78bfa;}
+body{margin:0;background:#060a14;color:var(--txt);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:13px}
+*{box-sizing:border-box}
+.wrap{max-width:760px;margin:0 auto;padding:18px 16px 40px}
+
+/* Title */
+h1{font-size:18px;margin:0 0 4px;font-weight:700}
+.sub{color:var(--mut);font-size:12px;margin:0 0 16px}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.kpi{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 14px}
+.kpi .num{font-size:22px;font-weight:700;line-height:1}
+.kpi .lbl{color:var(--mut);font-size:11px;margin-top:6px}
+.kpi.k-blue .num{color:var(--blue)}
+.kpi.k-purple .num{color:var(--purple)}
+.kpi.k-mut .num{color:var(--txt)}
+.kpi.k-amber .num{color:var(--amber)}
+
+/* Filter row */
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+select{background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:12px;font-family:inherit;outline:none;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--card2);color:var(--mut);border-radius:999px;padding:5px 12px;font-size:12px;cursor:pointer;user-select:none}
+.chip.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.sep{color:var(--mut2);font-size:12px;padding:0 2px}
+
+/* Log list */
+.list{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.row{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 14px}
+.row.takeover{border-color:#7a4a12}
+.row.err{border-color:#7a2522}
+.rhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+.time{color:var(--mut);font-size:11.5px}
+.dot{color:var(--mut2)}
+.spacer{flex:1}
+
+/* badges */
+.badge{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:3px 9px;font-size:11px;font-weight:600;line-height:1.2;border:1px solid transparent;white-space:nowrap}
+.b-conv{background:var(--card2);color:#bcd0ee;border-color:var(--line)}
+.b-ai{background:rgba(167,139,250,.14);color:var(--purple);border-color:rgba(167,139,250,.35)}
+.b-sug{background:rgba(156,163,175,.13);color:var(--mut);border-color:var(--line)}
+.b-sent{background:rgba(34,197,94,.13);color:var(--green);border-color:rgba(34,197,94,.35)}
+.b-wait{background:rgba(245,158,11,.14);color:var(--amber);border-color:rgba(245,158,11,.38)}
+.b-take{background:rgba(245,158,11,.14);color:#fbbf24;border-color:rgba(245,158,11,.45)}
+.b-err{background:rgba(239,68,68,.14);color:#f87171;border-color:rgba(239,68,68,.4)}
+
+/* message bubbles */
+.msg{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.5}
+.msg + .msg{margin-top:6px}
+.who{flex-shrink:0;color:var(--mut2);width:54px;font-size:11px;padding-top:1px}
+.cust .body{color:var(--txt)}
+.agent .body{color:#cfe3ff}
+.arrow{color:var(--mut2);margin-right:2px}
+.note{margin-top:8px;color:var(--mut);font-size:11.5px;font-style:italic}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>📜 Nhật ký — Tư vấn thuê VP — LMak</h1>
+  <p class="sub">Theo dõi mọi trả lời của Agent: AI tự gửi, gợi ý chờ duyệt, và khi người tiếp quản.</p>
+
+  <!-- KPI -->
+  <div class="kpis">
+    <div class="kpi k-mut"><div class="num">42</div><div class="lbl">Tổng trả lời</div></div>
+    <div class="kpi k-blue"><div class="num">35</div><div class="lbl">AI tự gửi</div></div>
+    <div class="kpi k-purple"><div class="num">5</div><div class="lbl">Gợi ý</div></div>
+    <div class="kpi k-amber"><div class="num">2</div><div class="lbl">Người tiếp quản</div></div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <select>
+      <option>Mọi hội thoại</option>
+      <option>[Lite space]_Tech</option>
+      <option>OFFICE LEASING HCM</option>
+    </select>
+    <span class="sep">·</span>
+    <div class="chips">
+      <span class="chip on">Tất cả</span>
+      <span class="chip">AI tự gửi</span>
+      <span class="chip">Gợi ý chờ duyệt</span>
+      <span class="chip">Người tiếp quản</span>
+      <span class="chip">Lỗi</span>
+    </div>
+    <span class="sep">·</span>
+    <select>
+      <option>7 ngày</option>
+      <option>Hôm nay</option>
+      <option>30 ngày</option>
+    </select>
+  </div>
+
+  <!-- Log list -->
+  <div class="list">
+
+    <!-- 1: AI tự gửi · đã gửi -->
+    <div class="row">
+      <div class="rhead">
+        <span class="time">Hôm nay 09:26</span><span class="dot">·</span>
+        <span class="badge b-conv">[Lite space]_Tech</span>
+        <span class="spacer"></span>
+        <span class="badge b-ai">🤖 AI tự gửi</span>
+        <span class="badge b-sent">✓ Đã gửi</span>
+      </div>
+      <div class="msg cust"><span class="who">Khách</span><span class="body">Cho hỏi tòa LMak còn trống tầng nào?</span></div>
+      <div class="msg agent"><span class="who">Agent</span><span class="body"><span class="arrow">→</span>Dạ còn tầng 5 (120m²) và tầng 8 (210m²) ạ. Anh/chị cần diện tích khoảng bao nhiêu để em tư vấn?</span></div>
+    </div>
+
+    <!-- 2: AI tự gửi · đã gửi -->
+    <div class="row">
+      <div class="rhead">
+        <span class="time">Hôm nay 09:18</span><span class="dot">·</span>
+        <span class="badge b-conv">OFFICE LEASING HCM</span>
+        <span class="spacer"></span>
+        <span class="badge b-ai">🤖 AI tự gửi</span>
+        <span class="badge b-sent">✓ Đã gửi</span>
+      </div>
+      <div class="msg cust"><span class="who">Khách</span><span class="body">Giá thuê tầng 5 là bao nhiêu một tháng vậy shop?</span></div>
+      <div class="msg agent"><span class="who">Agent</span><span class="body"><span class="arrow">→</span>Dạ tầng 5 giá 320.000đ/m²/tháng, đã gồm phí quản lý ạ. Tính ra khoảng 38,4 triệu/tháng cho 120m².</span></div>
+    </div>
+
+    <!-- 3: Gợi ý · chờ duyệt -->
+    <div class="row">
+      <div class="rhead">
+        <span class="time">Hôm nay 08:55</span><span class="dot">·</span>
+        <span class="badge b-conv">[Lite space]_Tech</span>
+        <span class="spacer"></span>
+        <span class="badge b-sug">✍️ Gợi ý</span>
+        <span class="badge b-wait">⏳ Chờ duyệt</span>
+      </div>
+      <div class="msg cust"><span class="who">Khách</span><span class="body">Bên mình có hỗ trợ thương lượng giá cho hợp đồng 3 năm không?</span></div>
+      <div class="msg agent"><span class="who">Agent</span><span class="body"><span class="arrow">→</span>Dạ với hợp đồng 3 năm bên em có ưu đãi giảm 8% và miễn phí 1 tháng đầu. Em xin phép gửi báo giá chi tiết…</span></div>
+      <div class="note">Đang chờ bạn duyệt trước khi gửi cho khách.</div>
+    </div>
+
+    <!-- 4: AI tự gửi · đã gửi -->
+    <div class="row">
+      <div class="rhead">
+        <span class="time">Hôm qua 17:42</span><span class="dot">·</span>
+        <span class="badge b-conv">OFFICE LEASING HCM</span>
+        <span class="spacer"></span>
+        <span class="badge b-ai">🤖 AI tự gửi</span>
+        <span class="badge b-sent">✓ Đã gửi</span>
+      </div>
+      <div class="msg cust"><span class="who">Khách</span><span class="body">Toà có chỗ để xe ô tô không ạ?</span></div>
+      <div class="msg agent"><span class="who">Agent</span><span class="body"><span class="arrow">→</span>Dạ toà LMak có 2 tầng hầm để xe, ô tô 1.200.000đ/tháng/chỗ, xe máy free cho nhân viên thuê văn phòng ạ.</span></div>
+    </div>
+
+    <!-- 5: Người tiếp quản -->
+    <div class="row takeover">
+      <div class="rhead">
+        <span class="time">Hôm qua 16:10</span><span class="dot">·</span>
+        <span class="badge b-conv">[Lite space]_Tech</span>
+        <span class="spacer"></span>
+        <span class="badge b-sug">✍️ Gợi ý</span>
+        <span class="badge b-take">👤 Người tiếp quản</span>
+      </div>
+      <div class="msg cust"><span class="who">Khách</span><span class="body">Mình muốn xem trực tiếp tầng 8 chiều nay được không?</span></div>
+      <div class="msg agent"><span class="who">Agent</span><span class="body"><span class="arrow">→</span>(Gợi ý) Dạ em sắp lịch xem nhà giúp anh/chị, anh/chị tiện khung giờ nào ạ?</span></div>
+      <div class="note">Bạn Hân đã nhắn tay → AI tạm ngưng trả lời hội thoại này.</div>
+    </div>
+
+    <!-- 6: AI tự gửi · đã gửi -->
+    <div class="row">
+      <div class="rhead">
+        <span class="time">Hôm qua 14:33</span><span class="dot">·</span>
+        <span class="badge b-conv">OFFICE LEASING HCM</span>
+        <span class="spacer"></span>
+        <span class="badge b-ai">🤖 AI tự gửi</span>
+        <span class="badge b-sent">✓ Đã gửi</span>
+      </div>
+      <div class="msg cust"><span class="who">Khách</span><span class="body">Văn phòng đã có sẵn nội thất chưa hay mình tự setup?</span></div>
+      <div class="msg agent"><span class="who">Agent</span><span class="body"><span class="arrow">→</span>Dạ tầng 5 đang trống thô, tầng 8 có sẵn bàn ghế + phòng họp. Tuỳ nhu cầu bên em báo giá cho phù hợp ạ.</span></div>
+    </div>
+
+    <!-- 7: Lỗi -->
+    <div class="row err">
+      <div class="rhead">
+        <span class="time">Hôm qua 11:05</span><span class="dot">·</span>
+        <span class="badge b-conv">[Lite space]_Tech</span>
+        <span class="spacer"></span>
+        <span class="badge b-ai">🤖 AI tự gửi</span>
+        <span class="badge b-err">✗ Lỗi: chưa kết nối</span>
+      </div>
+      <div class="msg cust"><span class="who">Khách</span><span class="body">Cho mình xin sơ đồ mặt bằng tầng 5 với ạ.</span></div>
+      <div class="msg agent"><span class="who">Agent</span><span class="body"><span class="arrow">→</span>Dạ em gửi anh/chị file sơ đồ tầng 5 ngay đây ạ…</span></div>
+      <div class="note">Gửi thất bại — phiên Zalo mất kết nối. Cần đăng nhập lại để gửi.</div>
+    </div>
+
+    <!-- 8: Gợi ý · chờ duyệt -->
+    <div class="row">
+      <div class="rhead">
+        <span class="time">2 ngày trước 15:20</span><span class="dot">·</span>
+        <span class="badge b-conv">OFFICE LEASING HCM</span>
+        <span class="spacer"></span>
+        <span class="badge b-sug">✍️ Gợi ý</span>
+        <span class="badge b-wait">⏳ Chờ duyệt</span>
+      </div>
+      <div class="msg cust"><span class="who">Khách</span><span class="body">Hợp đồng tối thiểu mấy tháng vậy bạn?</span></div>
+      <div class="msg agent"><span class="who">Agent</span><span class="body"><span class="arrow">→</span>Dạ hợp đồng tối thiểu 12 tháng, đặt cọc 2 tháng ạ. Nếu thuê ngắn hơn em xin phép báo lại giá riêng…</span></div>
+      <div class="note">Đang chờ bạn duyệt trước khi gửi cho khách.</div>
+    </div>
+
+    <!-- 9: AI tự gửi · đã gửi -->
+    <div class="row">
+      <div class="rhead">
+        <span class="time">2 ngày trước 10:48</span><span class="dot">·</span>
+        <span class="badge b-conv">[Lite space]_Tech</span>
+        <span class="spacer"></span>
+        <span class="badge b-ai">🤖 AI tự gửi</span>
+        <span class="badge b-sent">✓ Đã gửi</span>
+      </div>
+      <div class="msg cust"><span class="who">Khách</span><span class="body">Toà LMak ở quận mấy vậy ạ?</span></div>
+      <div class="msg agent"><span class="who">Agent</span><span class="body"><span class="arrow">→</span>Dạ toà LMak nằm ngay mặt tiền Điện Biên Phủ, Quận Bình Thạnh, gần cầu Sài Gòn rất tiện di chuyển ạ.</span></div>
+    </div>
+
+    <!-- 10: AI tự gửi · đã gửi -->
+    <div class="row">
+      <div class="rhead">
+        <span class="time">3 ngày trước 09:02</span><span class="dot">·</span>
+        <span class="badge b-conv">OFFICE LEASING HCM</span>
+        <span class="spacer"></span>
+        <span class="badge b-ai">🤖 AI tự gửi</span>
+        <span class="badge b-sent">✓ Đã gửi</span>
+      </div>
+      <div class="msg cust"><span class="who">Khách</span><span class="body">Mình thuê được khoảng 30m² cho team 5 người không?</span></div>
+      <div class="msg agent"><span class="who">Agent</span><span class="body"><span class="arrow">→</span>Dạ 30m² hơi chật cho 5 người, em gợi ý phòng 45m² tầng 8 vừa đẹp ạ. Em gửi anh/chị xem hình nhé?</span></div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

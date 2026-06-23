@@ -157,7 +157,7 @@ export function registerWorkspaceIpc(mainWindow: BrowserWindow | null): void {
                 const newActiveWs = wm().getActiveWorkspace();
                 if (newActiveWs) {
                     AppModeManager.getInstance().clearOverride();
-                    const newDbPath = wm().resolveDbPath(newActiveWs.dbPath || 'deplao-tool.db');
+                    const newDbPath = wm().resolveDbPath(newActiveWs.dbPath || 'zaplo-tool.db');
                     await DatabaseService.getInstance().switchToWorkspaceDb(newDbPath);
                     FileStorageService.resetBaseDir();
 
@@ -194,7 +194,7 @@ export function registerWorkspaceIpc(mainWindow: BrowserWindow | null): void {
                 EventBroadcaster.clearBeforeSendHooks();
 
                 // Switch DatabaseService to the new workspace's DB
-                const newDbPath = wm().resolveDbPath(result.workspace.dbPath || 'deplao-tool.db');
+                const newDbPath = wm().resolveDbPath(result.workspace.dbPath || 'zaplo-tool.db');
                 await DatabaseService.getInstance().switchToWorkspaceDb(newDbPath);
 
                 // Reset FileStorageService cache so media resolves to the new workspace's folder
@@ -207,6 +207,11 @@ export function registerWorkspaceIpc(mainWindow: BrowserWindow | null): void {
                         relay.hookEventBroadcaster();
                     }
                 } catch {}
+
+                // Re-hook ChatAgentDispatcher too — clearBeforeSendHooks wiped its
+                // 'event:message' listener, so auto-reply would silently die otherwise.
+                try { require('../../src/services/chat-agent/chat-agent-dispatcher').default.getInstance().rehook(); }
+                catch (err: any) { console.error('[workspaceIpc] chat-agent rehook:', err?.message); }
 
                 // Sync latest cookies from active ConnectionManager connections into the newly loaded DB
                 // (Zalo may have refreshed cookies while boss was on a different workspace)
@@ -283,7 +288,7 @@ export function registerWorkspaceIpc(mainWindow: BrowserWindow | null): void {
         try {
             const ws = wm().getWorkspaceById(id);
             if (!ws) return { success: false, error: 'Workspace not found' };
-            const dbPath = wm().resolveDbPath(ws.dbPath || 'deplao-tool.db');
+            const dbPath = wm().resolveDbPath(ws.dbPath || 'zaplo-tool.db');
             return { success: true, dbPath };
         } catch (err: any) {
             return { success: false, error: err.message };

@@ -1,0 +1,302 @@
+<style>
+  :root{--bg:#0b1220;--panel:#0f1729;--card:#13203b;--line:#22304d;--ink:#e7eefc;--muted:#93a4c4;--dim:#64748b;
+    --blue:#2f6df6;--blue2:#3b82f6;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--purple:#a855f7;--teal:#14b8a6;}
+  *{box-sizing:border-box}
+  .app{font-family:system-ui,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);display:flex;height:780px;max-height:90vh;border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:14px;position:relative}
+  .rail{width:56px;flex:0 0 56px;background:#0a101e;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:6px}
+  .rail .ava{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f6d365,#fda085);margin-bottom:8px}
+  .rail .ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#5b6f95;font-size:16px;cursor:pointer}
+  .rail .ic:hover{background:#13203b;color:#9cc2ff}.rail .ic.on{background:var(--blue);color:#fff}.rail .sp{flex:1}
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .top{display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid var(--line)}
+  .top h1{font-size:16px;font-weight:700;margin:0}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(34,197,94,.16);color:#86efac;border:1px solid #206b3f}
+  .badge .d{width:6px;height:6px;border-radius:50%;background:#22c55e}
+  .acct{margin-left:auto;display:flex;align-items:center;gap:8px;background:#13203b;border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-size:13px;cursor:pointer}
+  .acct .av{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#f6d365,#fda085)}
+  .pn{background:rgba(245,158,11,.1);border-bottom:1px solid rgba(245,158,11,.3);color:#fcd34d;font-size:12px;padding:6px 18px;text-align:center}
+  .tabs{display:flex;gap:2px;padding:10px 14px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tab{padding:8px 13px;font-size:13px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;border-radius:8px 8px 0 0;white-space:nowrap}
+  .tab:hover{color:#cfe0ff}.tab.on{color:#9cc2ff;border-bottom-color:var(--blue2);background:#13203b}
+  .content{flex:1;overflow-y:auto;padding:16px 18px}
+  .pane{display:none}.pane.on{display:block}
+  .bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}.bar .sp{flex:1}
+  .btn{font-size:13px;font-weight:700;padding:7px 13px;border-radius:9px;border:0;cursor:pointer}
+  .b-blue{background:var(--blue);color:#fff}.b-green{background:var(--green);color:#06240f}.b-purple{background:var(--purple);color:#fff}.b-ghost{background:#13203b;border:1px solid var(--line);color:#cbd5e1}
+  .grid{display:grid;gap:14px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:860px){.g2,.g3{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:14px}
+  .card.run{border-color:#206b3f}.card.pause{border-color:#7c5a17}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .nm{font-weight:700;font-size:14.5px}
+  .tag{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .t-green{background:rgba(34,197,94,.16);color:#86efac}.t-amber{background:rgba(245,158,11,.16);color:#fcd34d}
+  .t-purple{background:rgba(168,85,247,.16);color:#d8b4fe}.t-blue{background:rgba(59,130,246,.16);color:#9cc2ff}.t-red{background:rgba(239,68,68,.16);color:#fca5a5}.t-gray{background:#1b2742;color:#93a4c4}
+  .meta{font-size:12.5px;color:var(--muted);margin-top:5px}
+  .chip{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:#0c1426;color:#cbd5e1;cursor:pointer;user-select:none}
+  .chip:hover{border-color:#3b5180}.chip.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}.chip.g{background:rgba(34,197,94,.16);border-color:#206b3f;color:#86efac}.chip.r{background:rgba(239,68,68,.14);border-color:#7f1d1d;color:#fca5a5}
+  .lbl{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;margin:11px 0 5px}
+  .field,select.field,textarea.field,input.field{width:100%;background:#0c1426;border:1px solid var(--line);border-radius:9px;padding:8px 10px;color:#e7eefc;font-size:13px;font-family:inherit}
+  .ov{position:absolute;inset:0;background:rgba(3,7,18,.7);display:none;align-items:center;justify-content:center;padding:16px;z-index:30}.ov.on{display:flex}
+  .modal{width:100%;max-width:760px;max-height:94%;overflow-y:auto;background:#0f1729;border:1px solid var(--line);border-radius:16px}
+  .modal .mh{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid var(--line)}.modal .mh b{font-size:15px}
+  .modal .mb{padding:15px}.modal .mf{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--line)}
+  .x{margin-left:auto;cursor:pointer;color:#64748b;font-size:18px}
+  .calhead{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:5px}.calhead span{font-size:11px;color:var(--dim);text-align:center;font-weight:700}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+  .cal .cd{background:#0c1426;border:1px solid var(--line);border-radius:8px;min-height:60px;padding:6px;font-size:12px;color:#9fb0d0;cursor:pointer}
+  .cal .cd:hover{border-color:#3b5180}.cal .cd.sel{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue) inset}.cal .cd.past{opacity:.4}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin:1px}.dot.b{background:#3b82f6}.dot.p{background:#a855f7}.dot.star{background:#f59e0b}.dot.ok{background:#22c55e}.dot.err{background:#ef4444}
+  .daybox{margin-top:12px;background:#0c1426;border:1px solid var(--line);border-radius:11px;padding:12px}
+  .kpi{font-size:26px;font-weight:800}.kpiL{font-size:12px;color:var(--dim)}
+  .toast{position:absolute;top:14px;right:14px;background:#0f2a1a;border:1px solid #206b3f;color:#86efac;padding:10px 14px;border-radius:11px;font-size:13px;font-weight:600;z-index:50;display:none}
+  .imgph{aspect-ratio:1;border-radius:10px;background:linear-gradient(135deg,#1e293b,#334155);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:#475569;font-size:22px;position:relative;cursor:pointer}
+  .imgph.sel{border-color:var(--blue);box-shadow:0 0 0 2px var(--blue) inset}
+  .muted{color:var(--muted);font-size:13px}.sub{color:var(--dim);font-size:12px}
+  .listitem{display:flex;align-items:center;gap:8px;background:#0c1426;border:1px solid var(--line);border-radius:8px;padding:6px 9px;margin:5px 0;font-size:13px}
+  .listitem .del{margin-left:auto;color:#fca5a5;cursor:pointer}
+  .warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fcd34d;border-radius:8px;padding:7px 10px;font-size:12px;margin-top:6px}
+</style>
+
+<div class="app" id="app">
+  <div class="toast" id="toast"></div>
+  <div class="rail">
+    <div class="ava"></div><div class="ic">＋</div><div class="ic">▦</div><div class="ic">💬</div><div class="ic">📊</div><div class="ic">💼</div>
+    <div class="ic on" title="Đăng bài">✒️</div><div class="sp"></div><div class="ic">✔</div><div class="ic">⚙</div>
+  </div>
+
+  <div class="main">
+    <div class="top"><h1>Đăng bài nhóm</h1><span class="badge"><span class="d"></span>Đang chạy</span><div class="acct"><span class="av"></span> Tt ▾</div></div>
+    <div class="pn">⚠ BẢN PREVIEW v2 (đã rà 4 agent) — dữ liệu giả, dùng để duyệt giao diện &amp; luồng trước khi code</div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab on" data-t="agents">🤖 Agents</div><div class="tab" data-t="cal">📅 Lịch</div><div class="tab" data-t="posts">📝 Bài đăng</div>
+      <div class="tab" data-t="pillars">🧩 Chủ đề</div><div class="tab" data-t="ai">🔑 Trợ lý AI</div><div class="tab" data-t="img">🖼️ Ảnh</div><div class="tab" data-t="stats">📊 Thống kê</div>
+    </div>
+
+    <div class="content">
+      <!-- AGENTS -->
+      <div class="pane on" id="p-agents">
+        <div class="bar"><input class="field" style="max-width:200px" placeholder="🔎 Tìm agent…"><span class="muted">2 agent · 1 chạy</span><span class="sp"></span><button class="btn b-blue" onclick="openEditor('new')">＋ Tạo Agent</button></div>
+        <div class="grid g2" id="agentList"></div>
+      </div>
+
+      <!-- CALENDAR -->
+      <div class="pane" id="p-cal">
+        <div class="bar"><span class="row"><span class="chip" onclick="calMonth(-1)">‹</span><b style="font-size:15px" id="calTitle">Tháng 6 / 2026</b><span class="chip" onclick="calMonth(1)">›</span></span>
+          <select class="field" style="max-width:170px"><option>Agent: tất cả</option><option>Agent BĐS</option><option>Agent Khóa học AI</option></select>
+          <span class="sp"></span><span class="row"><span class="chip" onclick="calView(this,'d')">Ngày</span><span class="chip" onclick="calView(this,'w')">Tuần</span><span class="chip on" onclick="calView(this,'m')">Tháng</span></span></div>
+        <div id="calMonthWrap"><div class="calhead"><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span><span>CN</span></div><div class="cal" id="cal"></div></div>
+        <div id="calWeekWrap" style="display:none"></div>
+        <div id="calDayWrap" style="display:none"></div>
+        <div class="daybox" id="daybox"><span class="muted">Bấm vào một ngày để xem/sửa/thêm bài.</span></div>
+        <div class="sub" style="margin-top:8px"><span class="dot b"></span>dự kiến <span class="dot star"></span>calendar <span class="dot ok"></span>đã đăng <span class="dot err"></span>lỗi · ngày mờ = quá khứ</div>
+      </div>
+
+      <!-- POSTS -->
+      <div class="pane" id="p-posts">
+        <div class="bar"><select class="field" style="max-width:170px"><option>Agent: tất cả</option><option>Agent BĐS</option><option>Agent Khóa học AI</option></select>
+          <input class="field" style="max-width:160px" placeholder="🔎 Tìm nội dung…">
+          <span class="row" id="postFilter">
+            <span class="chip on" onclick="fPosts(this,'all')">Tất cả</span><span class="chip" onclick="fPosts(this,'pending')">Chờ duyệt</span>
+            <span class="chip" onclick="fPosts(this,'approved')">Đã duyệt</span><span class="chip" onclick="fPosts(this,'rejected')">Từ chối</span>
+            <span class="chip" onclick="fPosts(this,'posted')">Đã đăng</span><span class="chip" onclick="fPosts(this,'failed')">Lỗi</span></span></div>
+        <div class="row" style="margin-bottom:10px"><span class="chip">☑ Chọn tất cả</span><span class="chip g">Duyệt đã chọn</span><span class="chip r">Từ chối đã chọn</span></div>
+        <div class="grid g2" id="postList"></div>
+      </div>
+
+      <!-- PILLARS -->
+      <div class="pane" id="p-pillars">
+        <div class="bar"><span class="muted">2 chủ đề</span><span class="sp"></span><button class="btn b-blue" onclick="openPillar()">＋ Thêm chủ đề</button></div>
+        <div class="grid g2">
+          <div class="card"><div class="row"><span class="nm">Cho thuê văn phòng</span><span class="tag t-green">Bật</span></div>
+            <div class="meta">Trợ lý: <b>GPT-BĐS</b> · Dùng bởi: <b>Agent BĐS</b></div><div class="meta">Prompt: "Viết bài cho thuê VP, giọng chuyên nghiệp…"</div>
+            <div class="row" style="margin-top:8px"><span class="chip" onclick="openPillar()">Sửa</span><span class="chip">Sinh bài</span><span class="chip r">Xóa</span></div></div>
+          <div class="card"><div class="row"><span class="nm">Tư vấn khóa học</span><span class="tag t-green">Bật</span></div>
+            <div class="meta">Trợ lý: <b>Gemini-Edu</b> · Dùng bởi: <b>Agent Khóa học AI</b></div><div class="meta">Prompt: "Tư vấn khóa học AI, giọng thân thiện…"</div>
+            <div class="row" style="margin-top:8px"><span class="chip" onclick="openPillar()">Sửa</span><span class="chip">Sinh bài</span><span class="chip r">Xóa</span></div></div>
+        </div>
+      </div>
+
+      <!-- AI -->
+      <div class="pane" id="p-ai">
+        <div class="bar"><span class="muted">Đồng bộ Cài đặt › Trợ lý AI · sửa nhanh tại đây</span><span class="sp"></span><button class="btn b-ghost">↗ Mở Cài đặt đầy đủ</button><button class="btn b-purple">＋ Thêm</button></div>
+        <div class="grid g2">
+          <div class="card"><div class="row"><span class="nm">GPT-BĐS</span><span class="tag t-blue">OpenAI</span><span class="tag t-green">Bật</span><span class="chip" style="margin-left:auto">⏻ Tắt</span></div>
+            <div class="lbl">Model</div><select class="field"><option>gpt-4o</option><option>gpt-4o-mini</option></select>
+            <div class="lbl">API key</div><input class="field" value="sk-••••••••3a9f">
+            <div class="lbl">Prompt hệ thống</div><textarea class="field" rows="3">Bạn là chuyên viên BĐS, viết bài cho thuê văn phòng…</textarea>
+            <div class="meta">Đang dùng bởi: <b>Agent BĐS</b></div>
+            <div class="row" style="margin-top:8px"><button class="btn b-green">Lưu</button><span class="chip">Test</span><span class="chip r">Xóa</span></div></div>
+          <div class="card"><div class="row"><span class="nm">Gemini-Edu</span><span class="tag t-purple">Google</span><span class="tag t-green">Bật</span><span class="chip" style="margin-left:auto">⏻ Tắt</span></div>
+            <div class="lbl">Model</div><select class="field"><option>gemini-2.0-flash</option><option>gemini-1.5-pro</option></select>
+            <div class="lbl">API key</div><input class="field" value="AIza••••••7b21">
+            <div class="lbl">Prompt hệ thống</div><textarea class="field" rows="3">Bạn là tư vấn viên giáo dục, giọng thân thiện…</textarea>
+            <div class="meta">Đang dùng bởi: <b>Agent Khóa học AI</b></div>
+            <div class="row" style="margin-top:8px"><button class="btn b-green">Lưu</button><span class="chip">Test</span><span class="chip r">Xóa</span></div></div>
+        </div>
+      </div>
+
+      <!-- IMG -->
+      <div class="pane" id="p-img">
+        <div class="bar"><span class="muted">Thư viện ảnh (chung theo tài khoản) · 6 ảnh</span><span class="sp"></span><button class="btn b-ghost">⬆ Tải ảnh</button></div>
+        <div class="card" style="margin-bottom:12px"><div class="lbl">Sinh ảnh AI</div>
+          <div class="row"><input class="field" style="flex:1" placeholder="Mô tả ảnh muốn tạo (vd: toà nhà văn phòng hiện đại)…"><button class="btn b-purple">✨ Sinh ảnh</button></div>
+          <div class="warn">Cần API key OpenAI (DALL·E 3). Trợ lý OpenAI phải được bật trong Trợ lý AI.</div></div>
+        <div class="grid g3" id="imgGrid"></div>
+      </div>
+
+      <!-- STATS -->
+      <div class="pane" id="p-stats">
+        <div class="bar"><select class="field" style="max-width:160px"><option>Agent: tất cả</option></select><select class="field" style="max-width:140px"><option>7 ngày</option><option>30 ngày</option></select></div>
+        <div class="grid g3" style="margin-bottom:14px">
+          <div class="card"><div class="kpi" style="color:#86efac">128</div><div class="kpiL">Đã đăng / tháng</div></div>
+          <div class="card"><div class="kpi" style="color:#fcd34d">3</div><div class="kpiL">Lỗi</div></div>
+          <div class="card"><div class="kpi" style="color:#9cc2ff">2</div><div class="kpiL">Agent đang chạy</div></div>
+        </div>
+        <div class="card"><b>Theo agent (7 ngày)</b>
+          <div class="row" style="margin-top:8px"><span class="meta" style="width:140px">Agent BĐS</span><div style="flex:1;background:#0c1426;border-radius:6px;height:14px"><div style="width:72%;height:14px;background:#3b82f6;border-radius:6px"></div></div><span class="meta">86</span></div>
+          <div class="row" style="margin-top:6px"><span class="meta" style="width:140px">Agent Khóa học AI</span><div style="flex:1;background:#0c1426;border-radius:6px;height:14px"><div style="width:35%;height:14px;background:#a855f7;border-radius:6px"></div></div><span class="meta">42</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AGENT EDITOR -->
+  <div class="ov" id="ov">
+    <div class="modal">
+      <div class="mh"><b id="edTitle">Tạo Agent</b><span class="x" onclick="closeEditor()">✕</span></div>
+      <div class="mb grid g2">
+        <div>
+          <div class="lbl">Tên agent</div><input class="field" id="edName" placeholder="VD: Agent BĐS — LMak">
+          <div class="lbl">Tài khoản Zalo</div><select class="field"><option>Tt (0869838986)</option><option>+ Kết nối tài khoản…</option></select>
+          <div class="lbl">Trợ lý AI</div>
+          <div class="row"><select class="field" style="flex:1"><option>GPT-BĐS (OpenAI · gpt-4o)</option><option>Gemini-Edu (Google)</option></select><span class="chip" onclick="toggleQuick()">✎ sửa nhanh</span></div>
+          <div id="quick" style="display:none"><div class="lbl">Prompt nhanh</div><textarea class="field" rows="2">Bạn là chuyên viên BĐS…</textarea><div class="lbl">API key</div><input class="field" value="sk-••••3a9f"></div>
+          <div class="lbl">Chủ đề phụ trách</div><div class="row"><span class="chip on" onclick="tog(this)">Cho thuê VP</span><span class="chip" onclick="tog(this)">Giá thuê</span><span class="chip" onclick="tog(this)">Tin BĐS</span></div>
+          <div class="lbl">Nhóm phụ trách</div><input class="field" placeholder="🔎 Tìm nhóm…" style="margin-bottom:5px">
+          <div class="row"><span class="chip on" onclick="tog(this)">[Lite space]_Tech</span><span class="chip on" onclick="tog(this)">test_ai_agent</span><span class="chip" onclick="tog(this)">Gặp thầy</span></div>
+        </div>
+        <div>
+          <div class="lbl">Lịch định kỳ</div>
+          <div class="row" id="kindRow"><span class="chip on" onclick="kind(this,'daily')">Hằng ngày</span><span class="chip" onclick="kind(this,'weekly')">Hằng tuần</span><span class="chip" onclick="kind(this,'monthly')">Hằng tháng</span></div>
+          <div id="weekly" style="display:none"><div class="lbl">Chọn thứ</div><div class="row"><span class="chip" onclick="tog(this)">T2</span><span class="chip" onclick="tog(this)">T3</span><span class="chip on" onclick="tog(this)">T4</span><span class="chip" onclick="tog(this)">T5</span><span class="chip on" onclick="tog(this)">T6</span><span class="chip" onclick="tog(this)">T7</span><span class="chip" onclick="tog(this)">CN</span></div></div>
+          <div id="monthly" style="display:none"><div class="lbl">Ngày trong tháng (1–31)</div><input class="field" placeholder="VD: 1, 15"><div class="sub">Ngày &gt; số ngày của tháng sẽ tự kẹp về ngày cuối tháng.</div></div>
+          <div class="lbl">Khung giờ · số bài/ngày</div>
+          <div class="row"><input class="field" style="flex:1" value="08:00"><span class="sub">→</span><input class="field" style="flex:1" value="11:00"></div>
+          <div class="row" style="margin-top:5px"><span class="chip" onclick="one(this)">1</span><span class="chip on" onclick="one(this)">2</span><span class="chip" onclick="one(this)">3</span><span class="chip" onclick="one(this)">4</span><span class="chip" onclick="one(this)">6</span></div>
+          <div class="lbl">Mốc calendar (đăng riêng 1 lần)</div>
+          <div id="calList">
+            <div class="listitem">📅 2026-06-25 · 09:30 <span class="del" onclick="this.parentNode.remove()">✕</span></div>
+          </div>
+          <div class="row"><input class="field" type="date" style="flex:1" value="2026-06-28"><input class="field" type="time" style="flex:0 0 110px" value="09:00"><span class="chip" onclick="addCal()">＋ thêm</span></div>
+          <div class="lbl">Ảnh</div>
+          <div class="row"><span class="chip on" onclick="imgmode(this,'auto')">Tự lấy 2–3</span><span class="chip" onclick="imgmode(this,'fixed')">Ảnh cố định</span><span class="chip" onclick="imgmode(this,'none')">Không ảnh</span></div>
+          <div id="fixedPick" style="display:none"><div class="lbl">Chọn ảnh cố định</div><div class="grid g3"><div class="imgph sel" onclick="this.classList.toggle('sel')">🏢</div><div class="imgph" onclick="this.classList.toggle('sel')">🏬</div><div class="imgph" onclick="this.classList.toggle('sel')">🏙️</div></div></div>
+          <div class="lbl">Chế độ duyệt</div><div class="row"><span class="chip" onclick="one(this)">Tự đăng</span><span class="chip on" onclick="one(this)">Cần duyệt tay</span></div>
+          <div class="lbl">Trạng thái</div><div class="row"><span class="chip on" onclick="one(this)">Bật</span><span class="chip" onclick="one(this)">Tắt</span></div>
+        </div>
+      </div>
+      <div class="warn" style="margin:0 15px 12px">⚠ Cần chọn ≥1 nhóm và giờ kết thúc &gt; giờ bắt đầu trước khi lưu.</div>
+      <div class="mf"><button class="btn b-ghost" onclick="closeEditor()">Hủy</button><button class="btn b-ghost" onclick="saveAgent('save')">Lưu</button><button class="btn b-green" onclick="saveAgent('start')">Lưu &amp; Bật ngay</button></div>
+    </div>
+  </div>
+
+  <!-- PILLAR EDITOR -->
+  <div class="ov" id="ovP">
+    <div class="modal" style="max-width:560px">
+      <div class="mh"><b>Chỉnh sửa chủ đề</b><span class="x" onclick="closePillar()">✕</span></div>
+      <div class="mb">
+        <div class="lbl">Tên chủ đề</div><input class="field" value="Cho thuê văn phòng">
+        <div class="lbl">Mô tả</div><input class="field" value="Bài giới thiệu cho thuê văn phòng tòa LMak">
+        <div class="lbl">Trợ lý AI cho chủ đề này</div><select class="field"><option>GPT-BĐS (OpenAI)</option><option>Gemini-Edu</option><option>— Mặc định —</option></select>
+        <div class="lbl">Giọng văn</div><input class="field" value="chuyên nghiệp, thuyết phục">
+        <div class="lbl">Prompt mẫu</div><textarea class="field" rows="3">Viết bài cho thuê {name}. Giọng {tone}. {description}</textarea>
+        <div class="sub" style="margin-top:4px">Biến dùng được: <b>{name}</b> · <b>{description}</b> · <b>{tone}</b></div>
+        <div class="row" style="margin-top:8px"><span class="chip on" onclick="one(this)">Bật</span><span class="chip" onclick="one(this)">Tắt</span></div>
+      </div>
+      <div class="mf"><button class="btn b-ghost" onclick="closePillar()">Hủy</button><button class="btn b-green" onclick="closePillar();toast('✓ Đã lưu chủ đề')">Lưu</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  document.querySelectorAll('#tabs .tab').forEach(function(t){t.onclick=function(){
+    document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.remove('on'));t.classList.add('on');
+    document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));document.getElementById('p-'+t.dataset.t).classList.add('on');};});
+  window.toast=function(m){var e=document.getElementById('toast');e.textContent=m;e.style.display='block';setTimeout(()=>e.style.display='none',2200);};
+
+  var agents=[
+    {id:1,name:'Agent BĐS — LMak',run:true,ai:'GPT-BĐS',topic:'Cho thuê VP',groups:'[Lite space]_Tech, test_ai_agent',sched:'Hằng ngày 08:00–11:00 · 2 bài/ngày · +mốc 25/06',pend:1,appr:1,next:'hôm nay 09:14',last:'hôm qua 09:31',err:0},
+    {id:2,name:'Agent Khóa học AI',run:false,ai:'Gemini-Edu',topic:'Tư vấn khóa học',groups:'test_ai_agent',sched:'T2/T4/T6 19:00–21:00 · 1 bài/ngày',pend:3,appr:0,next:'—',last:'2 ngày trước',err:1}
+  ];
+  function renderAgents(){document.getElementById('agentList').innerHTML=agents.map(function(a){
+    return '<div class="card '+(a.run?'run':'pause')+'">'
+     +'<div class="row"><span class="nm">'+a.name+'</span>'+(a.run?'<span class="tag t-green">Đang chạy</span>':'<span class="tag t-amber">Tạm dừng</span>')+(a.err?'<span class="tag t-red">⚠ '+a.err+' lỗi</span>':'')+'</div>'
+     +'<div class="meta">🔑 '+a.ai+' · 🧩 '+a.topic+'</div>'
+     +'<div class="meta">👥 '+a.groups+'</div>'
+     +'<div class="meta">🕒 '+a.sched+'</div>'
+     +'<div class="meta">▶ Chạy kế: <b>'+a.next+'</b> · Lần cuối: '+a.last+'</div>'
+     +'<div class="row" style="margin-top:4px"><span class="tag '+(a.appr?'t-green':'t-gray')+'">✓ '+a.appr+' đã duyệt</span><span class="tag '+(a.pend?'t-amber':'t-gray')+'">⏳ '+a.pend+' chờ duyệt</span></div>'
+     +(a.appr===0&&!a.run?'<div class="warn">Chưa có bài đã duyệt → sẽ không đăng. Vào Bài đăng để duyệt.</div>':'')
+     +'<div class="row" style="margin-top:9px"><span class="chip g" onclick="toast(\'✓ Đã đăng thử\')">⚡ Đăng thử</span><span class="chip" onclick="openEditor('+a.id+')">Sửa</span><span class="chip" onclick="tr('+a.id+')">'+(a.run?'Tạm dừng':'Bật lại')+'</span><span class="chip" onclick="toast(\'Đã nhân bản agent\')">Nhân bản</span><span class="chip r" onclick="toast(\'(xác nhận) Đã xóa agent\')">Xóa</span><span class="chip" onclick="document.querySelector(\'[data-t=posts]\').click()">Nhật ký</span></div></div>';
+  }).join('');}
+  window.tr=function(id){var a=agents.find(x=>x.id===id);a.run=!a.run;renderAgents();toast(a.run?'▶ Đã bật':'⏸ Đã tạm dừng');};
+  renderAgents();
+
+  window.openEditor=function(id){document.getElementById('edTitle').textContent=id==='new'?'Tạo Agent':'Chỉnh sửa Agent';document.getElementById('ov').classList.add('on');};
+  window.closeEditor=function(){document.getElementById('ov').classList.remove('on');};
+  window.saveAgent=function(m){closeEditor();toast(m==='start'?'✓ Đã lưu & bật agent':'✓ Đã lưu agent');};
+  window.tog=function(e){e.classList.toggle('on');};
+  window.one=function(e){[].forEach.call(e.parentNode.children,c=>c.classList.remove('on'));e.classList.add('on');};
+  window.kind=function(e,k){window.one(e);document.getElementById('weekly').style.display=k==='weekly'?'block':'none';document.getElementById('monthly').style.display=k==='monthly'?'block':'none';};
+  window.imgmode=function(e,m){window.one(e);document.getElementById('fixedPick').style.display=m==='fixed'?'block':'none';};
+  window.toggleQuick=function(){var q=document.getElementById('quick');q.style.display=q.style.display==='none'?'block':'none';};
+  window.addCal=function(){var w=document.getElementById('calList');var d=document.createElement('div');d.className='listitem';d.innerHTML='📅 2026-06-28 · 09:00 <span class="del" onclick="this.parentNode.remove()">✕</span>';w.appendChild(d);toast('Đã thêm mốc calendar');};
+  window.openPillar=function(){document.getElementById('ovP').classList.add('on');};
+  window.closePillar=function(){document.getElementById('ovP').classList.remove('on');};
+
+  // posts
+  var posts=[
+    {st:'pending',ag:'Agent BĐS',txt:'# Cho thuê văn phòng TP.HCM – tòa LMak…',next:false},
+    {st:'approved',ag:'Agent BĐS',txt:'# Giải pháp văn phòng tối ưu cho DN vừa…',next:true},
+    {st:'approved',ag:'Agent BĐS',txt:'# Văn phòng hạng A giá tốt quận 1…',next:false},
+    {st:'rejected',ag:'Agent Khóa học AI',txt:'# (bị từ chối) nội dung lệch chủ đề…',next:false},
+    {st:'posted',ag:'Agent BĐS',txt:'→ test_ai_agent · 09:31 · 3 ảnh ✓',next:false},
+    {st:'failed',ag:'Agent Khóa học AI',txt:'✗ test_ai_agent: không còn là thành viên nhóm',next:false}
+  ];
+  var L={pending:['Chờ duyệt','t-amber'],approved:['Đã duyệt','t-blue'],rejected:['Từ chối','t-red'],posted:['Đã đăng','t-green'],failed:['Lỗi','t-red']};
+  window.cf='all';
+  function rPosts(){document.getElementById('postList').innerHTML=posts.filter(p=>cf==='all'||p.st===cf).map(function(p){
+    var s=L[p.st];var act=p.st==='pending'?'<span class="chip g">Duyệt</span><span class="chip">Sửa</span><span class="chip r">Từ chối</span>'
+      :p.st==='approved'?'<span class="chip g">⚡ Đăng ngay</span><span class="chip">Sửa</span><span class="chip r">Từ chối</span>'
+      :p.st==='failed'?'<span class="chip">↻ Đăng lại</span><span class="chip">Xem lỗi</span>'
+      :p.st==='posted'?'<span class="chip">↻ Đăng lại</span>':'<span class="chip">Khôi phục</span>';
+    return '<div class="card"><div class="row"><span class="tag '+s[1]+'">'+s[0]+'</span><span class="tag t-purple">'+p.ag+'</span>'+(p.next?'<span class="tag t-green">→ Tiếp theo</span>':'')+'</div><p class="meta" style="margin:7px 0">'+p.txt+'</p><div class="row">'+act+'</div></div>';
+  }).join('')||'<div class="muted">Không có bài ở trạng thái này.</div>';}
+  window.fPosts=function(e,f){window.one(e);cf=f;rPosts();};rPosts();
+
+  // calendar
+  var hp={22:['b','b'],23:['ok'],24:['b'],25:['b','star'],26:['b'],28:['b'],29:['b','b']};
+  var cm=6;
+  function rCal(){var h='';for(var i=1;i<=30;i++){var d=hp[i]||[];var past=i<22;
+    h+='<div class="cd'+(past?' past':'')+'" onclick="selDay('+i+',this)"><b>'+i+'</b><br>'+d.map(x=>'<span class="dot '+x+'"></span>').join('')+'</div>';}
+    document.getElementById('cal').innerHTML=h;}
+  window.selDay=function(d,el){document.querySelectorAll('#cal .cd').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');
+    var n=(hp[d]||[]).length;var b=document.getElementById('daybox');
+    if(!n){b.innerHTML='<span class="muted">Ngày '+d+'/6: chưa có bài.</span> <span class="chip" onclick="toast(\'Mở tạo bài cho ngày này\')">＋ Thêm bài</span>';return;}
+    var it='';for(var k=0;k<n;k++){var t=hp[d][k];var lab=t==='star'?['Calendar 09:30','t-amber']:t==='ok'?['Đã đăng 09:1'+k,'t-green']:t==='err'?['Lỗi','t-red']:['Định kỳ ~09:1'+k,'t-blue'];
+      it+='<div class="row" style="margin:6px 0"><span class="tag '+lab[1]+'">'+lab[0]+'</span><span class="tag t-purple">Agent BĐS</span><span class="meta"># Cho thuê VP…</span><span class="chip" style="margin-left:auto">Sửa giờ</span><span class="chip r">Gỡ</span></div>';}
+    b.innerHTML='<b>Ngày '+d+'/6/2026 — '+n+' bài</b>'+it+'<span class="chip" onclick="toast(\'Thêm bài\')">＋ Thêm bài</span>';};
+  window.calMonth=function(x){cm+=x;document.getElementById('calTitle').textContent='Tháng '+cm+' / 2026';toast('Chuyển tháng '+cm);};
+  window.calView=function(e,v){window.one(e);
+    document.getElementById('calMonthWrap').style.display=v==='m'?'block':'none';
+    document.getElementById('calWeekWrap').style.display=v==='w'?'block':'none';
+    document.getElementById('calDayWrap').style.display=v==='d'?'block':'none';
+    if(v==='w')document.getElementById('calWeekWrap').innerHTML='<div class="daybox"><b>Tuần 22–28/6</b>'+[22,23,24,25,26,27,28].map(d=>'<div class="row" style="margin:6px 0"><span class="tag t-blue" style="width:64px">'+d+'/6</span><span class="meta">'+((hp[d]||[]).length||0)+' bài dự kiến</span></div>').join('')+'</div>';
+    if(v==='d')document.getElementById('calDayWrap').innerHTML='<div class="daybox"><b>Hôm nay 22/6</b><div class="row" style="margin:6px 0"><span class="tag t-blue">09:14</span><span class="meta">Agent BĐS · # Cho thuê VP…</span></div><div class="row" style="margin:6px 0"><span class="tag t-blue">10:40</span><span class="meta">Agent BĐS · # Văn phòng hạng A…</span></div></div>';};
+  rCal();
+  document.getElementById('imgGrid').innerHTML=['🏢','🏬','🏙️','🏢','🏬','🏙️'].map(e=>'<div class="imgph">'+e+'<span style="position:absolute;top:4px;right:6px;color:#fca5a5;font-size:12px">✕</span></div>').join('');
+})();
+</script>

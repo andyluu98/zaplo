@@ -1,0 +1,303 @@
+<style>
+  :root{
+    --bg:#0b1220; --panel:#111a2e; --panel2:#0f1729; --line:#23304d;
+    --ink:#e7eefc; --muted:#93a4c4; --dim:#64748b;
+    --blue:#3b82f6; --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --purple:#a855f7; --teal:#14b8a6;
+  }
+  *{box-sizing:border-box}
+  .wrap{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);
+    line-height:1.55;padding:24px;max-width:1180px;margin:0 auto;font-size:15px}
+  h1{font-size:26px;margin:0 0 4px;font-weight:800;letter-spacing:-.02em}
+  h2{font-size:19px;margin:34px 0 12px;font-weight:700;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--line);padding-bottom:8px}
+  h3{font-size:15px;margin:16px 0 8px;font-weight:700;color:#cfe0ff}
+  p{margin:8px 0;color:var(--muted)}
+  .sub{color:var(--dim);font-size:13.5px;margin-top:0}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;vertical-align:middle}
+  .t-blue{background:rgba(59,130,246,.16);color:#9cc2ff}
+  .t-green{background:rgba(34,197,94,.16);color:#86efac}
+  .t-amber{background:rgba(245,158,11,.16);color:#fcd34d}
+  .t-purple{background:rgba(168,85,247,.16);color:#d8b4fe}
+  .t-teal{background:rgba(20,184,166,.16);color:#5eead4}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:760px){.g2,.g3{grid-template-columns:1fr}}
+  .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}
+  svg{display:block}
+  ul{margin:6px 0 6px 2px;padding-left:18px;color:var(--muted)} li{margin:4px 0}
+  .pill{font-size:12px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:2px 8px;display:inline-block;margin:2px 3px 2px 0}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:#cfe0ff;font-weight:700;background:var(--panel2)}
+  td code{color:#7dd3fc;font-size:12.5px}
+  .mock{background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .mock .bar{display:flex;gap:6px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);background:#0c1426}
+  .mock .bar b{font-size:13px}
+  .mock .body{padding:13px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .chip{font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:#0c1426;color:#cbd5e1}
+  .chip.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:700}
+  .chip.g{background:rgba(34,197,94,.18);border-color:#206b3f;color:#86efac}
+  .field{background:#0c1426;border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:#cbd5e1;font-size:13px;margin:5px 0}
+  .lbl{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;margin-top:8px}
+  .btn{font-size:12.5px;font-weight:700;padding:6px 12px;border-radius:8px;border:0;display:inline-block}
+  .b-blue{background:var(--blue);color:#fff} .b-green{background:var(--green);color:#06240f} .b-ghost{background:#0c1426;border:1px solid var(--line);color:#cbd5e1}
+  .step{display:flex;gap:10px;align-items:flex-start;margin:8px 0}
+  .num{flex:0 0 26px;height:26px;border-radius:8px;background:var(--blue);color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .note{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:10px 13px;color:#fcd34d;font-size:13.5px}
+  .ok{color:#86efac} .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:6px}
+  .cal div{background:#0c1426;border:1px solid var(--line);border-radius:6px;font-size:11px;padding:5px 4px;min-height:38px;color:#7f8db0}
+  .cal div.has{border-color:var(--blue)} .cal .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-top:3px}
+  .legend{font-size:12.5px;color:var(--dim);margin-top:6px}
+  .kpi{font-size:22px;font-weight:800;color:#fff} .kpiL{font-size:12px;color:var(--dim)}
+</style>
+
+<div class="wrap">
+
+  <h1>Module Đăng bài Tự động — Quản lý theo Agent</h1>
+  <p class="sub">Bản thiết kế để duyệt · Deplao · 22/06/2026 · nhánh <code>feat/automation</code></p>
+
+  <div class="card" style="margin-top:14px;border-color:#2a4a7a;background:linear-gradient(180deg,#13203b,#0f1729)">
+    <h3 style="margin-top:0">🎯 Ý tưởng cốt lõi</h3>
+    <p style="color:#cfe0ff">Mỗi <b>Agent</b> là một “nhân viên đăng bài ảo”: <b>phụ trách 1 hay nhiều nhóm</b>, tự viết nội dung bằng trợ lý AI riêng và <b>tự đăng đều</b> theo lịch (hằng ngày / tuần / tháng + ngày cụ thể trên calendar). Bạn quản lý mọi thứ ở một nơi: prompt, API, agent phụ trách, nhóm, lịch, bài đăng.</p>
+    <div class="row" style="margin-top:6px">
+      <span class="pill">1 Agent → N nhóm</span>
+      <span class="pill">Tự viết + tự đăng</span>
+      <span class="pill">Lịch định kỳ + calendar</span>
+      <span class="pill">Ảnh tự đính kèm</span>
+      <span class="pill">Tự duyệt / duyệt tay</span>
+      <span class="pill">Nhật ký + thống kê</span>
+    </div>
+  </div>
+
+  <!-- ORCHESTRATOR -->
+  <h2>🧭 Orchestrator — luồng vận hành</h2>
+  <div class="scroll">
+  <svg viewBox="0 0 1120 470" width="1120" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,Segoe UI,sans-serif">
+    <defs>
+      <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#5b6f95"/></marker>
+      <style>.bx{rx:11;stroke-width:1.5} .tt{fill:#e7eefc;font-size:13px;font-weight:700} .st{fill:#93a4c4;font-size:11px} .fl{stroke:#5b6f95;stroke-width:1.6;fill:none;marker-end:url(#ar)}</style>
+    </defs>
+
+    <!-- Management layer -->
+    <rect x="20" y="18" width="1080" height="78" rx="13" fill="#0f1729" stroke="#23304d"/>
+    <text x="38" y="42" class="tt" fill="#cfe0ff">Lớp Quản lý (UI tab)</text>
+    <g>
+      <rect x="38" y="52" width="150" height="32" rx="8" fill="#13203b" stroke="#2a4a7a"/><text x="113" y="72" text-anchor="middle" class="st" fill="#9cc2ff">🤖 Agents</text>
+      <rect x="200" y="52" width="150" height="32" rx="8" fill="#13203b" stroke="#2a4a7a"/><text x="275" y="72" text-anchor="middle" class="st" fill="#9cc2ff">📅 Lịch / Calendar</text>
+      <rect x="362" y="52" width="150" height="32" rx="8" fill="#13203b" stroke="#2a4a7a"/><text x="437" y="72" text-anchor="middle" class="st" fill="#9cc2ff">📝 Bài đăng</text>
+      <rect x="524" y="52" width="150" height="32" rx="8" fill="#13203b" stroke="#2a4a7a"/><text x="599" y="72" text-anchor="middle" class="st" fill="#9cc2ff">🧩 Chủ đề/Prompt</text>
+      <rect x="686" y="52" width="150" height="32" rx="8" fill="#13203b" stroke="#2a4a7a"/><text x="761" y="72" text-anchor="middle" class="st" fill="#9cc2ff">🔑 Trợ lý AI/API</text>
+      <rect x="848" y="52" width="150" height="32" rx="8" fill="#13203b" stroke="#2a4a7a"/><text x="923" y="72" text-anchor="middle" class="st" fill="#9cc2ff">🖼️ Ảnh</text>
+      <rect x="1010" y="52" width="72" height="32" rx="8" fill="#13203b" stroke="#2a4a7a"/><text x="1046" y="72" text-anchor="middle" class="st" fill="#9cc2ff">📊 TK</text>
+    </g>
+
+    <!-- Pipeline -->
+    <g>
+      <rect x="20" y="150" width="172" height="92" class="bx" fill="#112038" stroke="#3b82f6"/>
+      <text x="36" y="178" class="tt">⚙️ Agent Config</text>
+      <text x="36" y="198" class="st">trợ lý AI + chủ đề</text>
+      <text x="36" y="214" class="st">+ nhóm + lịch + ảnh</text>
+      <text x="36" y="230" class="st">+ chế độ duyệt</text>
+
+      <rect x="232" y="150" width="172" height="92" class="bx" fill="#101d33" stroke="#a855f7"/>
+      <text x="248" y="178" class="tt">🕒 Schedule Resolver</text>
+      <text x="248" y="198" class="st">định kỳ (ngày/tuần/</text>
+      <text x="248" y="214" class="st">tháng) + calendar →</text>
+      <text x="248" y="230" class="st">mốc giờ kế tiếp</text>
+
+      <rect x="444" y="150" width="172" height="92" class="bx" fill="#101d33" stroke="#14b8a6"/>
+      <text x="460" y="178" class="tt">✍️ Content Generator</text>
+      <text x="460" y="198" class="st">assistant.prompt +</text>
+      <text x="460" y="214" class="st">chủ đề + API key</text>
+      <text x="460" y="230" class="st">→ bài nháp</text>
+
+      <rect x="656" y="150" width="172" height="92" class="bx" fill="#101d33" stroke="#f59e0b"/>
+      <text x="672" y="178" class="tt">✅ Approval Gate</text>
+      <text x="672" y="198" class="st">tự đăng HOẶC</text>
+      <text x="672" y="214" class="st">chờ duyệt tay</text>
+      <text x="672" y="230" class="st">(theo agent)</text>
+
+      <rect x="868" y="150" width="172" height="92" class="bx" fill="#112038" stroke="#22c55e"/>
+      <text x="884" y="178" class="tt">📤 Poster</text>
+      <text x="884" y="198" class="st">gửi text + 1..N ảnh</text>
+      <text x="884" y="214" class="st">tới nhóm phụ trách</text>
+      <text x="884" y="230" class="st">(zca-js, chống spam)</text>
+
+      <path class="fl" d="M192,196 H232"/>
+      <path class="fl" d="M404,196 H444"/>
+      <path class="fl" d="M616,196 H656"/>
+      <path class="fl" d="M828,196 H868"/>
+    </g>
+
+    <!-- bottom services -->
+    <g>
+      <rect x="232" y="300" width="172" height="64" class="bx" fill="#0f1729" stroke="#23304d"/>
+      <text x="248" y="326" class="tt" fill="#cfe0ff">🖼️ Image Library</text>
+      <text x="248" y="346" class="st">tự lấy 1..N ảnh</text>
+
+      <rect x="444" y="300" width="172" height="64" class="bx" fill="#0f1729" stroke="#23304d"/>
+      <text x="460" y="326" class="tt" fill="#cfe0ff">🔑 AI Assistants</text>
+      <text x="460" y="346" class="st">prompt + API key</text>
+
+      <rect x="868" y="300" width="172" height="64" class="bx" fill="#0f1729" stroke="#23304d"/>
+      <text x="884" y="326" class="tt" fill="#cfe0ff">🧾 Post Log + 📊</text>
+      <text x="884" y="346" class="st">sent/failed, thống kê</text>
+
+      <path class="fl" d="M530,300 V250"/>
+      <path class="fl" d="M318,300 V250"/>
+      <path class="fl" d="M954,250 V300"/>
+    </g>
+
+    <!-- feedback -->
+    <path class="fl" d="M954,364 H120 V242" stroke-dasharray="5 4"/>
+    <text x="430" y="398" class="st" fill="#64748b">phản hồi: kết quả đăng → cập nhật trạng thái agent (chạy/lỗi/giờ kế) + retry</text>
+  </svg>
+  </div>
+
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card"><div class="kpi" style="color:#9cc2ff">Agent</div><div class="kpiL">đơn vị trung tâm: care nhóm, tự viết + đăng</div></div>
+    <div class="card"><div class="kpi" style="color:#d8b4fe">Schedule Resolver</div><div class="kpiL">gộp luật định kỳ + mốc calendar → giờ chạy</div></div>
+    <div class="card"><div class="kpi" style="color:#86efac">Poster</div><div class="kpiL">đăng text + nhiều ảnh, chống spam, ghi log</div></div>
+  </div>
+
+  <!-- DATA MODEL -->
+  <h2>🗃️ Mô hình dữ liệu <span class="tag t-green">mới/đổi</span></h2>
+  <div class="scroll" style="padding:4px">
+  <table>
+    <tr><th>Bảng</th><th>Vai trò</th><th>Cột chính (mới in đậm)</th></tr>
+    <tr><td><code>posting_agent</code> <span class="tag t-green">mới</span></td><td>Đơn vị trung tâm</td>
+      <td><b>id, name, owner_zalo_id, assistant_id, enabled, approval_mode</b> (auto/manual), <b>image_mode</b> (auto N/fixed/none), <b>image_count</b>, created/updated</td></tr>
+    <tr><td><code>agent_pillar</code> <span class="tag t-green">mới</span></td><td>Agent ↔ chủ đề (N-N)</td><td><b>agent_id, pillar_id</b></td></tr>
+    <tr><td><code>agent_group</code> <span class="tag t-green">mới</span></td><td>Agent ↔ nhóm phụ trách (N-N)</td><td><b>agent_id, group_id</b></td></tr>
+    <tr><td><code>agent_schedule</code> <span class="tag t-green">mới</span></td><td>Luật lịch (1 agent có nhiều luật)</td>
+      <td><b>agent_id, kind</b> (daily/weekly/monthly/once), <b>weekdays</b> (CN..T7), <b>month_days</b> (1..31), <b>date</b> (cho once: yyyy-mm-dd), <b>window_start/end, posts_per_day, enabled</b></td></tr>
+    <tr><td><code>content_pillar</code> <span class="tag t-amber">đổi</span></td><td>Chủ đề + prompt</td><td>..., <b>assistant_id</b> (đã thêm 26.6.9)</td></tr>
+    <tr><td><code>content_draft</code> <span class="tag t-amber">đổi</span></td><td>Bài nháp/đăng</td><td>..., <b>agent_id</b>, <b>scheduled_at</b> (mốc dự kiến), image_asset_id</td></tr>
+    <tr><td><code>post_log</code> <span class="tag t-blue">giữ</span></td><td>Nhật ký gửi</td><td>+<b>agent_id</b> để thống kê theo agent</td></tr>
+    <tr><td><code>image_asset</code>, <code>ai_assistants</code></td><td>Dùng lại</td><td>không đổi (API key đã ở ai_assistants)</td></tr>
+  </table>
+  </div>
+  <p class="sub">Ghi chú: <code>post_schedule</code> cũ (1 lịch/account) sẽ được thay bằng <code>agent_schedule</code> (nhiều luật/agent). Dữ liệu cũ migrate sang 1 agent mặc định.</p>
+
+  <!-- UI MOCKUPS -->
+  <h2>🖥️ Các màn hình quản lý (mockup)</h2>
+
+  <h3>1) Tab <b>Agents</b> — danh sách + bật/tắt nhanh</h3>
+  <div class="mock">
+    <div class="bar"><b>🤖 Agents đăng bài</b><span style="margin-left:auto"><span class="btn b-blue">+ Tạo Agent</span></span></div>
+    <div class="body grid g2">
+      <div class="card" style="border-color:#206b3f">
+        <div class="row"><b>Agent BĐS — LMak</b><span class="tag t-green">Đang chạy</span></div>
+        <div class="legend">Trợ lý: <b>GPT-BĐS</b> · Chủ đề: Cho thuê VP · Nhóm: 3</div>
+        <div class="legend">Lịch: Hằng ngày 08:00–11:00 · 2 bài/ngày · +calendar 25/06</div>
+        <div class="row" style="margin-top:8px"><span class="chip g">⚡ Đăng thử</span><span class="chip">Sửa</span><span class="chip">Tạm dừng</span><span class="chip">Nhật ký</span></div>
+      </div>
+      <div class="card">
+        <div class="row"><b>Agent Khóa học AI</b><span class="tag t-amber">Tạm dừng</span></div>
+        <div class="legend">Trợ lý: <b>Gemini-Edu</b> · Chủ đề: Tư vấn khóa học · Nhóm: 1</div>
+        <div class="legend">Lịch: T2/T4/T6 19:00–21:00 · 1 bài/ngày</div>
+        <div class="row" style="margin-top:8px"><span class="chip g">⚡ Đăng thử</span><span class="chip">Sửa</span><span class="chip on">Bật lại</span><span class="chip">Nhật ký</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>2) <b>Trình tạo/sửa Agent</b> — nơi gom toàn bộ cấu hình</h3>
+  <div class="mock">
+    <div class="bar"><b>✏️ Agent BĐS — LMak</b><span style="margin-left:auto" class="row"><span class="btn b-ghost">Hủy</span><span class="btn b-green">Lưu Agent</span></span></div>
+    <div class="body grid g2">
+      <div>
+        <div class="lbl">Tên agent</div><div class="field">Agent BĐS — LMak</div>
+        <div class="lbl">Trợ lý AI (prompt + API)</div><div class="field">GPT-BĐS ▾ &nbsp; <span class="tag t-purple">sửa prompt/API nhanh</span></div>
+        <div class="lbl">Chủ đề phụ trách</div><div class="row"><span class="chip on">Cho thuê VP</span><span class="chip">Giá thuê</span><span class="chip">+ thêm</span></div>
+        <div class="lbl">Nhóm phụ trách</div><div class="row"><span class="chip on">[Lite space]_Tech</span><span class="chip on">test_ai_agent</span><span class="chip">+ chọn nhóm</span></div>
+      </div>
+      <div>
+        <div class="lbl">Lịch định kỳ</div>
+        <div class="row"><span class="chip on">Hằng ngày</span><span class="chip">Hằng tuần</span><span class="chip">Hằng tháng</span></div>
+        <div class="row" style="margin-top:5px"><span class="chip">T2</span><span class="chip">T3</span><span class="chip on">T4</span><span class="chip">T5</span><span class="chip on">T6</span><span class="chip">T7</span><span class="chip">CN</span></div>
+        <div class="field">Khung giờ 08:00 — 11:00 · &nbsp;2 bài/ngày</div>
+        <div class="lbl">Mốc calendar (đăng riêng 1 lần)</div>
+        <div class="field">+ 25/06/2026 09:30 — bài khai trương ▾</div>
+        <div class="lbl">Ảnh</div><div class="row"><span class="chip on">Tự lấy 2–3 ảnh</span><span class="chip">Ảnh cố định</span><span class="chip">Không ảnh</span></div>
+        <div class="lbl">Chế độ duyệt</div><div class="row"><span class="chip on">Tự đăng</span><span class="chip">Cần duyệt tay</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>3) Tab <b>Lịch / Calendar</b> — xem toàn cảnh theo tháng</h3>
+  <div class="mock">
+    <div class="bar"><b>📅 Tháng 6/2026</b><span style="margin-left:auto" class="row"><span class="chip">Ngày</span><span class="chip">Tuần</span><span class="chip on">Tháng</span></span></div>
+    <div class="body">
+      <div class="cal">
+        <div>22<br><span class="dot"></span><span class="dot"></span></div><div>23<br><span class="dot"></span></div><div>24<br><span class="dot"></span></div>
+        <div class="has">25<br><span class="dot"></span><span class="dot"></span><span class="dot"></span></div><div>26<br><span class="dot"></span></div><div>27</div><div>28<br><span class="dot"></span></div>
+      </div>
+      <div class="legend">● mỗi chấm = 1 bài dự kiến · ngày viền xanh = có mốc calendar đặc biệt · click ngày → xem/sửa bài hôm đó</div>
+    </div>
+  </div>
+
+  <h3>4) Tab <b>Bài đăng</b> — hàng đợi theo agent + trạng thái</h3>
+  <div class="mock">
+    <div class="bar"><b>📝 Bài đăng</b><span style="margin-left:auto" class="row"><span class="chip">Agent: tất cả ▾</span><span class="chip on">Chờ duyệt</span><span class="chip">Đã duyệt</span><span class="chip">Đã đăng</span><span class="chip">Lỗi</span></span></div>
+    <div class="body grid g2">
+      <div class="card"><div class="row"><span class="tag t-amber">Chờ duyệt</span><span class="tag t-purple">Agent BĐS</span></div><p style="color:#cbd5e1;margin:6px 0"># Cho thuê văn phòng TP.HCM – tòa LMak…</p><div class="row"><span class="chip g">Duyệt</span><span class="chip">Sửa</span><span class="chip g">⚡ Đăng ngay</span></div></div>
+      <div class="card"><div class="row"><span class="tag t-green">Đã đăng</span><span class="tag t-purple">Agent BĐS</span></div><p style="color:#cbd5e1;margin:6px 0">→ test_ai_agent · 09:31 · 3 ảnh ✓</p><div class="row"><span class="chip">Xem trên Zalo</span><span class="chip">Đăng lại</span></div></div>
+    </div>
+  </div>
+
+  <div class="grid g3" style="margin-top:14px">
+    <div class="mock"><div class="bar"><b>🧩 Chủ đề/Prompt</b></div><div class="body"><div class="field">Cho thuê VP — prompt…</div><div class="field">Tư vấn khóa học — prompt…</div><span class="legend">mỗi chủ đề gắn 1 trợ lý mặc định</span></div></div>
+    <div class="mock"><div class="bar"><b>🔑 Trợ lý AI / API</b></div><div class="body"><div class="field">GPT-BĐS · OpenAI · key ••••</div><div class="field">Gemini-Edu · Google · key ••••</div><span class="legend">đồng bộ với Cài đặt AI + sửa nhanh</span></div></div>
+    <div class="mock"><div class="bar"><b>📊 Thống kê</b></div><div class="body"><div class="row"><div><div class="kpi ok">128</div><div class="kpiL">đã đăng/tháng</div></div><div><div class="kpi" style="color:#fcd34d">3</div><div class="kpiL">lỗi</div></div></div><span class="legend">theo agent / nhóm / ngày</span></div></div>
+  </div>
+
+  <!-- SCHEDULING DETAIL -->
+  <h2>🕒 Cơ chế lịch (chi tiết)</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3 style="margin-top:0">Định kỳ (lặp lại)</h3>
+      <ul>
+        <li><b>Hằng ngày</b>: mỗi ngày, trong khung giờ, N bài.</li>
+        <li><b>Hằng tuần</b>: chọn thứ (T2–CN) → chỉ đăng các thứ đó.</li>
+        <li><b>Hằng tháng</b>: chọn ngày trong tháng (vd 1, 15) → đăng đúng ngày đó.</li>
+        <li>Mỗi luật có <b>khung giờ</b> + <b>số bài/ngày</b> riêng; giờ đăng random trong khung để tránh spam.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Calendar (1 lần)</h3>
+      <ul>
+        <li>Gắn 1 bài vào <b>ngày–giờ cụ thể</b> (yyyy-mm-dd HH:MM) cho dịp đặc biệt.</li>
+        <li>Hiện trên lịch tháng/tuần/ngày; click để xem/sửa/gỡ.</li>
+        <li>Kết hợp được với định kỳ trong cùng 1 agent.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note" style="margin-top:12px">⚙️ <b>Schedule Resolver</b> gộp tất cả luật + mốc calendar của agent, tính ra danh sách “giờ chạy” trong ngày; mỗi tick kiểm tra tới giờ thì sinh bài + đăng. Có giới hạn chống spam (token bucket, khoảng cách tối thiểu giữa các lần gửi) và cap số bài/nhóm/ngày.</p></div>
+
+  <!-- ROADMAP -->
+  <h2>🗺️ Lộ trình triển khai (theo phase)</h2>
+  <div class="card">
+    <div class="step"><div class="num">1</div><div><b>Dữ liệu &amp; migrate</b> <span class="tag t-blue">nền tảng</span><br><span class="sub">Tạo bảng posting_agent, agent_pillar, agent_group, agent_schedule; thêm agent_id vào draft/log. Migrate cấu hình cũ → 1 agent mặc định. <span class="ok">Verify: mở app, dữ liệu cũ vẫn còn, agent mặc định chạy như cũ.</span></span></div></div>
+    <div class="step"><div class="num">2</div><div><b>Service: AgentManager + Schedule Resolver</b><br><span class="sub">Logic CRUD agent; resolver tính giờ chạy từ luật định kỳ + calendar; thay scheduler hiện tại. <span class="ok">Verify: unit test resolver (daily/weekly/monthly/once).</span></span></div></div>
+    <div class="step"><div class="num">3</div><div><b>Generator + Poster gắn theo agent</b><br><span class="sub">Sinh bài dùng trợ lý của agent; đăng tới đúng nhóm của agent, kèm ảnh. <span class="ok">Verify: Đăng thử ngay theo agent ra đúng nội dung + ảnh.</span></span></div></div>
+    <div class="step"><div class="num">4</div><div><b>UI: Tab Agents + trình tạo/sửa Agent</b><br><span class="sub">Màn hình trung tâm: chọn trợ lý, chủ đề, nhóm, lịch, ảnh, chế độ duyệt. <span class="ok">Verify: tạo agent mới → chạy được.</span></span></div></div>
+    <div class="step"><div class="num">5</div><div><b>UI: Calendar + Bài đăng theo agent</b><br><span class="sub">Lịch tháng/tuần/ngày; hàng đợi bài lọc theo agent/trạng thái. <span class="ok">Verify: thấy bài dự kiến trên lịch; duyệt/đăng từ đây.</span></span></div></div>
+    <div class="step"><div class="num">6</div><div><b>UI: Trợ lý AI/API + Thống kê</b><br><span class="sub">Quản lý/sửa nhanh trợ lý &amp; API trong tab; dashboard thống kê theo agent/nhóm. <span class="ok">Verify: số liệu khớp post_log.</span></span></div></div>
+    <div class="step"><div class="num">7</div><div><b>Hoàn thiện + build + cài</b><br><span class="sub">Dọn UI cũ, log, tài liệu; build 26.7.0 và cài đè. <span class="ok">Verify: chạy end-to-end 1 agent đăng tự động qua 1 chu kỳ.</span></span></div></div>
+  </div>
+
+  <!-- OPEN QUESTIONS -->
+  <h2>❓ Điểm cần bạn xác nhận trước khi làm</h2>
+  <div class="card">
+    <ul>
+      <li><b>Tự đăng vs duyệt tay</b>: mặc định agent nên <b>tự đăng</b> luôn hay <b>chờ bạn duyệt</b> rồi mới đăng? (mỗi agent vẫn chỉnh được)</li>
+      <li><b>Số bài/nhóm/ngày tối đa</b> để an toàn (tránh khóa Zalo): đề xuất mặc định 1–3, trần 12. OK không?</li>
+      <li><b>1 agent nhiều nhóm</b>: cùng 1 bài đăng cho mọi nhóm của agent, hay mỗi nhóm 1 bài khác nhau? (đề xuất: cùng bài, đỡ tốn AI)</li>
+      <li><b>Giữ tab cũ</b> (Chuyên đề/Duyệt bài/Lịch/Ảnh) song song trong lúc chuyển, hay thay hẳn bằng cấu trúc Agent?</li>
+      <li>Có cần <b>nhiều tài khoản Zalo</b> trong 1 agent, hay 1 agent = 1 tài khoản? (đề xuất: 1 agent = 1 tài khoản)</li>
+    </ul>
+  </div>
+
+  <p class="sub" style="margin-top:20px">Duyệt xong, mình sẽ viết phase chi tiết trong <code>plans/260622-1119-posting-agent-management/</code> và bắt tay làm theo thứ tự phase. Có thể làm cuốn chiếu để bạn dùng được sớm.</p>
+</div>

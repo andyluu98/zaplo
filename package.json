@@ -1,6 +1,6 @@
 {
-  "name": "Deplao",
-  "version": "26.6.4",
+  "name": "Zaplo",
+  "version": "26.7.5",
   "description": "Phần mềm desktop quản lý Zalo & Facebook cá nhân Đa tài khoản tích hợp CRM, ERP, POS, Workflow và AI Assistant giúp đội nhóm bán hàng, chăm sóc khách hàng và marketing trên Zalo vận hành tập trung trong một ứng dụng duy nhất.",
   "main": "dist-electron/electron/main.js",
   "scripts": {
@@ -14,7 +14,7 @@
     "production": "npm run build:bridge-e2ee && tsc -p tsconfig.electron.prod.json && node scripts/strip-console.js && npm run build:renderer && electron-builder --publish never"
   },
   "author": "babyvibe <babyvibe@users.noreply.github.com>",
-  "homepage": "https://deplaoapp.com",
+  "homepage": "https://github.com/andyluu98/zaplo",
   "license": "MIT",
   "dependencies": {
     "axios": "^1.7.8",
@@ -88,8 +88,8 @@
     "zustand": "^5.0.12"
   },
   "build": {
-    "appId": "com.Deplao.app",
-    "productName": "Deplao",
+    "appId": "com.zaplo.app",
+    "productName": "Zaplo",
     "forceCodeSigning": false,
     "publish": [],
     "extraResources": [
@@ -138,8 +138,10 @@
       "signAndEditExecutable": false
     },
     "protocols": {
-      "name": "Deplao Deep Link",
-      "schemes": ["deplao"]
+      "name": "Zaplo Deep Link",
+      "schemes": [
+        "zaplo"
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -171,7 +173,7 @@
       "gatekeeperAssess": false
     },
     "dmg": {
-      "title": "Deplao"
+      "title": "Zaplo"
     },
     "linux": {
       "target": [

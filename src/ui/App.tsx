@@ -19,6 +19,8 @@ import WorkflowPage from './components/workflow/WorkflowPage';
 import IntegrationPage from './components/integration/IntegrationPage';
 import AnalyticsPage from './components/analytics/AnalyticsPage';
 import ErpPage from './features/erp/ErpPage';
+import GroupPostingPage from './components/posting/group-posting-page';
+import AgentHubPage from './components/agent-hub/agent-hub-page';
 import AccountInitPanel from './components/common/AccountInitPanel';
 import { UpdateNotification } from './components/common/UpdateNotification';
 import { useAppStore } from './store/appStore';
@@ -1296,6 +1298,16 @@ export default function App() {
           {view === 'erp' && (
             <div className="flex-1 h-full overflow-hidden">
               <ErpPage />
+            </div>
+          )}
+          {view === 'groupPosting' && (
+            <div className="flex-1 h-full overflow-hidden">
+              <GroupPostingPage />
+            </div>
+          )}
+          {view === 'agentHub' && (
+            <div className="flex-1 h-full overflow-hidden">
+              <AgentHubPage />
             </div>
           )}
           {view === 'dashboard' && (

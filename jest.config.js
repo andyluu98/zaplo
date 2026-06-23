@@ -6,4 +6,6 @@ module.exports = {
     "^.+\\.tsx?$": ["ts-jest", {}], // Biến đổi tệp TypeScript và TSX bằng ts-jest
   },
   testMatch: ['<rootDir>/src/__tests__/**/*.test.ts'], // Đường dẫn đến các tệp test
+  // Ignore nested git worktrees (under .claude/worktrees) to avoid Haste module name collisions.
+  modulePathIgnorePatterns: ['<rootDir>/.claude/worktrees'],
 };

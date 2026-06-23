@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototype tương tác — Quản lý Agent (định tuyến)</title>
+<style>
+  *{box-sizing:border-box}
+  :root{--line:#e9edf1;--text:#1f2328;--mut:#6b7280;--mut2:#9aa3af;--blue:#2563eb;--blue-soft:#eff4ff;--green:#16a34a;--amber:#d97706;--red:#dc2626;--purple:#7c3aed;
+    --d-bg:#0b1120;--d-card:#1f2937;--d-line:#374151;--d-txt:#e5e7eb;--d-mut:#9ca3af;--d-in:#0d1626;}
+  body{margin:0;background:#eef1f4;color:var(--text);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:13px}
+  .app{display:flex;flex-direction:column;height:100vh;background:#fff}
+  .topbar{height:38px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 14px;gap:8px;flex-shrink:0}
+  .brand{color:var(--blue);font-weight:700;font-size:14px}.ver{color:var(--mut2);font-size:11px}.topbar .tr{margin-left:auto;color:var(--mut2)}
+  .body{display:flex;flex:1;min-height:0}
+  .rail{width:56px;background:#fbfcfd;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px;flex-shrink:0}
+  .av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#fbbf24,#f59e0b);margin-bottom:2px}
+  .navi{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#8a93a0;cursor:pointer;position:relative;font-size:17px}
+  .navi:hover{background:#eef1f4}.navi.on{background:var(--blue);color:#fff}
+  .navi.new.on{background:var(--green);color:#fff}.navi.new{color:var(--green);box-shadow:0 0 0 2px #bbf7d0 inset}
+  .navi .nb{position:absolute;top:-3px;right:-2px;background:var(--green);color:#fff;font-size:7px;font-weight:800;border-radius:5px;padding:0 3px}
+  .sp{flex:1}.content{flex:1;min-width:0;display:flex;flex-direction:column}
+  .new{background:#dcfce7;color:#15803d;font-size:9px;font-weight:800;padding:1px 5px;border-radius:5px;margin-left:5px;vertical-align:middle}
+
+  /* CHAT */
+  .chatwrap{display:flex;flex:1;min-height:0}
+  .clist{width:290px;border-right:1px solid var(--line);display:flex;flex-direction:column;background:#fff;overflow:auto}
+  .csearch{padding:10px 12px}.csearch .i{background:#f4f6f8;border:1px solid var(--line);border-radius:18px;padding:7px 12px;color:var(--mut);font-size:12px}
+  .crow{display:flex;gap:10px;padding:9px 12px;cursor:pointer;align-items:center;border-left:3px solid transparent}
+  .crow:hover{background:#f7f9fb}.crow.on{background:#f0f5ff;border-left-color:var(--blue)}
+  .ca{width:40px;height:40px;border-radius:50%;background:#dde3ea;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+  .cn{font-weight:600;font-size:13px;display:flex;justify-content:space-between}.cn .t{font-weight:400;color:var(--mut2);font-size:11px}
+  .cp{color:var(--mut);font-size:12px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+  .agtag{font-size:9px;font-weight:700;padding:1px 5px;border-radius:5px}
+  .ag-on{background:#dcfce7;color:#15803d}.ag-pause{background:#fef3c7;color:#b45309}.ag-off{background:#eef2f7;color:#64748b}
+  .who-ag{font-size:9px;color:var(--purple);font-weight:600}
+  .main{flex:1;display:flex;flex-direction:column;background:#fff;min-width:0}
+  .chead{border-bottom:1px solid var(--line);padding:9px 14px;display:flex;align-items:center;gap:10px}
+  .chead .acts{margin-left:auto;display:flex;gap:6px;color:var(--mut2)}
+  .ic{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer}.ic:hover{background:#eef1f4}
+  .aibar{padding:7px 14px;display:flex;align-items:center;gap:10px;font-size:12px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .aibar.on{background:#f0fdf4;border-bottom-color:#d6f0de}.aibar.pause{background:#fffbeb}.aibar.off{background:#f7f9fb}
+  .dot{width:8px;height:8px;border-radius:50%}
+  .pick{background:#fff;border:1px solid var(--line);border-radius:7px;padding:3px 7px;font-size:11px;color:var(--text);cursor:pointer}
+  .tg{width:36px;height:20px;border-radius:12px;position:relative;cursor:pointer;flex-shrink:0;background:var(--green)}
+  .tg.off{background:#cbd5e1}.tg i{position:absolute;top:2px;left:18px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}.tg.off i{left:2px}
+  .msgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:9px;background:#f7f9fb}
+  .mb{max-width:74%;padding:8px 11px;border-radius:12px;font-size:13px}.mb.in{background:#fff;border:1px solid var(--line);align-self:flex-start}.mb.out{background:#dbeafe;align-self:flex-end}
+  .mb .who{font-size:10px;font-weight:700;margin-bottom:2px}.mtag{font-size:9px;font-weight:700;padding:0 4px;border-radius:4px;margin-left:5px}
+  .composer{border-top:1px solid var(--line);padding:9px 12px;display:flex;gap:8px;align-items:center}.composer .i{flex:1;background:#f4f6f8;border:1px solid var(--line);border-radius:18px;padding:8px 12px;color:var(--mut)}
+  .demo{font-size:11px;color:var(--blue);cursor:pointer;border:1px dashed #bcd0f5;border-radius:7px;padding:4px 8px;background:#f5f9ff}
+
+  /* HUB dark */
+  .hub{flex:1;display:flex;flex-direction:column;background:var(--d-bg);color:var(--d-txt);min-height:0}
+  .hubhead{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--d-line)}.hubhead h2{font-size:15px;margin:0}
+  .acct{margin-left:auto;background:#172033;border:1px solid var(--d-line);border-radius:9px;padding:6px 10px;font-size:12px;color:var(--d-mut)}
+  .hubtabs{display:flex;gap:4px;padding:10px 16px 0;border-bottom:1px solid var(--d-line)}
+  .htab{padding:9px 14px;font-size:13px;font-weight:600;color:var(--d-mut);border:0;border-bottom:2px solid transparent;background:transparent;border-radius:8px 8px 0 0;cursor:pointer}
+  .htab.on{color:#60a5fa;border-bottom-color:var(--blue);background:rgba(59,130,246,.08)}
+  .hubbody{flex:1;overflow:auto;padding:16px}
+  iframe{width:100%;height:100%;border:0;background:#0b1120}
+  .subnav{display:flex;gap:6px;margin-bottom:14px}
+  .subnav button{background:var(--d-in);border:1px solid var(--d-line);color:var(--d-mut);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}
+  .subnav button.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .dinp{background:var(--d-in);border:1px solid var(--d-line);border-radius:8px;padding:7px 10px;color:var(--d-txt);font-size:12px}
+  .b{font-size:11px;font-weight:700;padding:6px 11px;border-radius:8px;border:0;cursor:pointer}
+  .b-bl{background:var(--blue);color:#fff}.b-gr{background:#374151;color:#d1d5db}.b-em{background:rgba(4,120,87,.35);color:#6ee7b7}.b-rd{background:rgba(153,27,27,.3);color:#fca5a5}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  .dcard{border:1px solid var(--d-line);background:var(--d-card);border-radius:12px;padding:13px}.dcard.run{border-color:rgba(21,128,61,.5)}.dcard.def{border-color:rgba(180,120,20,.6)}
+  .bdg{font-size:10px;padding:2px 7px;border-radius:999px}
+  .bg{background:rgba(21,128,61,.4);color:#4ade80}.ba{background:rgba(146,64,14,.4);color:#fbbf24}.bgr{background:#374151;color:#9ca3af}.bp{background:rgba(91,33,182,.45);color:#c4b5fd}.bkb{background:#1e2e22;color:#86efac}.bctx{background:#1e273e;color:#93c5fd}.bdef{background:#3a2e12;color:#fcd34d}
+  .meta{font-size:12px;color:var(--d-mut);margin-top:6px}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.acts2{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .banner{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:10px;padding:9px 12px;font-size:12px;color:#93c5fd;margin-bottom:14px}
+  /* routing table */
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;color:#7c89a3;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--d-line);font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+  td{padding:9px 10px;border-bottom:1px solid var(--d-line2,#1f2a3a)}
+  .dsel{background:var(--d-in);border:1px solid var(--d-line);border-radius:7px;padding:5px 8px;color:var(--d-txt);font-size:12px}
+  .src{font-size:10px;padding:1px 6px;border-radius:5px}
+  .s-pin{background:#3a2e52;color:#c4b5fd}.s-lbl{background:#13351f;color:#86efac}.s-grp{background:#1e273e;color:#93c5fd}.s-def{background:#3a2e12;color:#fcd34d}
+
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:40;overflow:auto;padding:24px 14px}.scrim.on{display:block}
+  .editor{max-width:680px;margin:0 auto;background:var(--d-card);border:1px solid var(--d-line);border-radius:14px;padding:18px;color:var(--d-txt)}
+  .field{margin-bottom:15px}.field>label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#7c89a3;font-weight:700;margin-bottom:6px}
+  .fi{width:100%;background:var(--d-in);border:1px solid var(--d-line);border-radius:9px;padding:9px 11px;color:var(--d-txt);font-size:13px}
+  textarea.fi{min-height:80px;resize:vertical;font-family:inherit}
+  .note{font-size:11px;color:#7c89a3;margin-top:5px}.link{color:#60a5fa;font-size:12px;font-weight:600;cursor:pointer}.link:hover{text-decoration:underline}
+  .chip{font-size:12px;border:1px solid var(--d-line);border-radius:999px;padding:5px 11px;color:var(--d-mut);cursor:pointer;user-select:none}.chip.on{background:rgba(59,130,246,.18);border-color:#2563eb;color:#93c5fd}
+  .seg{display:flex;border:1px solid var(--d-line);border-radius:9px;overflow:hidden;width:fit-content}.seg button{background:var(--d-in);border:0;color:var(--d-mut);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer}.seg button.on{background:var(--blue);color:#fff}
+  .block{border:1px solid #2b3950;border-radius:11px;padding:13px;background:var(--d-in);margin-bottom:15px}
+  .acard{display:flex;gap:12px;align-items:flex-start;border:1px solid #2b3950;background:var(--d-in);border-radius:11px;padding:12px}
+  .acard .aic{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .ck{display:flex;align-items:flex-start;gap:8px;margin:8px 0;font-size:13px;color:#d6deea;cursor:pointer}
+  .ckbox{width:16px;height:16px;border-radius:4px;background:var(--blue);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}.ckbox.off{background:var(--d-in);border:1px solid #3a4658;color:transparent}
+  .sm{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed #2b3950}
+  .st{font-size:11px;font-weight:700;padding:5px 9px;border-radius:8px}.st-g{background:#13351f;color:#5be584}.st-y{background:#332910;color:#fbbf24}.st-o{background:#26303f;color:#9fb3cc}.arr{font-size:10px;color:#7c89a3}
+  input[type=range]{width:100%}
+  .filerow{display:flex;align-items:center;gap:8px;background:#0f1a2c;border:1px solid var(--d-line);border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:12px}
+  .uparea{border:1px dashed #3a4658;border-radius:9px;padding:14px;text-align:center;color:#7c89a3;font-size:12px;cursor:pointer}
+  .logwrap{max-width:760px;margin:0 auto;background:var(--d-card);border:1px solid var(--d-line);border-radius:14px;padding:18px;color:var(--d-txt)}
+  .lrow{border:1px solid var(--d-line);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px}.x{margin-left:auto;cursor:pointer;color:#9ca3af;font-size:18px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar"><span class="brand">Zaplo</span><span class="ver">v26.7.4</span><span class="tr">↻ 🔔 ⭐ ◐ ⋯ — ☐ ✕</span></div>
+  <div class="body">
+    <div class="rail">
+      <div class="av"></div><div class="navi" title="Tạo">＋</div><div class="navi" title="Dashboard">▦</div>
+      <div class="navi" id="r-chat" title="Chat" onclick="nav('chat')">💬</div>
+      <div class="navi" title="CRM">📊</div><div class="navi" title="Công cụ">🧰</div><div class="navi" title="Báo cáo">📈</div>
+      <div class="navi" title="Đăng bài nhóm">✒️</div>
+      <div class="navi new" id="r-hub" title="Quản lý Agent (MỚI)" onclick="nav('hub')">🤖<span class="nb">MỚI</span></div>
+      <div class="navi" title="Quản lý công việc">☑️</div><div class="sp"></div><div class="navi" title="Cài đặt">⚙️</div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+<div class="scrim" id="scrim"></div>
+
+<script>
+const GROUPS = ['[Lite space]_Tech','OFFICE LEASING HCM','Nhà cho thuê làm VP','test_ai_agent','Viện Khoa học Nghiên'];
+const AGENTS = ['Tư vấn thuê VP — LMak','CSKH bán hàng','(Agent mặc định)'];
+/* routing rows: thread, type, label, assignedAgent, source */
+let ROUTE = [
+  {th:'[Lite space]_Tech', type:'Nhóm', label:'VP cho thuê', ag:'Tư vấn thuê VP — LMak', src:'grp'},
+  {th:'OFFICE LEASING HCM', type:'Nhóm', label:'VP cho thuê', ag:'Tư vấn thuê VP — LMak', src:'lbl'},
+  {th:'Nhà cho thuê làm VP', type:'Nhóm', label:'—', ag:'(Agent mặc định)', src:'def'},
+  {th:'test_ai_agent', type:'DM', label:'—', ag:'CSKH bán hàng', src:'pin'},
+  {th:'Khách lạ 09xxxx (mới)', type:'DM khách lạ', label:'—', ag:'(Agent mặc định)', src:'def'},
+];
+let conv = {'[Lite space]_Tech':'on','Nhà cho thuê làm Văn':'pause','OFFICE LEASING HCM':'on','test_ai_agent':'off'};
+let convAgent = {'[Lite space]_Tech':'Tư vấn thuê VP — LMak','Nhà cho thuê làm Văn':'CSKH bán hàng','OFFICE LEASING HCM':'Tư vấn thuê VP — LMak','test_ai_agent':'CSKH bán hàng'};
+let openConv='[Lite space]_Tech', view='hub', hubTab='chat', chatSub='list', ed=null;
+
+function nav(v){view=v;render();}
+function render(){
+  document.getElementById('r-chat').classList.toggle('on',view==='chat');
+  document.getElementById('r-hub').classList.toggle('on',view==='hub');
+  document.getElementById('content').innerHTML = view==='chat'?chatView():hubView();
+}
+
+/* ===== CHAT ===== */
+function chatView(){
+  const rows=[['[Lite space]_Tech','🏢','09:26','Hình ảnh','17'],['Nhà cho thuê làm Văn','🌅','09:20','Hình ảnh','22'],['OFFICE LEASING HCM','🏙️','09:20','Hình ảnh',''],['test_ai_agent','🧑‍💼','09:10','Hình ảnh','']]
+   .map(([n,e,t,p,u])=>{const s=conv[n]||'off';const tag=s==='on'?'<span class="agtag ag-on">🟢 AI</span>':s==='pause'?'<span class="agtag ag-pause">🟡 Người</span>':'<span class="agtag ag-off">⚪ Tắt</span>';
+    return `<div class="crow ${n===openConv?'on':''}" onclick="openC('${n}')"><div class="ca">${e}</div><div style="flex:1;min-width:0"><div class="cn">${n}<span class="t">${t}</span></div><div class="cp">${tag} <span class="who-ag">${convAgent[n]||''}</span></div></div></div>`;}).join('');
+  return `<div class="chatwrap"><div class="clist"><div class="csearch"><div class="i">🔍 Tìm kiếm…</div></div>
+    <div style="font-size:11px;color:var(--mut2);padding:0 12px 6px">Badge trạng thái + <b>agent phụ trách</b> mỗi hội thoại <span class="new">MỚI</span></div>${rows}</div>
+    <div class="main">${convPane()}</div></div>`;
+}
+function convPane(){
+  const s=conv[openConv]||'off';
+  const agentPicker=`<span class="row" style="gap:5px">Phụ trách: <select class="pick" onchange="setAgent(this.value)">${AGENTS.map(a=>`<option ${a===convAgent[openConv]?'selected':''}>${a}</option>`).join('')}</select><span class="new">MỚI ghim trực tiếp</span></span>`;
+  const bar=s==='on'
+    ?`<div class="aibar on"><span class="dot" style="background:var(--green)"></span><b>AI đang trả lời</b> · ${agentPicker}<span style="margin-left:auto;display:flex;align-items:center;gap:8px"><span style="color:var(--mut)">AI</span><div class="tg" onclick="setConv('off')"><i></i></div></span></div>`
+    :s==='pause'
+    ?`<div class="aibar pause"><span class="dot" style="background:var(--amber)"></span><b>🟡 Người đang xử lý</b><button class="b b-bl" style="margin-left:8px" onclick="setConv('on')">↩ Giao lại cho Agent</button> · ${agentPicker}<span style="margin-left:auto;display:flex;align-items:center;gap:8px"><span style="color:var(--mut)">AI</span><div class="tg off" onclick="setConv('on')"><i></i></div></span></div>`
+    :`<div class="aibar off"><span class="dot" style="background:#9aa3af"></span><b>⚪ AI đang tắt</b> · ${agentPicker}<span style="margin-left:auto;display:flex;align-items:center;gap:8px"><span style="color:var(--mut)">AI</span><div class="tg off" onclick="setConv('on')"><i></i></div></span></div>`;
+  return `<div class="chead"><div class="ca">🏢</div><div><div style="font-weight:600">${openConv}</div><div style="font-size:11px;color:var(--mut2)">128 thành viên · nhóm Zalo</div></div>
+    <div class="acts"><div class="ic" title="Tìm (có sẵn)">🔍</div><div class="ic" title="Trợ lý AI (có sẵn)">✨</div><div class="ic" title="Tích hợp (có sẵn)">🔌</div><div class="ic" title="Thông tin (có sẵn)">ⓘ</div></div></div>
+    ${bar}
+    <div class="msgs"><div class="mb in"><div class="who" style="color:#2563eb">Khách</div>Cho mình hỏi tòa LMak còn trống tầng nào ạ?</div>
+      <div class="mb out"><div class="who" style="color:#7c3aed">🤖 ${convAgent[openConv]||'Agent'}<span class="mtag" style="background:#ede9fe;color:#6d28d9">AI tự gửi</span></div>Dạ còn tầng 5 (120m²) và tầng 8 (200m²) ạ…</div>
+      ${s==='pause'?'<div class="mb out" style="background:#fef3c7"><div class="who" style="color:#b45309">👤 Bạn (nhắn tay)<span class="mtag" style="background:#fed7aa;color:#9a3412">→ AI tạm dừng</span></div>Để mình gửi báo giá nhé anh.</div>':''}</div>
+    <div style="padding:6px 12px"><span class="demo" onclick="setConv('pause')">▶ Mô phỏng: bạn nhắn tay → AI tự ngưng (🟡)</span></div>
+    <div class="composer"><div class="i">Nhập tin nhắn…</div><span style="color:var(--mut2)">📎 😊 ➤</span></div>`;
+}
+function openC(n){openConv=n;render();}
+function setConv(s){conv[openConv]=s;render();}
+function setAgent(a){convAgent[openConv]=a;render();}
+
+/* ===== HUB ===== */
+function hubView(){
+  return `<div class="hub"><div class="hubhead"><h2>🤖 Quản lý Agent</h2><span class="new">MỚI</span><div class="acct">Lê Tuấn Anh · LMak ▾</div></div>
+    <div class="hubtabs"><button class="htab ${hubTab==='posting'?'on':''}" onclick="setTab('posting')">✒️ Agent đăng bài <span style="font-size:9px;color:#64748b">(có sẵn)</span></button>
+      <button class="htab ${hubTab==='chat'?'on':''}" onclick="setTab('chat')">💬 Agent chat <span class="new">MỚI</span></button></div>
+    <div class="hubbody" style="${hubTab==='posting'?'padding:0':''}">${hubTab==='posting'?'<iframe src="smart-6tab.html"></iframe>':chatTab()}</div></div>`;
+}
+function setTab(t){hubTab=t;render();}
+function chatTab(){
+  const sub=`<div class="subnav"><button class="${chatSub==='list'?'on':''}" onclick="setSub('list')">💬 Danh sách Agent</button><button class="${chatSub==='routing'?'on':''}" onclick="setSub('routing')">🧭 Bảng định tuyến</button></div>`;
+  return sub + (chatSub==='routing'?routingTable():agentList());
+}
+function setSub(s){chatSub=s;render();}
+function agentList(){
+  const cards=[
+    {name:'Tư vấn thuê VP — LMak',run:true,mode:'Tự gửi',asst:'Trợ lý tư vấn bán hàng',model:'deepseek-v4-flash',kb:3,groups:'[Lite space]_Tech, OFFICE LEASING HCM, nhãn "VP cho thuê"'},
+    {name:'CSKH bán hàng',run:true,mode:'Tự gửi',asst:'Trợ lý CSKH',model:'gpt-4o',kb:2,groups:'test_ai_agent (ghim)'},
+    {name:'Agent mặc định — tiếp nhận khách mới',run:true,mode:'Gợi ý',asst:'Mặc định',model:'—',kb:0,groups:'khách lạ DM + nhóm chưa gán',def:true},
+  ].map((a,i)=>`<div class="dcard ${a.def?'def':a.run?'run':''}">
+      <div class="row"><b>${a.name}</b>${a.run?'<span class="bdg bg">Đang chạy</span>':'<span class="bdg ba">Tạm dừng</span>'}<span class="bdg bp">${a.mode}</span>${a.def?'<span class="bdg bdef">⭐ MẶC ĐỊNH (khách mới)</span>':''}</div>
+      <div class="meta">🔑 Trợ lý: <b>${a.asst}</b> ${a.model!=='—'?'· '+a.model:''} ${a.kb?'<span class="bdg bkb">📚 '+a.kb+' KB</span>':''}</div>
+      <div class="meta">${a.def?'🆕':'👥'} ${a.def?'Phụ trách':'Nhóm'}: ${a.groups}</div>
+      <div class="acts2"><button class="b b-em">Thử trả lời</button><button class="b b-gr" onclick="openEditor(${i})">Sửa</button><button class="b b-gr" onclick="openLog()">📜 Nhật ký</button><button class="b b-gr">${a.run?'Tạm dừng':'Bật lại'}</button>${a.def?'':'<button class="b b-rd">Xóa</button>'}</div>
+    </div>`).join('');
+  return `<div class="toolbar"><input class="dinp" placeholder="🔎 Tìm agent…" style="flex:1;min-width:140px"><button class="b b-bl" style="margin-left:auto" onclick="openEditor(-1)">＋ Tạo Agent chat</button></div><div class="grid2">${cards}</div>`;
+}
+function routingTable(){
+  const rows=ROUTE.map((r,i)=>`<tr><td><b>${r.th}</b></td><td style="color:var(--d-mut)">${r.type}</td>
+    <td>${r.label!=='—'?'<span class="bdg s-lbl" style="border-radius:5px">🏷️ '+r.label+'</span>':'<span style="color:#475569">—</span>'}</td>
+    <td><select class="dsel" onchange="setRoute(${i},this.value)">${AGENTS.map(a=>`<option ${a===r.ag?'selected':''}>${a}</option>`).join('')}</select></td>
+    <td><span class="src ${r.src==='pin'?'s-pin':r.src==='lbl'?'s-lbl':r.src==='grp'?'s-grp':'s-def'}">${r.src==='pin'?'🔖 Ghim':r.src==='lbl'?'🏷️ Nhãn':r.src==='grp'?'👥 Nhóm':'⭐ Mặc định'}</span></td></tr>`).join('');
+  return `<div class="banner"><b>Thứ tự ưu tiên (gặp đầu tiên thì dừng):</b> 🔖 Ghim trực tiếp › 🏷️ Nhãn › 👥 Nhóm › ⭐ Agent mặc định. → mỗi hội thoại luôn có ĐÚNG 1 agent, khách lạ rơi vào Agent mặc định.</div>
+    <table><thead><tr><th>Hội thoại / nhóm</th><th>Loại</th><th>Nhãn</th><th>Agent phụ trách</th><th>Nguồn gán</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="note" style="margin-top:12px">Đổi agent ở cột "Agent phụ trách" = ghim trực tiếp (🔖). Dòng "DM khách lạ (mới)" minh hoạ người lạ nhắn lần đầu → tự rơi vào ⭐ Agent mặc định.</div>`;
+}
+function setRoute(i,v){ ROUTE[i].ag=v; ROUTE[i].src='pin'; render(); }
+
+/* ===== EDITOR ===== */
+function openEditor(i){ const isDef=i===2; ed={groups:new Set(i===0?['[Lite space]_Tech','OFFICE LEASING HCM']:[]),labels:new Set(i===0?['VP cho thuê']:[]),mode:i===2?'suggest':'auto',showAsst:false,keyVis:false,autopause:true,autoresume:false,manual:true,enabled:true,temp:0.7,isDef:isDef,scopeDM:true,scopeGrp:true};
+  document.getElementById('scrim').innerHTML=editorHTML(i);document.getElementById('scrim').classList.add('on');}
+function closeEd(){document.getElementById('scrim').classList.remove('on');}
+function rerenderEd(i){document.getElementById('scrim').innerHTML=editorHTML(i);}
+function edToggle(k,i){ed[k]=!ed[k];rerenderEd(i);}
+function edGroup(g,i){ed.groups.has(g)?ed.groups.delete(g):ed.groups.add(g);rerenderEd(i);}
+function edLabel(l,i){ed.labels.has(l)?ed.labels.delete(l):ed.labels.add(l);rerenderEd(i);}
+function edMode(m,i){ed.mode=m;rerenderEd(i);}
+function edTemp(v){document.getElementById('tempval').textContent=v;}
+function editorHTML(i){
+  const LABELS=['VP cho thuê','CSKH','Khiếu nại','Ưu đãi'];
+  const groupsChips=GROUPS.map(g=>`<span class="chip ${ed.groups.has(g)?'on':''}" onclick="edGroup('${g}',${i})">${g}${ed.groups.has(g)?' ✓':''}</span>`).join('');
+  const labelChips=LABELS.map(l=>`<span class="chip ${ed.labels.has(l)?'on':''}" onclick="edLabel('${l}',${i})">🏷️ ${l}${ed.labels.has(l)?' ✓':''}</span>`).join('');
+  const asstConfig=!ed.showAsst?'':`<div class="block" style="margin-top:10px">
+      <div class="row" style="justify-content:space-between"><b style="font-size:13px">⚙️ Cấu hình trợ lý (ngay tại đây — không nhảy trang)</b><span class="link" onclick="edToggle('showAsst',${i})">Thu gọn ▴</span></div>
+      <div class="field" style="margin-top:10px"><label>Tên trợ lý</label><input class="fi" value="Trợ lý tư vấn bán hàng"></div>
+      <div class="row" style="gap:12px"><div class="field" style="flex:1"><label>Nền tảng</label><select class="fi"><option>DeepSeek</option><option>OpenAI</option><option>Gemini</option><option>Claude</option></select></div><div class="field" style="flex:1"><label>Model</label><select class="fi"><option>deepseek-v4-flash</option><option>deepseek-v4-pro</option></select></div></div>
+      <div class="field"><label>🔑 API Key</label><div class="row"><input class="fi" type="${ed.keyVis?'text':'password'}" value="sk-deepseek-xxxxxxxx" style="flex:1"><button class="b b-gr" onclick="edToggle('keyVis',${i})">${ed.keyVis?'🙈':'👁'}</button></div></div>
+      <div class="field"><label>💬 System Prompt</label><div class="row" style="justify-content:flex-end;margin-bottom:5px"><button class="b" style="background:#3a2e52;color:#c4b5fd">✨ Cải thiện</button><button class="b" style="background:#23314e;color:#93c5fd">✨ Gợi ý AI</button></div><textarea class="fi">Bạn là trợ lý tư vấn thuê VP LMak. Hỏi nhu cầu, dẫn để lại SĐT…</textarea></div>
+      <div class="field"><label>📚 File kiến thức (KB)</label><div class="filerow">📄 bang-gia-lmak.csv<span style="margin-left:auto;color:#fca5a5;cursor:pointer">✕</span></div><div class="filerow">📄 faq.md<span style="margin-left:auto;color:#fca5a5;cursor:pointer">✕</span></div><div class="uparea">📎 Chọn file (TXT, MD, CSV, JSON… ≤100KB)</div></div>
+      <div class="field"><label>Temperature: <span id="tempval">${ed.temp}</span></label><input type="range" min="0" max="2" step="0.1" value="${ed.temp}" oninput="edTemp(this.value)"></div>
+      <div class="row" style="gap:12px"><div class="field" style="flex:1"><label>Max tokens</label><input class="fi" value="1000"></div><div class="field" style="flex:1"><label>Số tin ngữ cảnh</label><input class="fi" value="30"></div></div>
+      <div class="row"><button class="b b-gr">🔍 Test kết nối</button><button class="b b-gr">💬 Chat thử</button></div></div>`;
+  return `<div class="editor">
+    <div class="row" style="margin-bottom:16px"><b style="font-size:16px">✏️ ${i===-1?'Tạo':'Cấu hình'} Agent chat</b><span class="new">MỚI</span><span style="flex:1"></span><button class="b b-gr" onclick="closeEd()">Hủy</button><button class="b b-bl" onclick="closeEd()">Lưu & Bật</button></div>
+    <div class="field"><label>Tên agent</label><input class="fi" value="${i===-1?'':i===2?'Agent mặc định — tiếp nhận khách mới':'Tư vấn thuê VP — LMak'}"></div>
+    <div class="field"><label>Tài khoản Zalo</label><select class="fi"><option>Lê Tuấn Anh · LMak</option></select></div>
+    <div class="field"><label>Trợ lý AI (bộ não — KB, prompt, model, ngữ cảnh)</label>
+      <div class="acard"><div class="aic">🤖</div><div style="flex:1"><div class="row" style="justify-content:space-between"><b>Trợ lý tư vấn bán hàng</b><span class="link" onclick="edToggle('showAsst',${i})">${ed.showAsst?'⚙️ Đang cấu hình ↑':'⚙️ Cấu hình tại đây ▾'}</span></div><div style="font-size:12px;color:var(--d-mut)">DeepSeek — deepseek-v4-flash</div><div class="row" style="margin-top:7px"><span class="bdg bkb">📚 3 KB</span><span class="bdg bctx">💬 30 tin</span></div></div></div>
+      ${asstConfig}${ed.showAsst?'':'<div class="note">Bấm "Cấu hình tại đây" để mở API key / prompt / KB / model ngay — không nhảy trang.</div>'}</div>
+
+    <!-- ROUTING: scope -->
+    <div class="block">
+      <b style="font-size:13px">🧭 Phạm vi phụ trách (định tuyến)</b>
+      <div class="ck" onclick="edToggle('isDef',${i})"><span class="ckbox ${ed.isDef?'':'off'}">✓</span><span><b>Đặt làm Agent mặc định</b> — tiếp nhận khách mới / hội thoại chưa gán</span></div>
+      ${ed.isDef?`<div style="margin:6px 0 10px 24px">
+          <div class="ck" onclick="edToggle('scopeDM',${i})"><span class="ckbox ${ed.scopeDM?'':'off'}">✓</span><span>Trả lời <b>khách lạ nhắn DM</b> (chưa kết bạn / lần đầu)</span></div>
+          <div class="ck" onclick="edToggle('scopeGrp',${i})"><span class="ckbox ${ed.scopeGrp?'':'off'}">✓</span><span>Trả lời <b>nhóm chưa gán</b> agent nào</span></div>
+        </div>`:`
+        <div class="field" style="margin-top:10px"><label>Nhóm / hội thoại phụ trách</label><input class="fi" placeholder="🔎 Tìm nhóm…" style="margin-bottom:8px"><div class="row">${groupsChips}</div><div class="note">Đã chọn ${ed.groups.size} nhóm.</div></div>
+        <div class="field"><label>Hoặc theo nhãn (phân loại)</label><div class="row">${labelChips}</div><div class="note">Hội thoại có nhãn này → agent tự phụ trách (ưu tiên trên "theo nhóm").</div></div>`}
+    </div>
+
+    <div class="field"><label>Chế độ trả lời</label><div class="seg"><button class="${ed.mode==='auto'?'on':''}" onclick="edMode('auto',${i})">⚡ Tự gửi</button><button class="${ed.mode==='suggest'?'on':''}" onclick="edMode('suggest',${i})">✍️ Chỉ gợi ý</button></div></div>
+    <div class="block"><b style="font-size:13px">🔁 Chuyển giao Người ↔ AI</b>
+      <div class="ck" onclick="edToggle('autopause',${i})"><span class="ckbox ${ed.autopause?'':'off'}">✓</span><span>Tự <b>ngưng AI</b> khi mình nhắn tay</span></div>
+      <div class="ck" onclick="edToggle('autoresume',${i})"><span class="ckbox ${ed.autoresume?'':'off'}">✓</span><span>Tự <b>giao lại</b> sau 30 phút không ai nhắn</span></div>
+      <div class="ck" onclick="edToggle('manual',${i})"><span class="ckbox ${ed.manual?'':'off'}">✓</span><span>Cho bật/tắt AI <b>thủ công</b> mỗi hội thoại</span></div>
+      <div class="sm"><span class="st st-g">🟢 AI</span><span class="arr">—người nhắn→</span><span class="st st-y">🟡 Người</span><span class="arr">—Giao lại→</span><span class="st st-g">🟢</span><span class="arr">·</span><span class="st st-o">⚪ Tắt</span></div></div>
+    <div class="field"><label>Trạng thái</label><div class="row"><div class="tg ${ed.enabled?'':'off'}" onclick="edToggle('enabled',${i})"><i></i></div><span>${ed.enabled?'Bật agent':'Đang tắt'}</span></div></div>
+  </div>`;
+}
+function openLog(){
+  document.getElementById('scrim').innerHTML=`<div class="logwrap"><div class="row" style="margin-bottom:14px"><b style="font-size:16px">📜 Nhật ký — Tư vấn thuê VP LMak</b><span class="x" onclick="closeEd()">✕</span></div>
+    <div class="row" style="margin-bottom:12px"><span class="bdg bg">42 trả lời</span><span class="bdg bp">35 AI tự gửi</span><span class="bdg ba">5 gợi ý</span><span class="bdg bgr">2 người tiếp quản</span></div>
+    ${[['Hôm nay 09:26','[Lite space]_Tech','Tòa LMak còn trống tầng nào?','Dạ còn tầng 5…','🤖 AI tự gửi','bp','✓ Đã gửi','bg'],['Hôm nay 08:55','[Lite space]_Tech','Có chỗ để xe?','Dạ có hầm…','✍️ Gợi ý','bgr','⏳ Chờ duyệt','ba'],['Hôm nay 08:30','Khách lạ 09xx','Còn phòng nào trống?','Dạ em là trợ lý LMak…','⭐ Mặc định','bdef','✓ Đã gửi','bg'],['Hôm qua 17:02','Nhà cho thuê làm VP','Cho xem HĐ mẫu','(bạn trả lời tay)','👤 —','bgr','👤 Người tiếp quản','ba']].map(([t,g,q,a,m,mc,s,sc])=>`<div class="lrow"><div class="row" style="justify-content:space-between"><span style="color:var(--d-mut)">${t} · <b style="color:#cbd5e1">${g}</b></span><span class="row"><span class="bdg ${mc}">${m}</span><span class="bdg ${sc}">${s}</span></span></div><div style="margin-top:5px;color:#cbd5e1">Khách: ${q}</div><div style="color:#93c5fd">↳ ${a}</div></div>`).join('')}</div>`;
+  document.getElementById('scrim').classList.add('on');
+}
+render();
+</script>
+</body>
+</html>

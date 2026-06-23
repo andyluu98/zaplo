@@ -1137,7 +1137,7 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
     },
     {
       key: 'username', label: 'Tên hiển thị của bot', type: 'text',
-      placeholder: 'DepLao Bot',
+      placeholder: 'Zaplo Bot',
       desc: 'Tên sẽ hiển thị khi gửi tin vào kênh Discord.',
       advanced: true,
     },

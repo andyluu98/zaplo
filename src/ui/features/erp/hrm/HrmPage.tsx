@@ -558,7 +558,7 @@ function EmployeeEditorModal({ employee, profile, departments, positions, canMan
             )}
             {!hasAccount && hasProfile && (
               <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-[11px] text-yellow-200">
-                Hồ sơ ERP này chưa có tài khoản đăng nhập nên chưa thể gán quyền module Deplao.
+                Hồ sơ ERP này chưa có tài khoản đăng nhập nên chưa thể gán quyền module Zaplo.
               </div>
             )}
           </div>
@@ -593,7 +593,7 @@ function EmployeeEditorModal({ employee, profile, departments, positions, canMan
             <div className="rounded-xl border border-gray-700/60 bg-gray-900/30 p-3">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div>
-                  <div className="text-xs font-semibold text-white">Quyền module Deplao</div>
+                  <div className="text-xs font-semibold text-white">Quyền module Zaplo</div>
                   <div className="text-[11px] text-gray-500 mt-1">Áp dụng cho các module ngoài ERP khi nhân viên đăng nhập.</div>
                 </div>
                 {!canConfigureModulePermissions && <span className="text-[10px] text-gray-500">Chỉ quản lý mới được chỉnh</span>}

@@ -62,7 +62,7 @@ interface WorkspaceConfig {
 
 const CONFIG_FILENAME = 'workspaces.json';
 const DEFAULT_WORKSPACE_ID = 'default';
-const DEFAULT_DB_NAME = 'deplao-tool.db';           // existing DB
+const DEFAULT_DB_NAME = 'zaplo-tool.db';           // default DB
 const MAX_WORKSPACES = 5;
 
 // ── WorkspaceManager ────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ class WorkspaceManager {
 
     /**
      * First-time migration: create default workspace from existing DB.
-     * Existing deplao-tool.db stays in place — the default workspace simply points to it.
+     * Existing zaplo-tool.db stays in place — the default workspace simply points to it.
      */
     private migrateFromLegacy(): void {
         Logger.log('[WorkspaceManager] No workspaces.json found — creating default workspace from legacy DB');
@@ -223,9 +223,9 @@ class WorkspaceManager {
         };
 
         // Each additional workspace lives in its own folder:
-        //   workspace-{id}/deplao-tool.db + workspace-{id}/media/
+        //   workspace-{id}/zaplo-tool.db + workspace-{id}/media/
         const wsFolder = `workspace-${id}`;
-        const wsDbRelative = `${wsFolder}/deplao-tool.db`;
+        const wsDbRelative = `${wsFolder}/zaplo-tool.db`;
 
         if (params.type === 'local') {
             workspace.dbPath = wsDbRelative;
@@ -289,7 +289,7 @@ class WorkspaceManager {
         this.saveConfig();
 
         // Delete the workspace folder (contains DB + media)
-        const wsDbPath = ws.dbPath || `workspace-${id}/deplao-tool.db`;
+        const wsDbPath = ws.dbPath || `workspace-${id}/zaplo-tool.db`;
         const fullDbPath = this.resolveDbPath(wsDbPath);
         const wsFolder = path.dirname(fullDbPath);
         const rootDbFolder = path.dirname(this.resolveDbPath(DEFAULT_DB_NAME));
@@ -297,7 +297,7 @@ class WorkspaceManager {
 
         Logger.log(`[WorkspaceManager] Delete: fullDbPath=${fullDbPath}, wsFolder=${wsFolder}, rootDbFolder=${rootDbFolder}`);
 
-        // SAFETY: Never delete the root deplao-tool.db (belongs to default workspace)
+        // SAFETY: Never delete the root zaplo-tool.db (belongs to default workspace)
         if (fullDbPath === rootDbPath) {
             Logger.warn(`[WorkspaceManager] SAFETY: Refusing to delete root DB file: ${fullDbPath}`);
         } else {

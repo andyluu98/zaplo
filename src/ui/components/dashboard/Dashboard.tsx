@@ -9,7 +9,7 @@ import MergedInboxModal from './MergedInboxModal';
 import EmployeeLoginModal from './EmployeeLoginModal';
 import ipc from '@/lib/ipc';
 
-const SUPPORT_GITHUB_URL = 'https://github.com/babyvibe/deplao-builder';
+const SUPPORT_GITHUB_URL = 'https://github.com/andyluu98/zaplo';
 
 export default function Dashboard() {
   const { updateAccountStatus, reorderAccounts } = useAccountStore();
