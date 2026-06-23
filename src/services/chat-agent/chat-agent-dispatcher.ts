@@ -22,7 +22,7 @@ import ConnectionManager from '../../utils/ConnectionManager';
 import EventBroadcaster from '../event/EventBroadcaster';
 import AIAssistantService from '../ai/AIAssistantService';
 import { parseStructuredResponse } from '../../utils/aiUtils';
-import { decideChatReply, shouldAutoResume } from './chat-agent-decider';
+import { decideChatReply, shouldAutoResume, groupTriggerMatched } from './chat-agent-decider';
 import type { ChatAgentRule, ThreadCtx } from './chat-agent-resolver';
 import Logger from '../../utils/Logger';
 import type { ChatAgent } from '../../models';
@@ -136,6 +136,14 @@ class ChatAgentDispatcher {
 
         const agent = this.findAgent(zaloId, decision.agentId);
         if (!agent) return;
+
+        // In a GROUP, only engage when addressed (@mention or trigger keyword) — avoid
+        // replying to every member message.
+        if (isGroup) {
+            const mentions = msgData.mentions || (msg as any).mentions;
+            const keywords = ((agent as any).trigger_keywords || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+            if (!groupTriggerMatched(content, mentions, zaloId, keywords)) return;
+        }
 
         if (decision.mode === 'suggest') {
             // UI surfaces the suggestion; we don't auto-send (drafting handled in a later phase).

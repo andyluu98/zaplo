@@ -14,6 +14,22 @@ export interface ChatDecision {
   skip: 'paused' | 'no-agent' | null;
 }
 
+/**
+ * In a GROUP, only reply when the agent is addressed: self is @mentioned, OR the message
+ * contains one of the agent's trigger keywords (case-insensitive). Prevents replying to
+ * every group message. DMs do not use this gate.
+ */
+export function groupTriggerMatched(
+  content: string,
+  mentions: Array<{ uid: string }> | undefined,
+  selfUid: string,
+  keywords: string[],
+): boolean {
+  if (mentions?.some(m => m.uid === selfUid)) return true;
+  const text = (content || '').toLowerCase();
+  return keywords.some(k => k.trim() && text.includes(k.trim().toLowerCase()));
+}
+
 export interface PauseState { paused: number; paused_reason?: string; paused_at?: number }
 
 /**

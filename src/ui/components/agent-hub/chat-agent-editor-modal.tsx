@@ -30,6 +30,7 @@ export default function ChatAgentEditorModal({ zaloId, agentId, onClose, onSaved
   const [scopeGroup, setScopeGroup] = useState(true);
   const [strangerOnly, setStrangerOnly] = useState(true);
   const [enabled, setEnabled] = useState(true);
+  const [triggerKeywords, setTriggerKeywords] = useState('');
 
   const load = useCallback(async () => {
     try { const g = await ipc.posting?.groupsList({ zaloId }); if (g?.success) setGroups(g.groups ?? []); } catch (e) { console.error('[ChatAgentEditor] groups', e); }
@@ -43,6 +44,7 @@ export default function ChatAgentEditorModal({ zaloId, agentId, onClose, onSaved
           setName(ag.name || ''); setAssistantId(ag.assistant_id || '');
           setGroupIds(ag.thread_ids || []); setLabelIds(ag.label_ids || []);
           setReplyMode(ag.reply_mode === 'suggest' ? 'suggest' : 'auto');
+          setTriggerKeywords(ag.trigger_keywords || '');
           setAutopauseOnHuman(ag.autopause_on_human !== 0);
           setAutoresumeMinutes(ag.autoresume_minutes || 0);
           setAllowManualToggle(ag.allow_manual_toggle !== 0);
@@ -67,7 +69,7 @@ export default function ChatAgentEditorModal({ zaloId, agentId, onClose, onSaved
     try {
       const agent = {
         ...(agentId ? { id: agentId } : {}), owner_zalo_id: zaloId, name: name.trim(),
-        assistant_id: assistantId || null, reply_mode: replyMode,
+        assistant_id: assistantId || null, reply_mode: replyMode, trigger_keywords: triggerKeywords.trim(),
         thread_ids: groupIds, label_ids: labelIds,
         autopause_on_human: autopauseOnHuman ? 1 : 0, autoresume_minutes: autoresumeMinutes,
         allow_manual_toggle: allowManualToggle ? 1 : 0,
@@ -155,6 +157,10 @@ export default function ChatAgentEditorModal({ zaloId, agentId, onClose, onSaved
             <span className={chip(replyMode === 'auto')} onClick={() => setReplyMode('auto')}>⚡ Tự gửi</span>
             <span className={chip(replyMode === 'suggest')} onClick={() => setReplyMode('suggest')}>✍️ Chỉ gợi ý</span>
           </div>
+
+          <label className={lbl}>Từ khóa kích hoạt trong nhóm (cách nhau dấu phẩy)</label>
+          <input className={fld} value={triggerKeywords} onChange={e => setTriggerKeywords(e.target.value)} placeholder="vd: báo giá, thuê, giá phòng" />
+          <div className="text-[11px] text-gray-500 mt-1">Trong nhóm, agent chỉ trả lời khi bị @nhắc tên hoặc tin chứa các từ khóa này. (Tin nhắn riêng không cần.)</div>
 
           {/* Handoff */}
           <div className="mt-4 border border-gray-600/60 rounded-xl p-3 bg-gray-800/40">

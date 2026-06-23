@@ -826,6 +826,7 @@ class DatabaseService {
                 autopause_on_human INTEGER NOT NULL DEFAULT 1,
                 autoresume_minutes INTEGER NOT NULL DEFAULT 0,
                 allow_manual_toggle INTEGER NOT NULL DEFAULT 1,
+                trigger_keywords TEXT DEFAULT '',
                 created_at INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL DEFAULT 0
             );
@@ -1495,6 +1496,17 @@ class DatabaseService {
                 this.save();
                 Logger.log('[DatabaseService] Migration: added sent_by column');
             }
+
+            // chat_agent.trigger_keywords (group @mention/keyword gate) — for DBs that
+            // created chat_agent before this column existed.
+            try {
+                const caCols = this.query<any>(`PRAGMA table_info(chat_agent)`);
+                if (caCols.length && !caCols.some((c: any) => c.name === 'trigger_keywords')) {
+                    db!.exec(`ALTER TABLE chat_agent ADD COLUMN trigger_keywords TEXT DEFAULT ''`);
+                    this.save();
+                    Logger.log('[DatabaseService] Migration: added chat_agent.trigger_keywords');
+                }
+            } catch { /* table may not exist yet on fresh DB — CREATE handles it */ }
 
             // Add listener_active column to accounts if missing
             const accCols = this.query<any>(`PRAGMA table_info(accounts)`);
@@ -7808,11 +7820,11 @@ class DatabaseService {
             let id = a.id ?? 0;
             this.transaction(() => {
                 if (a.id) {
-                    this.run(`UPDATE chat_agent SET name=?, assistant_id=?, enabled=?, reply_mode=?, is_default=?, default_scope_dm=?, default_scope_group=?, default_stranger_only=?, autopause_on_human=?, autoresume_minutes=?, allow_manual_toggle=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                        [a.name, a.assistant_id ?? '', a.enabled ?? 0, a.reply_mode || 'auto', a.is_default ?? 0, a.default_scope_dm ?? 0, a.default_scope_group ?? 0, a.default_stranger_only ?? 0, a.autopause_on_human ?? 1, a.autoresume_minutes ?? 0, a.allow_manual_toggle ?? 1, now, a.id, a.owner_zalo_id]);
+                    this.run(`UPDATE chat_agent SET name=?, assistant_id=?, enabled=?, reply_mode=?, is_default=?, default_scope_dm=?, default_scope_group=?, default_stranger_only=?, autopause_on_human=?, autoresume_minutes=?, allow_manual_toggle=?, trigger_keywords=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        [a.name, a.assistant_id ?? '', a.enabled ?? 0, a.reply_mode || 'auto', a.is_default ?? 0, a.default_scope_dm ?? 0, a.default_scope_group ?? 0, a.default_stranger_only ?? 0, a.autopause_on_human ?? 1, a.autoresume_minutes ?? 0, a.allow_manual_toggle ?? 1, (a as any).trigger_keywords ?? '', now, a.id, a.owner_zalo_id]);
                 } else {
-                    id = this.runInsert(`INSERT INTO chat_agent (owner_zalo_id, name, assistant_id, enabled, reply_mode, is_default, default_scope_dm, default_scope_group, default_stranger_only, autopause_on_human, autoresume_minutes, allow_manual_toggle, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                        [a.owner_zalo_id, a.name, a.assistant_id ?? '', a.enabled ?? 0, a.reply_mode || 'auto', a.is_default ?? 0, a.default_scope_dm ?? 0, a.default_scope_group ?? 0, a.default_stranger_only ?? 0, a.autopause_on_human ?? 1, a.autoresume_minutes ?? 0, a.allow_manual_toggle ?? 1, now, now]);
+                    id = this.runInsert(`INSERT INTO chat_agent (owner_zalo_id, name, assistant_id, enabled, reply_mode, is_default, default_scope_dm, default_scope_group, default_stranger_only, autopause_on_human, autoresume_minutes, allow_manual_toggle, trigger_keywords, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        [a.owner_zalo_id, a.name, a.assistant_id ?? '', a.enabled ?? 0, a.reply_mode || 'auto', a.is_default ?? 0, a.default_scope_dm ?? 0, a.default_scope_group ?? 0, a.default_stranger_only ?? 0, a.autopause_on_human ?? 1, a.autoresume_minutes ?? 0, a.allow_manual_toggle ?? 1, (a as any).trigger_keywords ?? '', now, now]);
                 }
                 // replace links
                 this.run(`DELETE FROM chat_agent_thread WHERE chat_agent_id=?`, [id]);

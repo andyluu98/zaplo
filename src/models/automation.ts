@@ -87,6 +87,7 @@ export interface ChatAgent {
     autopause_on_human: number;        // 1 = pause AI when a human replies
     autoresume_minutes: number;        // minutes of human silence before AI resumes (0 = never)
     allow_manual_toggle: number;       // 1 = user may pause/resume per conversation
+    trigger_keywords?: string;         // CSV; in groups reply only on @mention or these keywords
     created_at?: number;
     updated_at?: number;
     // joined (not stored on the row):
