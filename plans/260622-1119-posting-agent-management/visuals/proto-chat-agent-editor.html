@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cấu hình Agent chat</title>
+<style>
+  :root{--bg:#0b1120;--panel:#111827;--card:#1f2937;--card2:#172033;--line:#374151;--line2:#1f2a3a;--txt:#e5e7eb;--mut:#9ca3af;--mut2:#6b7280;--blue:#3b82f6;--blue-bg:rgba(59,130,246,.08);--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--purple:#a78bfa;}
+  *{box-sizing:border-box}
+  body{margin:0;background:#060a14;color:var(--txt);font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;padding:22px 14px 60px}
+  .wrap{max-width:640px;margin:0 auto}
+  .card{border:1px solid var(--line);background:var(--card);border-radius:13px;padding:18px}
+  .head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .head b{font-size:16px}.head .sp{flex:1}
+  .btn{font-size:12px;font-weight:700;padding:7px 13px;border-radius:8px;border:0;cursor:pointer}
+  .btn-gr{background:#374151;color:#d1d5db}.btn-bl{background:var(--blue);color:#fff}
+  .field{margin-bottom:15px}
+  .field>label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut2);font-weight:700;margin-bottom:6px}
+  .inp{width:100%;background:#0d1626;border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--txt);font-size:13px}
+  .note{font-size:11px;color:var(--mut2);margin-top:5px}
+  .link{color:#60a5fa;font-size:12px;font-weight:600;cursor:pointer}.link:hover{text-decoration:underline}
+  .acard{display:flex;gap:12px;align-items:flex-start;border:1px solid #2b3950;background:#0d1626;border-radius:11px;padding:12px}
+  .acard .ic{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#a78bfa);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .acard .nm{font-weight:600}.acard .pv{font-size:12px;color:var(--mut)}
+  .acard .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+  .bdg{font-size:10px;padding:2px 7px;border-radius:999px;background:#1f2a3a;color:#9fb3cc}
+  .bdg.kb{background:#1e2e22;color:#86efac}.bdg.ctx{background:#1e273e;color:#93c5fd}.bdg.def{background:#2e2640;color:#c4b5fd}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:5px 11px;color:var(--mut);cursor:pointer}
+  .chip.on{background:rgba(59,130,246,.15);border-color:#2563eb;color:#93c5fd}
+  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;width:fit-content}
+  .seg button{background:#0d1626;border:0;color:var(--mut);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer}
+  .seg button.on{background:var(--blue);color:#fff}
+  .tg{width:38px;height:21px;border-radius:12px;background:var(--green);position:relative;cursor:pointer;flex-shrink:0}
+  .tg.off{background:#3a4658}.tg i{position:absolute;top:2px;left:19px;width:17px;height:17px;border-radius:50%;background:#fff;transition:.15s}.tg.off i{left:2px}
+  .block{border:1px solid #2b3950;border-radius:11px;padding:13px;background:#0d1626;margin-bottom:15px}
+  .block>.bt{font-weight:600;font-size:13px;margin-bottom:10px}
+  .ck{display:flex;align-items:flex-start;gap:8px;margin:8px 0;font-size:13px;color:#d6deea}
+  .ck .box{width:16px;height:16px;border-radius:4px;background:var(--blue);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+  .ck .box.off{background:#0d1626;border:1px solid #3a4658}
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .sm{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px dashed #2b3950}
+  .st{font-size:11px;font-weight:700;padding:5px 9px;border-radius:8px}
+  .st-g{background:#13351f;color:#5be584}.st-y{background:#332910;color:#fbbf24}.st-o{background:#26303f;color:#9fb3cc}
+  .arr{font-size:10px;color:var(--mut2)}
+  .new{background:#16351f;color:#5be584;font-size:9px;font-weight:800;padding:1px 5px;border-radius:5px;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="head">
+      <b>✏️ Cấu hình Agent chat</b><span class="new">MỚI</span>
+      <span class="sp"></span>
+      <button class="btn btn-gr">Hủy</button>
+      <button class="btn btn-bl">Lưu &amp; Bật ngay</button>
+    </div>
+
+    <div class="field"><label>Tên agent</label><input class="inp" value="Tư vấn thuê VP — LMak"></div>
+    <div class="field"><label>Tài khoản Zalo</label><select class="inp"><option>Lê Tuấn Anh · LMak</option></select></div>
+
+    <div class="field">
+      <label>Trợ lý AI (bộ não — chứa KB, prompt, model, ngữ cảnh)</label>
+      <div class="acard">
+        <div class="ic">🤖</div>
+        <div style="flex:1">
+          <div class="row" style="justify-content:space-between"><span class="nm">Trợ lý tư vấn bán hàng</span><span class="link">✏️ Sửa trợ lý ↗</span></div>
+          <div class="pv">DeepSeek — deepseek-v4-flash</div>
+          <div class="badges">
+            <span class="bdg kb">📚 3 file kiến thức</span>
+            <span class="bdg ctx">💬 ngữ cảnh 30 tin</span>
+            <span class="bdg">🌡️ temp 0.7</span>
+            <span class="bdg def">đang bật</span>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px"><span class="link">▾ Đổi trợ lý khác</span><span style="color:var(--mut2);font-size:11px">· hoặc</span><span class="link">＋ Tạo trợ lý mới ↗</span></div>
+      <div class="note">KB, system prompt, model, nhiệt độ, <b>số tin ngữ cảnh</b> đều cấu hình trong Trợ lý (Tích hợp → Trợ lý AI) — Agent dùng lại, <b>không nhập lại ở đây</b>.</div>
+    </div>
+
+    <div class="field">
+      <label>Nhóm / hội thoại phụ trách (1 agent nhiều nhóm)</label>
+      <input class="inp" placeholder="🔎 Tìm nhóm…" style="margin-bottom:8px">
+      <div class="chips">
+        <span class="chip on">[Lite space]_Tech ✓</span>
+        <span class="chip on">OFFICE LEASING HCM ✓</span>
+        <span class="chip">Nhà cho thuê làm VP</span>
+        <span class="chip">test_ai_agent</span>
+      </div>
+      <div class="note">Agent chỉ trả lời tin trong các nhóm/hội thoại này. 1 nhóm chỉ nên thuộc 1 agent.</div>
+    </div>
+
+    <div class="field">
+      <label>Chế độ trả lời</label>
+      <div class="seg"><button class="on">⚡ Tự gửi ngay</button><button>✍️ Chỉ gợi ý (người duyệt rồi gửi)</button></div>
+    </div>
+
+    <div class="block">
+      <div class="bt">🔁 Chuyển giao Người ↔ AI</div>
+      <div class="ck"><span class="box">✓</span><span>Tự <b>ngưng AI</b> khi mình nhắn tay vào hội thoại (agent không nói chen)</span></div>
+      <div class="ck"><span class="box off"></span>
+        <span class="row">Tự <b>giao lại cho AI</b> sau <input class="inp" value="30" style="width:54px;padding:4px 6px;text-align:center;display:inline-block"> phút khi không ai nhắn
+          <span class="tg off" title="mặc định tắt"><i></i></span></span></div>
+      <div class="ck"><span class="box">✓</span><span>Cho phép bật/tắt AI <b>thủ công</b> ở từng hội thoại (toggle trên header chat)</span></div>
+      <div class="note" style="margin-top:4px">Khi giao lại, agent <b>đọc lại đoạn 2 người vừa chat + KB của trợ lý</b> để tư vấn tiếp liền mạch.</div>
+      <div class="sm">
+        <span class="st st-g">🟢 AI đang trả lời</span><span class="arr">— người nhắn tay →</span>
+        <span class="st st-y">🟡 Người đang xử lý</span><span class="arr">— "Giao lại cho Agent" →</span>
+        <span class="st st-g">🟢 AI</span><span class="arr" style="margin-left:8px">·</span><span class="st st-o">⚪ Tắt AI</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Trạng thái</label>
+      <div class="row"><span class="tg"><i></i></span><span>Bật agent — sẵn sàng trả lời các nhóm đã chọn</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
