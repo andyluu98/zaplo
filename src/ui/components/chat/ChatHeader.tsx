@@ -1032,15 +1032,15 @@ function ChatAgentBar({ zaloId, threadId, threadType, isFriend }: {
 
       <span className="text-gray-500">·</span>
       <label className="flex items-center gap-1">
-        <span className="text-gray-400">Phụ trách:</span>
+        <span className="text-gray-400">Agent phụ trách:</span>
         <select
           value={pinnedAgentId == null ? '' : String(pinnedAgentId)}
           onChange={(e) => handlePickAgent(e.target.value)}
           disabled={busy}
           className="bg-gray-700 border border-gray-600 rounded-md px-1.5 py-0.5 text-gray-200 focus:outline-none focus:border-blue-500 disabled:opacity-50 max-w-[160px]"
-          title={pinnedAgentId == null ? `Tự động: ${agentName || 'không có'}` : 'Đang ghim agent'}
+          title={pinnedAgentId == null ? `Tự định tuyến: ${agentName || 'không có'}` : 'Đang ghim agent cho hội thoại này'}
         >
-          <option value="">(tự động{agentName ? `: ${agentName}` : ''})</option>
+          <option value="">(Tự định tuyến{agentName ? `: ${agentName}` : ''})</option>
           {agents.map(a => (
             <option key={a.id} value={String(a.id)}>{a.name}</option>
           ))}
