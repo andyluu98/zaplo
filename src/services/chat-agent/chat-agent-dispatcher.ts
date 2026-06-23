@@ -50,6 +50,10 @@ class ChatAgentDispatcher {
     private processing = new Set<string>();
     /** Debounce buffer — gom tin khách gửi ngắt quãng thành 1 lượt trước khi trả lời. */
     private aggregator = new MessageAggregator();
+    /** Per-thread reply queue — flushed turns wait here and are sent sequentially (never dropped). */
+    private replyQueue = new Map<string, string[]>();
+    /** Thread keys with a drain loop running (so a second flush appends instead of racing). */
+    private draining = new Set<string>();
 
     public static getInstance(): ChatAgentDispatcher {
         if (!ChatAgentDispatcher.instance) ChatAgentDispatcher.instance = new ChatAgentDispatcher();
@@ -83,12 +87,14 @@ class ChatAgentDispatcher {
         if (!this.started) return;
         this.bind();
         this.aggregator.clear();
+        this.replyQueue.clear();
         Logger.log('[ChatAgentDispatcher] re-hooked after hooks cleared');
     }
 
     public stop(): void {
         if (this.unsubscribe) { this.unsubscribe(); this.unsubscribe = null; }
         this.aggregator.clear();
+        this.replyQueue.clear();
         this.started = false;
         Logger.log('[ChatAgentDispatcher] stopped');
     }
@@ -108,6 +114,7 @@ class ChatAgentDispatcher {
         const isSelf = !!((msg as any).isSelf || data?.isSelf);
         const isGroup = (msg as any).type === 1 || !!(msg as any).isGroup;
         const mentions = msgData.mentions || (msg as any).mentions;
+        const uidFrom = String(msgData.uidFrom || (msg as any).uidFrom || '');
         const rawContent = this.extractContent(msgData, msg);
 
         if (isSelf) {
@@ -147,12 +154,15 @@ class ChatAgentDispatcher {
         const agent = this.findAgent(zaloId, decision.agentId);
         if (!agent) return;
 
-        const key = `${zaloId}|${threadId}`;
+        // Buffer key: per-SENDER in a group (so one member's chatter never merges into another
+        // member's addressed turn), per-thread in a DM. Reply/throttle stay keyed per-thread.
+        const bufKey = isGroup ? `${zaloId}|${threadId}|${uidFrom}` : `${zaloId}|${threadId}`;
 
         // In a GROUP, only engage when addressed. The FIRST fragment of a turn must address
         // the bot (@mention or trigger keyword); once a turn is being buffered, subsequent
-        // quick fragments join even without re-tagging (user tags once, then types details).
-        if (isGroup && !this.aggregator.hasPending(key)) {
+        // quick fragments from the SAME sender join even without re-tagging (tags once, then
+        // types details).
+        if (isGroup && !this.aggregator.hasPending(bufKey)) {
             const keywords = ((agent as any).trigger_keywords || '').split(',').map((s: string) => s.trim()).filter(Boolean);
             // mention detection uses the original mentions array; keyword check uses cleaned text.
             if (!groupTriggerMatched(content, mentions, zaloId, keywords)) return;
@@ -167,12 +177,10 @@ class ChatAgentDispatcher {
         }
 
         // ── mode === 'reply' ──────────────────────────────────────────────
-        // Gom tin ngắt quãng: chờ khách im DEBOUNCE_MS rồi trả lời 1 lần với toàn bộ mảnh.
-        this.aggregator.enqueue(key, content, combined => {
-            void this.reply(zaloId, threadId, isGroup, agent, combined).catch(err =>
-                Logger.warn(`[ChatAgentDispatcher] reply error: ${err?.message || err}`),
-            );
-        });
+        // Gom tin ngắt quãng: chờ khách im DEBOUNCE_MS rồi xếp vào hàng đợi trả lời 1 lần.
+        this.aggregator.enqueue(bufKey, content, combined =>
+            this.enqueueReply(zaloId, threadId, isGroup, agent, combined),
+        );
     }
 
     /** Extract human-readable text from a message payload (same rules as the workflow engine). */
@@ -238,24 +246,49 @@ class ChatAgentDispatcher {
 
     // ─── Reply ────────────────────────────────────────────────────────────
 
+    /**
+     * Queue a flushed turn for sending and ensure a drain loop is running. Turns are sent
+     * sequentially per thread so a turn is NEVER dropped because a prior reply is in flight
+     * or the anti-spam throttle hasn't elapsed (the throttle becomes a delay, not a drop).
+     */
+    private enqueueReply(zaloId: string, threadId: string, isGroup: boolean, agent: ChatAgent, combined: string): void {
+        const key = `${zaloId}|${threadId}`;
+        const q = this.replyQueue.get(key) ?? [];
+        q.push(combined);
+        this.replyQueue.set(key, q);
+        if (!this.draining.has(key)) void this.drain(zaloId, threadId, isGroup, agent, key);
+    }
+
+    /** Drain a thread's reply queue one turn at a time, spacing sends by MIN_REPLY_DELAY_MS. */
+    private async drain(zaloId: string, threadId: string, isGroup: boolean, agent: ChatAgent, key: string): Promise<void> {
+        this.draining.add(key);
+        try {
+            for (;;) {
+                const q = this.replyQueue.get(key);
+                if (!q || q.length === 0) break;
+                const combined = q.shift()!;
+                if (q.length === 0) this.replyQueue.delete(key);
+                // Throttle as DELAY (not drop): keep at least MIN_REPLY_DELAY_MS between sends.
+                const wait = MIN_REPLY_DELAY_MS - (Date.now() - (this.lastReplyAt.get(key) ?? 0));
+                if (wait > 0) await new Promise(r => setTimeout(r, wait));
+                try {
+                    await this.reply(zaloId, threadId, isGroup, agent, combined);
+                } catch (err: any) {
+                    Logger.warn(`[ChatAgentDispatcher] reply error: ${err?.message || err}`);
+                }
+            }
+        } finally {
+            this.draining.delete(key);
+        }
+    }
+
     private async reply(zaloId: string, threadId: string, isGroup: boolean, agent: ChatAgent, currentText = ''): Promise<void> {
         const key = `${zaloId}|${threadId}`;
-        if (this.processing.has(key)) return;
-
-        // Min-delay throttle per thread (anti-loop / anti-spam).
-        const now = Date.now();
-        if (now - (this.lastReplyAt.get(key) ?? 0) < MIN_REPLY_DELAY_MS) {
-            Logger.log(`[ChatAgentDispatcher] throttle ${key} — skip reply`);
-            return;
-        }
+        if (this.processing.has(key)) return; // concurrency guard (drain serializes, so normally never trips)
 
         const conn = ConnectionManager.getConnection(zaloId);
         if (!conn?.api) {
             Logger.warn(`[ChatAgentDispatcher] ${zaloId}: not connected — skip reply`);
-            return;
-        }
-        if (!agent.assistant_id) {
-            Logger.warn(`[ChatAgentDispatcher] agent ${agent.id}: no assistant — skip reply`);
             return;
         }
 
@@ -267,7 +300,16 @@ class ChatAgentDispatcher {
                 Logger.log(`[ChatAgentDispatcher] ${key} paused during debounce — skip reply`);
                 return;
             }
-            const assistant = AIAssistantService.getInstance().getAssistant(agent.assistant_id);
+            // Re-validate the agent at flush time — it may have been disabled / lost its assistant
+            // during the debounce window (the captured row is stale).
+            const fresh = this.findAgent(zaloId, agent.id);
+            if (!fresh || !fresh.assistant_id) {
+                Logger.log(`[ChatAgentDispatcher] agent ${agent.id} no longer active — skip reply`);
+                return;
+            }
+            agent = fresh;
+            const assistantId = fresh.assistant_id; // narrowed to string by the guard above
+            const assistant = AIAssistantService.getInstance().getAssistant(assistantId);
             const contextCount = assistant?.contextMessageCount || DEFAULT_CONTEXT_COUNT;
 
             // getMessages returns newest→oldest; reverse to old→new for the LLM.
@@ -290,7 +332,7 @@ class ChatAgentDispatcher {
 
             if (!history.length) return;
 
-            const { result } = await AIAssistantService.getInstance().chatForWorkflow(agent.assistant_id, history);
+            const { result } = await AIAssistantService.getInstance().chatForWorkflow(assistantId, history);
             const threadType = isGroup ? ThreadType.Group : ThreadType.User;
             const sentCount = await this.sendResult(conn.api, threadId, threadType, result);
 

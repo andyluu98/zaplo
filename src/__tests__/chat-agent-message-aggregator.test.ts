@@ -121,4 +121,43 @@ describe('MessageAggregator', () => {
     jest.advanceTimersByTime(1000);
     expect(onFlush).not.toHaveBeenCalled();
   });
+
+  test('latest onFlush wins for the same key', () => {
+    const agg = new MessageAggregator(1000);
+    const first = jest.fn();
+    const second = jest.fn();
+    agg.enqueue('t', 'a', first);
+    jest.advanceTimersByTime(500);
+    agg.enqueue('t', 'b', second);
+    jest.advanceTimersByTime(1000);
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledWith('a\nb');
+  });
+
+  test('enqueue after clear(key) re-opens cleanly', () => {
+    const agg = new MessageAggregator(1000);
+    const onFlush = jest.fn();
+    agg.enqueue('t', 'x', onFlush);
+    agg.clear('t');
+    agg.enqueue('t', 'y', onFlush);
+    jest.advanceTimersByTime(1000);
+    expect(onFlush).toHaveBeenCalledTimes(1);
+    expect(onFlush).toHaveBeenCalledWith('y');
+  });
+
+  test('flush clears buffer/timer before onFlush — clean state even if it throws', () => {
+    const agg = new MessageAggregator(1000);
+    const onFlush = jest.fn(() => {
+      throw new Error('boom');
+    });
+    agg.enqueue('t', 'x', onFlush);
+    expect(() => jest.advanceTimersByTime(1000)).toThrow('boom');
+    expect(agg.hasPending('t')).toBe(false);
+    // A new turn still works normally afterward.
+    const ok = jest.fn();
+    agg.enqueue('t', 'y', ok);
+    jest.advanceTimersByTime(1000);
+    expect(ok).toHaveBeenCalledWith('y');
+  });
 });
