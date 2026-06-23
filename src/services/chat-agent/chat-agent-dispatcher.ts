@@ -23,14 +23,16 @@ import EventBroadcaster from '../event/EventBroadcaster';
 import AIAssistantService from '../ai/AIAssistantService';
 import { parseStructuredResponse } from '../../utils/aiUtils';
 import { decideChatReply, shouldAutoResume, groupTriggerMatched, stripSelfMentions } from './chat-agent-decider';
+import { MessageAggregator } from './message-aggregator';
 import type { ChatAgentRule, ThreadCtx } from './chat-agent-resolver';
 import Logger from '../../utils/Logger';
 import type { ChatAgent } from '../../models';
 
 /** Window (ms) for treating a SELF message as an echo of something the AI just sent. */
 const AI_SENT_TTL_MS = 60_000;
-/** Min delay between two AI replies on the SAME thread (anti-loop / anti-spam). */
-const MIN_REPLY_DELAY_MS = 8_000;
+/** Min delay between two AI replies on the SAME thread (anti-loop floor; smaller than the
+ *  debounce window so a normal debounced flush is never dropped). */
+const MIN_REPLY_DELAY_MS = 2_000;
 /** Default number of past messages fed to the assistant when the assistant has none configured. */
 const DEFAULT_CONTEXT_COUNT = 30;
 
@@ -46,6 +48,8 @@ class ChatAgentDispatcher {
     private lastReplyAt = new Map<string, number>();
     /** Threads currently being processed — prevents concurrent double-replies. */
     private processing = new Set<string>();
+    /** Debounce buffer — gom tin khách gửi ngắt quãng thành 1 lượt trước khi trả lời. */
+    private aggregator = new MessageAggregator();
 
     public static getInstance(): ChatAgentDispatcher {
         if (!ChatAgentDispatcher.instance) ChatAgentDispatcher.instance = new ChatAgentDispatcher();
@@ -78,11 +82,13 @@ class ChatAgentDispatcher {
     public rehook(): void {
         if (!this.started) return;
         this.bind();
+        this.aggregator.clear();
         Logger.log('[ChatAgentDispatcher] re-hooked after hooks cleared');
     }
 
     public stop(): void {
         if (this.unsubscribe) { this.unsubscribe(); this.unsubscribe = null; }
+        this.aggregator.clear();
         this.started = false;
         Logger.log('[ChatAgentDispatcher] stopped');
     }
@@ -141,9 +147,12 @@ class ChatAgentDispatcher {
         const agent = this.findAgent(zaloId, decision.agentId);
         if (!agent) return;
 
-        // In a GROUP, only engage when addressed (@mention or trigger keyword) — avoid
-        // replying to every member message.
-        if (isGroup) {
+        const key = `${zaloId}|${threadId}`;
+
+        // In a GROUP, only engage when addressed. The FIRST fragment of a turn must address
+        // the bot (@mention or trigger keyword); once a turn is being buffered, subsequent
+        // quick fragments join even without re-tagging (user tags once, then types details).
+        if (isGroup && !this.aggregator.hasPending(key)) {
             const keywords = ((agent as any).trigger_keywords || '').split(',').map((s: string) => s.trim()).filter(Boolean);
             // mention detection uses the original mentions array; keyword check uses cleaned text.
             if (!groupTriggerMatched(content, mentions, zaloId, keywords)) return;
@@ -158,7 +167,12 @@ class ChatAgentDispatcher {
         }
 
         // ── mode === 'reply' ──────────────────────────────────────────────
-        await this.reply(zaloId, threadId, isGroup, agent, content);
+        // Gom tin ngắt quãng: chờ khách im DEBOUNCE_MS rồi trả lời 1 lần với toàn bộ mảnh.
+        this.aggregator.enqueue(key, content, combined => {
+            void this.reply(zaloId, threadId, isGroup, agent, combined).catch(err =>
+                Logger.warn(`[ChatAgentDispatcher] reply error: ${err?.message || err}`),
+            );
+        });
     }
 
     /** Extract human-readable text from a message payload (same rules as the workflow engine). */
@@ -248,6 +262,11 @@ class ChatAgentDispatcher {
         this.processing.add(key);
         try {
             const db = DatabaseService.getInstance();
+            // Re-check pause: a human may have taken over during the debounce window.
+            if (db.getConversationAiState(zaloId, threadId)?.paused) {
+                Logger.log(`[ChatAgentDispatcher] ${key} paused during debounce — skip reply`);
+                return;
+            }
             const assistant = AIAssistantService.getInstance().getAssistant(agent.assistant_id);
             const contextCount = assistant?.contextMessageCount || DEFAULT_CONTEXT_COUNT;
 
