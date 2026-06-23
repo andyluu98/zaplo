@@ -1646,6 +1646,39 @@ class DatabaseService {
             Logger.warn(`[DatabaseService] Migration post_schedule→agent: ${err.message}`);
         }
 
+        // ─── Migration: legacy auto-reply workflow → default chat_agent ──────────
+        // The old per-account auto-reply was a hidden workflow `autoreply-{zaloId}`.
+        // Convert each to a default Chat Agent (handles new/stranger DMs) and disable the
+        // legacy workflow so the new dispatcher + old workflow don't both reply.
+        try {
+            const arRows = this.query<any>(`SELECT id, page_ids, nodes_json, enabled FROM workflows WHERE id LIKE 'autoreply-%'`);
+            let migrated = 0;
+            for (const r of arRows) {
+                let owner = '';
+                try { owner = (JSON.parse(r.page_ids || '[]'))[0] || ''; } catch {}
+                if (!owner) owner = String(r.id).replace(/^autoreply-/, '');
+                if (!owner) continue;
+                // Idempotent: skip if this account already has a default chat agent.
+                const hasDefault = this.query<any>(`SELECT COUNT(*) AS n FROM chat_agent WHERE owner_zalo_id=? AND is_default=1`, [owner])[0]?.n ?? 0;
+                if (hasDefault) continue;
+                let assistantId = '';
+                try { assistantId = (JSON.parse(r.nodes_json || '[]')).find((n: any) => n.type === 'ai.generateText')?.config?.assistantId || ''; } catch {}
+                const now = Date.now();
+                this.transaction(() => {
+                    // Default agent: auto-reply new customers via DM (is_friend=0). Groups need
+                    // explicit agents + @mention, so default does not cover groups.
+                    this.runInsert(`INSERT INTO chat_agent (owner_zalo_id, name, assistant_id, enabled, reply_mode, is_default, default_scope_dm, default_scope_group, default_stranger_only, autopause_on_human, autoresume_minutes, allow_manual_toggle, trigger_keywords, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        [owner, 'Agent chat mặc định', assistantId, r.enabled ? 1 : 0, 'auto', 1, 1, 0, 1, 1, 0, 1, '', now, now]);
+                    // Disable the legacy workflow so it stops double-replying.
+                    this.run(`UPDATE workflows SET enabled=0 WHERE id=?`, [r.id]);
+                });
+                migrated++;
+            }
+            if (migrated > 0) { this.save(); Logger.log(`[DatabaseService] ✅ Migration: auto-reply → default chat_agent for ${migrated} account(s)`); }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration auto-reply→chat_agent: ${err.message}`);
+        }
+
         // ─── Migration: copy fb_* data → unified tables (Phase B3) ─────────────
         try {
             const hasFbTable = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='fb_accounts'`);
