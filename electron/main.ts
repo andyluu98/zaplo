@@ -744,6 +744,31 @@ app.whenReady().then(async () => {
     });
   });
 
+  // ── One-time rebrand migration: inherit data from a legacy "Deplao" install ──
+  // Zaplo uses a new userData dir (…/Zaplo). On first launch, if a legacy Deplao
+  // install exists, copy its whole data folder once so existing users keep their
+  // Zalo session, DB, assistants, agents and media. File names are preserved
+  // (deplao-config.json / deplao-tool.db) so the copied config still resolves.
+  try {
+    const zaploDir = app.getPath('userData');
+    const sentinel = path.join(zaploDir, '.migrated-from-deplao');
+    const legacyDir = path.join(path.dirname(zaploDir), 'Deplao');
+    if (!fs.existsSync(sentinel) && legacyDir !== zaploDir && fs.existsSync(path.join(legacyDir, 'deplao-tool.db'))) {
+      const copyDir = (src: string, dst: string) => {
+        fs.mkdirSync(dst, { recursive: true });
+        for (const e of fs.readdirSync(src, { withFileTypes: true })) {
+          if (e.name === '.migrated-from-deplao') continue;
+          const s = path.join(src, e.name), d = path.join(dst, e.name);
+          if (e.isDirectory()) copyDir(s, d);
+          else { try { fs.copyFileSync(s, d); } catch { /* skip locked/transient files */ } }
+        }
+      };
+      copyDir(legacyDir, zaploDir);
+      console.log('[main] Migrated legacy Deplao data → Zaplo (one-time)');
+    }
+    try { fs.mkdirSync(zaploDir, { recursive: true }); fs.writeFileSync(sentinel, String(Date.now())); } catch {}
+  } catch (err: any) { console.error('[main] Deplao→Zaplo data migration:', err?.message); }
+
   // Initialize workspace manager (must be BEFORE database init)
   WorkspaceManager.getInstance().initialize();
 
