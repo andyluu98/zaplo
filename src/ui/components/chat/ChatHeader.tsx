@@ -739,6 +739,14 @@ export default function ChatHeader() {
       </div>
 
 
+      {/* AI Agent control bar — trạng thái + agent phụ trách + toggle AI */}
+      <ChatAgentBar
+        zaloId={activeAccountId}
+        threadId={activeThreadId}
+        threadType={isGroup ? 'group' : 'user'}
+        isFriend={contact?.is_friend === 1}
+      />
+
       {/* Search bar — Zalo style with navigation */}
       {searchOpen && (
         <div className="px-3 pb-2.5 pt-1 flex items-center gap-2 border-t border-gray-700/50">
@@ -927,6 +935,131 @@ function HeaderLabelPickerPopup({ contactId, isGroup, x, y, labels, onAssign, on
         }}
         syncingLabels={syncingLabels}
       />
+    </div>
+  );
+}
+
+
+// ─── ChatAgentBar — thanh điều khiển AI Agent dưới header ──────────────────────
+function ChatAgentBar({ zaloId, threadId, threadType, isFriend }: {
+  zaloId: string;
+  threadId: string;
+  threadType: 'user' | 'group';
+  isFriend: boolean;
+}) {
+  const [paused, setPaused] = useState(false);
+  const [pinnedAgentId, setPinnedAgentId] = useState<number | null>(null);
+  const [resolvedAgentId, setResolvedAgentId] = useState<number | null>(null);
+  const [agents, setAgents] = useState<Array<{ id: number; name: string }>>([]);
+  const [busy, setBusy] = useState(false);
+
+  const loadState = useCallback(async () => {
+    const chatAgent = ipc.chatAgent;
+    if (!chatAgent || !zaloId || !threadId) return;
+    try {
+      const [stateRes, resolveRes, listRes] = await Promise.all([
+        chatAgent.convState({ zaloId, threadId }),
+        chatAgent.resolveThread({ zaloId, threadId, threadType, isFriend }),
+        chatAgent.list({ zaloId }),
+      ]);
+      const st = stateRes?.state;
+      setPaused(!!(st && Number(st.paused) === 1));
+      setPinnedAgentId(st?.pinned_agent_id ?? null);
+      setResolvedAgentId(resolveRes?.agentId ?? null);
+      setAgents((listRes?.agents || []).map((a: any) => ({ id: Number(a.id), name: String(a.name || `Agent #${a.id}`) })));
+    } catch { /* ignore */ }
+  }, [zaloId, threadId, threadType, isFriend]);
+
+  useEffect(() => { loadState(); }, [loadState]);
+
+  if (!ipc.chatAgent) return null;
+
+  // Agent đang thực sự phụ trách: ưu tiên ghim, fallback resolve tự động
+  const effectiveAgentId = pinnedAgentId ?? resolvedAgentId;
+  const hasAgent = effectiveAgentId != null;
+  const agentName = hasAgent ? (agents.find(a => a.id === effectiveAgentId)?.name || `Agent #${effectiveAgentId}`) : null;
+
+  // Trạng thái: 🟢 AI trả lời | 🟡 Người xử lý | ⚪ Tắt/không agent
+  const status: 'on' | 'pause' | 'off' = paused ? 'pause' : hasAgent ? 'on' : 'off';
+  const dotColor = status === 'on' ? 'bg-green-500' : status === 'pause' ? 'bg-amber-500' : 'bg-gray-400';
+  const statusLabel = status === 'on' ? 'AI đang trả lời' : status === 'pause' ? '🟡 Người đang xử lý' : '⚪ AI đang tắt';
+
+  const handleToggleAi = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await ipc.chatAgent!.setAiState({ zaloId, threadId, paused: !paused });
+      await loadState();
+    } finally { setBusy(false); }
+  };
+
+  const handleResume = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await ipc.chatAgent!.setAiState({ zaloId, threadId, paused: false });
+      await loadState();
+    } finally { setBusy(false); }
+  };
+
+  const handlePickAgent = async (val: string) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const agentId = val === '' ? null : Number(val);
+      await ipc.chatAgent!.pin({ zaloId, threadId, agentId });
+      await loadState();
+    } finally { setBusy(false); }
+  };
+
+  const aiOn = !paused;
+
+  return (
+    <div className="flex items-center gap-2 px-4 py-1.5 border-t border-gray-700/50 text-xs text-gray-300 flex-wrap">
+      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotColor}`} />
+      <span className="font-medium text-gray-200">{statusLabel}</span>
+
+      {status === 'pause' && (
+        <button
+          onClick={handleResume}
+          disabled={busy}
+          className="px-2 py-0.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50"
+          title="Bật lại AI cho hội thoại này"
+        >
+          ↩ Giao lại cho Agent
+        </button>
+      )}
+
+      <span className="text-gray-500">·</span>
+      <label className="flex items-center gap-1">
+        <span className="text-gray-400">Phụ trách:</span>
+        <select
+          value={pinnedAgentId == null ? '' : String(pinnedAgentId)}
+          onChange={(e) => handlePickAgent(e.target.value)}
+          disabled={busy}
+          className="bg-gray-700 border border-gray-600 rounded-md px-1.5 py-0.5 text-gray-200 focus:outline-none focus:border-blue-500 disabled:opacity-50 max-w-[160px]"
+          title={pinnedAgentId == null ? `Tự động: ${agentName || 'không có'}` : 'Đang ghim agent'}
+        >
+          <option value="">(tự động{agentName ? `: ${agentName}` : ''})</option>
+          {agents.map(a => (
+            <option key={a.id} value={String(a.id)}>{a.name}</option>
+          ))}
+        </select>
+      </label>
+
+      <span className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+        <span className="text-gray-400">AI</span>
+        <button
+          onClick={handleToggleAi}
+          disabled={busy}
+          role="switch"
+          aria-checked={aiOn}
+          title={aiOn ? 'Tắt AI (giao cho người)' : 'Bật AI'}
+          className={`relative w-9 h-5 rounded-full transition-colors disabled:opacity-50 ${aiOn ? 'bg-green-500' : 'bg-gray-500'}`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${aiOn ? 'translate-x-4' : ''}`} />
+        </button>
+      </span>
     </div>
   );
 }

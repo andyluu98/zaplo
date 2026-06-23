@@ -314,6 +314,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
         <NavBtn icon="analytics"  label="Báo cáo"      active={view === 'analytics'}  onClick={() => setView('analytics')} />
         )}
         <NavBtn icon="groupPosting" label="Đăng bài nhóm" active={view === 'groupPosting'} onClick={() => setView('groupPosting')} />
+        <NavBtn icon="agentHub" label="Quản lý Agent" active={view === 'agentHub'} onClick={() => setView('agentHub')} />
         {/* ERP — gated by module permission AND ERP RBAC (`erp.access`).
             Inside ERP, fine-grained writes enforced via `useErpPermissions().can(...)` +
             IPC middleware `withErpAuth`. */}
@@ -404,6 +405,14 @@ function NavBtn({ icon, label, active, onClick, dot }: { icon: string; label: st
     groupPosting: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+      </svg>
+    ),
+    agentHub: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="8" width="16" height="11" rx="2"/>
+        <path d="M12 4v4"/><circle cx="12" cy="3" r="1"/>
+        <circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/>
+        <path d="M9 17h6"/>
       </svg>
     ),
   };
@@ -600,6 +609,15 @@ function NavIcon({ name }: { name: string }) {
       return (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+        </svg>
+      );
+    case 'agentHub':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="4" y="8" width="16" height="11" rx="2"/>
+          <path d="M12 4v4"/><circle cx="12" cy="3" r="1"/>
+          <circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/>
+          <path d="M9 17h6"/>
         </svg>
       );
     default:
