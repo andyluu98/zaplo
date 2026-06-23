@@ -19,6 +19,7 @@ export interface ChatAgentRule {
   isDefault: boolean;                        // catches unassigned conversations
   defaultScope: { dm: boolean; group: boolean };
   defaultStrangerOnly: boolean;              // when default+dm: only reply to non-friends
+  replyMode?: 'auto' | 'suggest';            // used by the decider (not by routing); default 'auto'
 }
 
 export interface ThreadCtx {
