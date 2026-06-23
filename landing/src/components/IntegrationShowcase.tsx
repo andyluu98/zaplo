@@ -394,7 +394,7 @@ export default function IntegrationShowcase() {
               Tra đơn, tạo vận đơn, xác nhận thanh toán,  AI Assistant hỗ trợ ngay trong <span className="gradient-text">luồng chat</span>
             </h2>
             <p className="text-slate-600 text-lg max-w-2xl leading-relaxed aos-element delay-2">
-              Deplao kết nối trực tiếp với POS, vận chuyển, thanh toán và  AI Assistant để đội vận hành không phải nhảy qua lại giữa nhiều phần mềm khác nhau.
+              Zaplo kết nối trực tiếp với POS, vận chuyển, thanh toán và  AI Assistant để đội vận hành không phải nhảy qua lại giữa nhiều phần mềm khác nhau.
             </p>
           </div>
 

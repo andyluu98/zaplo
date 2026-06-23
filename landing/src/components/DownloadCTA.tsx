@@ -8,39 +8,39 @@ interface FaqItem {
 
 const faqs: FaqItem[] = [
   {
-    question: 'Deplao là gì?',
+    question: 'Zaplo là gì?',
     answer:
-      'Deplao là phần mềm quản lý đa tài khoản Zalo trên máy tính. Bạn có thể đăng nhập và sử dụng nhiều tài khoản Zalo cùng lúc trên một giao diện duy nhất — chat, quản lý bạn bè, nhóm, CRM, chiến dịch marketing, tự động hoá workflow, tích hợp các công công cụ bán hàng và  AI Assistant.',
+      'Zaplo là phần mềm quản lý đa tài khoản Zalo trên máy tính. Bạn có thể đăng nhập và sử dụng nhiều tài khoản Zalo cùng lúc trên một giao diện duy nhất — chat, quản lý bạn bè, nhóm, CRM, chiến dịch marketing, tự động hoá workflow, tích hợp các công công cụ bán hàng và  AI Assistant.',
   },
   {
-    question: 'Dùng Deplao có mất phí không?',
+    question: 'Dùng Zaplo có mất phí không?',
     answer:
       'Tất cả các tính năng trong phần mềm đều miễn phí. Chúng tôi sẽ không thu phí vì cơ sở dữ liệu và ảnh/video được lưu trữ trên máy tính của bạn. Bạn có thể thoải mái sử dụng mà không lo về chi phí hay giới hạn tính năng.',
   },
   {
-    question: 'Dùng Deplao có dùng song song với Zalo Desktop hay Zalo App được không?',
+    question: 'Dùng Zaplo có dùng song song với Zalo Desktop hay Zalo App được không?',
     answer:
-        'Có. Chính sách Zalo hỗ trợ mỗi tài khoản đăng nhập đồng thời trên 1 điện thoại, 1 Desktop và 1 Web. Deplao sử dụng nền tảng Web của Zalo, vì vậy bạn vẫn dùng bình thường trên Zalo PC và Zalo App. Lưu ý: sau khi đăng nhập vào Deplao, bạn sẽ không thể đăng nhập thêm trên Zalo Web (chat.zalo.me) cho cùng tài khoản đó.',
+        'Có. Chính sách Zalo hỗ trợ mỗi tài khoản đăng nhập đồng thời trên 1 điện thoại, 1 Desktop và 1 Web. Zaplo sử dụng nền tảng Web của Zalo, vì vậy bạn vẫn dùng bình thường trên Zalo PC và Zalo App. Lưu ý: sau khi đăng nhập vào Zaplo, bạn sẽ không thể đăng nhập thêm trên Zalo Web (chat.zalo.me) cho cùng tài khoản đó.',
   },
   {
     question: 'Có cho phép nhiều nhân viên hoặc nhiều máy cùng dùng chung 1 tài khoản Zalo không?',
     answer:
-        'Có. Deplao hỗ trợ mô hình làm việc theo team/workspace, cho phép nhiều nhân viên cùng tham gia vận hành với cơ chế phân quyền rõ ràng. Bạn có thể phân quyền theo nhân viên và theo từng module để mỗi người chỉ thấy và thao tác đúng phần được giao, trong khi quản lý vẫn kiểm soát tập trung toàn bộ hoạt động.',
+        'Có. Zaplo hỗ trợ mô hình làm việc theo team/workspace, cho phép nhiều nhân viên cùng tham gia vận hành với cơ chế phân quyền rõ ràng. Bạn có thể phân quyền theo nhân viên và theo từng module để mỗi người chỉ thấy và thao tác đúng phần được giao, trong khi quản lý vẫn kiểm soát tập trung toàn bộ hoạt động.',
   },
   {
     question: 'Cài đặt trên hệ điều hành nào?',
     answer:
-      'Hiện tại Deplao hỗ trợ Windows, macOS và Ubuntu Linux. Bộ cài gọn nhẹ khoảng 150MB, khi vận hành thực tế chỉ tiêu thụ khoảng 500MB RAM nên chạy nhanh và ổn định.',
+      'Hiện tại Zaplo hỗ trợ Windows, macOS và Ubuntu Linux. Bộ cài gọn nhẹ khoảng 150MB, khi vận hành thực tế chỉ tiêu thụ khoảng 500MB RAM nên chạy nhanh và ổn định.',
   },
   {
     question: 'Dữ liệu của tôi có an toàn không?',
     answer:
-      'Toàn bộ dữ liệu (tin nhắn, liên hệ, ảnh, file…) được lưu trữ trực tiếp trên máy tính của bạn, không qua bất kỳ máy chủ trung gian nào. Deplao không thu thập hay chia sẻ dữ liệu cá nhân cho bên thứ ba.',
+      'Toàn bộ dữ liệu (tin nhắn, liên hệ, ảnh, file…) được lưu trữ trực tiếp trên máy tính của bạn, không qua bất kỳ máy chủ trung gian nào. Zaplo không thu thập hay chia sẻ dữ liệu cá nhân cho bên thứ ba.',
   },
   {
-    question: 'Tài khoản Zalo có bị khoá khi dùng Deplao không?',
+    question: 'Tài khoản Zalo có bị khoá khi dùng Zaplo không?',
     answer:
-      'Deplao hoạt động dựa trên giao thức chính thức của Zalo. Tuy nhiên, bạn nên tránh hành vi spam (gửi tin nhắn hàng loạt quá nhiều trong thời gian ngắn). Phần mềm có cơ chế delay thông minh giúp hạn chế rủi ro bị hạn chế tài khoản.',
+      'Zaplo hoạt động dựa trên giao thức chính thức của Zalo. Tuy nhiên, bạn nên tránh hành vi spam (gửi tin nhắn hàng loạt quá nhiều trong thời gian ngắn). Phần mềm có cơ chế delay thông minh giúp hạn chế rủi ro bị hạn chế tài khoản.',
   }
 ];
 
@@ -119,7 +119,7 @@ const DownloadCTA: React.FC = () => {
             <span className="gradient-text">thường gặp</span>
           </h2>
           <p className="text-slate-600 text-lg max-w-xl mx-auto aos-element delay-2">
-            Giải đáp nhanh những thắc mắc phổ biến nhất khi sử dụng Deplao.
+            Giải đáp nhanh những thắc mắc phổ biến nhất khi sử dụng Zaplo.
           </p>
         </div>
 
@@ -160,7 +160,7 @@ const DownloadCTA: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900/5 via-transparent to-blue-600/10 pointer-events-none" />
             <div className="relative z-10">
               <h3 className="text-2xl md:text-3xl font-bold text-slate-950 mb-3">
-                Sẵn sàng trải nghiệm <span className="gradient-text">Deplao</span>?
+                Sẵn sàng trải nghiệm <span className="gradient-text">Zaplo</span>?
               </h3>
               <p className="text-slate-600 text-sm mb-8">
                 Tải miễn phí · Cài đặt dễ dàng

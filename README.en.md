@@ -1,4 +1,4 @@
-# Deplao
+# Zaplo
 *Website Introduction*:  https://deplaoapp.com/
 
 <p>
@@ -21,7 +21,7 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](#)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-MIT-22c55e)](#license)
-[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/babyvibe/deplao-builder/issues)
+[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/andyluu98/zaplo/issues)
 
 <p align="center">
   <a href="#-download">📥 Download</a> &nbsp;|&nbsp;
@@ -41,54 +41,54 @@
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Deplao-Setup-26.6.4.exe">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-Setup-26.6.4.exe">
 <img src="https://img.shields.io/badge/🪟_Windows_10/11-v26.6.4-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows" />
 </a>
 
-<big><strong>Deplao-Setup-26.6.4.exe</strong></big>
+<big><strong>Zaplo-Setup-26.6.4.exe</strong></big>
 
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Deplao-26.6.4-arm64.dmg">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.6.4-arm64.dmg">
 <img src="https://img.shields.io/badge/🍎_macOS_M1+-v26.6.4-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Apple Silicon" />
 </a>
 
-<big><strong>Deplao-26.6.4-arm64.dmg</strong></big>
+<big><strong>Zaplo-26.6.4-arm64.dmg</strong></big>
 
 </td>
 </tr>
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Deplao-26.6.4.AppImage">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.6.4.AppImage">
 <img src="https://img.shields.io/badge/🐧_Ubuntu_Linux-v26.6.4-e95420?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Download Ubuntu" />
 </a>
 
-<big><strong>Deplao-26.6.4.AppImage</strong></big><br>
+<big><strong>Zaplo-26.6.4.AppImage</strong></big><br>
 <big>works on any distro — <code>chmod +x</code> & run</big>
 
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Deplao-26.6.4.dmg">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.6.4.dmg">
 <img src="https://img.shields.io/badge/🍎_macOS_Intel-v26.6.4-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Intel" />
 </a>
 
-<big><strong>Deplao-26.6.4.dmg</strong></big>
+<big><strong>Zaplo-26.6.4.dmg</strong></big>
 
 </td>
 </tr>
 </table>
 
 <p align="center">
-👉 <strong><a href="https://github.com/babyvibe/deplao-builder/releases">View all releases</a></strong>
+👉 <strong><a href="https://github.com/andyluu98/zaplo/releases">View all releases</a></strong>
 </p>
 
 <details>
 <summary>⚠️ Security warning on first launch (blocked by Windows / macOS / Linux)</summary>
 
-Deplao is not code-signed (we're bootstrapped), so your OS may show a warning when opening the installer.
+Zaplo is not code-signed (we're bootstrapped), so your OS may show a warning when opening the installer.
 
 ---
 
@@ -124,8 +124,8 @@ macOS may show **"cannot be opened because it is from an unidentified developer"
 After downloading the `.AppImage` file:
 
 ```bash
-chmod +x Deplao-*.AppImage
-./Deplao-*.AppImage
+chmod +x Zaplo-*.AppImage
+./Zaplo-*.AppImage
 ```
 
 > If you get "FUSE: fuse2 not available", install `libfuse2`:
@@ -135,13 +135,13 @@ chmod +x Deplao-*.AppImage
 
 Or install the `.deb` package:
 ```bash
-sudo dpkg -i Deplao_*_amd64.deb
+sudo dpkg -i Zaplo_*_amd64.deb
 ```
 
 </details>
 
 <p align="center">
-  <img src="./assets/deplao-overview-map.svg" alt="Deplao — centralized desktop workspace for Zalo sales and customer care" width="960" />
+  <img src="./assets/deplao-overview-map.svg" alt="Zaplo — centralized desktop workspace for Zalo sales and customer care" width="960" />
 </p>
 
 ## 🛠️ Tech Stack
@@ -200,7 +200,7 @@ flowchart LR
 
 ```mermaid
 mindmap
-  root((🖥️ Deplao))
+  root((🖥️ Zaplo))
     ⚙️ Main Process
       📡 IPC Handlers
         login · zalo · crm
@@ -258,7 +258,7 @@ flowchart TB
     end
 
     subgraph EMP["💻 Employee Machine — Remote Workspace"]
-        EA("📲 Deplao App\nEmployee Mode")
+        EA("📲 Zaplo App\nEmployee Mode")
         EP("🔐 Permission Filter\nerp · crm · workflow · ...")
         EU("👁️ UI\nassigned accounts only")
     end
@@ -348,9 +348,9 @@ npm run production
 
 </details>
 
-## 🚀 What is Deplao?
+## 🚀 What is Zaplo?
 
-At a glance, Deplao is:
+At a glance, Zaplo is:
 
 - **Zalo operations hub** — multi-account, unified inbox, fast reply
 - **Customer management layer** — CRM, labels, interaction history, campaigns
@@ -379,68 +379,68 @@ Screens are ordered by typical usage flow: dashboard → chat → CRM → workfl
 <table>
   <tr>
     <td>
-      <img src="./assets/dashboard.png" alt="Multi-account Zalo dashboard in Deplao" width="360" />
+      <img src="./assets/dashboard.png" alt="Multi-account Zalo dashboard in Zaplo" width="360" />
       <br />
       <sub><strong>Multi-account dashboard</strong></sub>
     </td>
     <td>
-      <img src="./assets/chat.png" alt="Unified chat inbox in Deplao" width="360" />
+      <img src="./assets/chat.png" alt="Unified chat inbox in Zaplo" width="360" />
       <br />
       <sub><strong>Unified inbox with AI</strong></sub>
     </td>
     <td>
-      <img src="./assets/crm.png" alt="CRM and contact management in Deplao" width="360" />
+      <img src="./assets/crm.png" alt="CRM and contact management in Zaplo" width="360" />
       <br />
       <sub><strong>CRM & contacts</strong></sub>
     </td>
   </tr>
   <tr>
     <td>
-      <img src="./assets/scan-members-group.png" alt="Scan Zalo group members in Deplao" width="360" />
+      <img src="./assets/scan-members-group.png" alt="Scan Zalo group members in Zaplo" width="360" />
       <br />
       <sub><strong>Group member scanning</strong></sub>
     </td>
     <td>
-      <img src="./assets/campaign.png" alt="Mass messaging campaign in Deplao" width="360" />
+      <img src="./assets/campaign.png" alt="Mass messaging campaign in Zaplo" width="360" />
       <br />
       <sub><strong>Mass messaging campaigns</strong></sub>
     </td>
     <td>
-      <img src="./assets/workflow.png" alt="Drag-and-drop workflow editor in Deplao" width="360" />
+      <img src="./assets/workflow.png" alt="Drag-and-drop workflow editor in Zaplo" width="360" />
       <br />
       <sub><strong>Workflow editor</strong></sub>
     </td>
   </tr>
   <tr>
     <td>
-      <img src="./assets/detail-workflow.png" alt="Workflow node configuration in Deplao" width="360" />
+      <img src="./assets/detail-workflow.png" alt="Workflow node configuration in Zaplo" width="360" />
       <br />
       <sub><strong>Workflow node detail</strong></sub>
     </td>
     <td>
-      <img src="./assets/workflow-ai.png" alt="AI-assisted workflow creation in Deplao" width="360" />
+      <img src="./assets/workflow-ai.png" alt="AI-assisted workflow creation in Zaplo" width="360" />
       <br />
       <sub><strong>AI workflow generation</strong></sub>
     </td>
     <td>
-      <img src="./assets/pos.png" alt="POS and sales integration in Deplao" width="360" />
+      <img src="./assets/pos.png" alt="POS and sales integration in Zaplo" width="360" />
       <br />
       <sub><strong>POS, shipping & payments</strong></sub>
     </td>
   </tr>
   <tr>
     <td>
-      <img src="./assets/report.jpg" alt="Reports and performance analytics in Deplao" width="360" />
+      <img src="./assets/report.jpg" alt="Reports and performance analytics in Zaplo" width="360" />
       <br />
       <sub><strong>Reports & analytics</strong></sub>
     </td>
     <td>
-      <img src="./assets/report-employee.png" alt="Employee performance report in Deplao" width="360" />
+      <img src="./assets/report-employee.png" alt="Employee performance report in Zaplo" width="360" />
       <br />
       <sub><strong>Employee reports</strong></sub>
     </td>
     <td>
-      <img src="./assets/erp.png" alt="Internal ERP and team operations in Deplao" width="360" />
+      <img src="./assets/erp.png" alt="Internal ERP and team operations in Zaplo" width="360" />
       <br />
       <sub><strong>Internal ERP</strong></sub>
     </td>
@@ -508,7 +508,7 @@ Screens are ordered by typical usage flow: dashboard → chat → CRM → workfl
 
 ## 🔒 Security & data
 
-Deplao prioritizes a local-first architecture:
+Zaplo prioritizes a local-first architecture:
 
 - All messages, contacts, CRM data, settings and media are stored on the user's machine
 - Login via QR Code — no Zalo password stored; cookies are encrypted on-device
@@ -524,14 +524,14 @@ Deplao prioritizes a local-first architecture:
 
 ## 📣 Contact & support
 
-- Bug reports, feature requests, questions: 👉 [Open an issue](https://github.com/babyvibe/deplao-builder/issues)
+- Bug reports, feature requests, questions: 👉 [Open an issue](https://github.com/andyluu98/zaplo/issues)
 
 ## 🙏 Acknowledgements
 
-Deplao would like to thank the project:
+Zaplo would like to thank the project:
 👉 https://github.com/RFS-ADRENO/zca-js
 👉 https://github.com/m008v/fbchat-v2
-Without the contributions and foundation from this project, Deplao would not have been possible.
+Without the contributions and foundation from this project, Zaplo would not have been possible.
 
 ---
 

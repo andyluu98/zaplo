@@ -281,7 +281,7 @@ const WorkflowShowcase: React.FC = () => {
               Tạo automation theo <span className="gradient-text">luồng công việc thật</span>
             </h2>
             <p className="text-slate-600 text-lg max-w-2xl aos-element delay-2 leading-relaxed">
-              Không chỉ là hiệu ứng kéo-thả: builder của Deplao tập trung vào use case vận hành Zalo thực tế — phản hồi lead, theo dõi đơn, chăm sóc sau bán, cảnh báo nội bộ và tích hợp hệ thống ngoài.
+              Không chỉ là hiệu ứng kéo-thả: builder của Zaplo tập trung vào use case vận hành Zalo thực tế — phản hồi lead, theo dõi đơn, chăm sóc sau bán, cảnh báo nội bộ và tích hợp hệ thống ngoài.
             </p>
           </div>
 
@@ -486,7 +486,7 @@ const WorkflowShowcase: React.FC = () => {
                   Bắt đầu tự động hoá ngay
                 </h3>
                 <p className="text-slate-600 text-sm mb-5 max-w-xs">
-                  Tải Deplao, mở Kho mẫu Workflow, chọn & cài đặt chỉ 1 click.
+                  Tải Zaplo, mở Kho mẫu Workflow, chọn & cài đặt chỉ 1 click.
                 </p>
                 <DownloadDropdown
                   label="Tải xuống ngay"

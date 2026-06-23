@@ -22,7 +22,7 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](#)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933?logo=node.js&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-MIT-22c55e)](#giấy-phép)
-[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/babyvibe/deplao-builder/issues)
+[![Support](https://img.shields.io/badge/support-GitHub_Issues-0ea5e9)](https://github.com/andyluu98/zaplo/issues)
 
 
 <p align="center">
@@ -43,7 +43,7 @@
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Zaplo-Setup-26.6.4.exe">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-Setup-26.6.4.exe">
 <img src="https://img.shields.io/badge/🪟_Windows_10/11-v26.6.4-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows" />
 </a>
 
@@ -52,7 +52,7 @@
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Zaplo-26.6.4-arm64.dmg">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.6.4-arm64.dmg">
 <img src="https://img.shields.io/badge/🍎_macOS_M1+-v26.6.4-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Apple Silicon" />
 </a>
 
@@ -63,7 +63,7 @@
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Zaplo-26.6.4.AppImage">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.6.4.AppImage">
 <img src="https://img.shields.io/badge/🐧_Ubuntu_Linux-v26.6.4-e95420?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Download Ubuntu" />
 </a>
 
@@ -73,7 +73,7 @@
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/babyvibe/deplao-builder/releases/latest/download/Zaplo-26.6.4.dmg">
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.6.4.dmg">
 <img src="https://img.shields.io/badge/🍎_macOS_Intel-v26.6.4-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Intel" />
 </a>
 
@@ -84,7 +84,7 @@
 </table>
 
 <p align="center">
-👉 <strong><a href="https://github.com/babyvibe/deplao-builder/releases">Xem tất cả phiên bản</a></strong>
+👉 <strong><a href="https://github.com/andyluu98/zaplo/releases">Xem tất cả phiên bản</a></strong>
 </p>
 
 <details>
@@ -535,7 +535,7 @@ Zaplo ưu tiên kiến trúc chạy cục bộ trên máy người dùng:
 
 ## 📣 Liên hệ
 
-- Báo lỗi, góp ý hoặc cần hỗ trợ: 👉 [Tạo issue tại đây](https://github.com/babyvibe/deplao-builder/issues)
+- Báo lỗi, góp ý hoặc cần hỗ trợ: 👉 [Tạo issue tại đây](https://github.com/andyluu98/zaplo/issues)
 
 ## 🙏 Lời cảm ơn
 

@@ -7,8 +7,8 @@ export default function TermsPage() {
       <nav className="border-b border-white/5 bg-[#060a18]/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 no-underline group">
-            <img src="/deplao-builder/icon.png" alt="Deplao" className="w-8 h-8 rounded-lg object-contain group-hover:scale-105 transition-transform" />
-            <span className="font-bold text-lg text-white tracking-tight">Deplao</span>
+            <img src="/zaplo/icon.png" alt="Zaplo" className="w-8 h-8 rounded-lg object-contain group-hover:scale-105 transition-transform" />
+            <span className="font-bold text-lg text-white tracking-tight">Zaplo</span>
           </Link>
           <Link to="/" className="text-sm text-slate-400 hover:text-white transition-colors no-underline">
             ← Về trang chủ
@@ -37,7 +37,7 @@ export default function TermsPage() {
               <span className="text-blue-400">1.</span> Mục đích sử dụng hợp pháp
             </h2>
             <p className="text-slate-400 text-sm leading-relaxed mb-4">
-              Deplao là phần mềm hỗ trợ quản lý giao tiếp trên nền tảng Zalo dành cho mục đích
+              Zaplo là phần mềm hỗ trợ quản lý giao tiếp trên nền tảng Zalo dành cho mục đích
               <strong className="text-white"> kinh doanh hợp pháp</strong>, chăm sóc khách hàng và tự động hoá quy trình làm việc.
               Phần mềm <strong className="text-amber-400">không được thiết kế</strong> và <strong className="text-amber-400">không khuyến khích sử dụng</strong> cho các hành vi:
             </p>
@@ -72,7 +72,7 @@ export default function TermsPage() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-emerald-400 mt-0.5 flex-shrink-0">🔒</span>
-                <span><strong className="text-white">Không chia sẻ với bên thứ 3:</strong> Deplao không tích hợp bất kỳ SDK thu thập dữ liệu, analytics hay quảng cáo của bên thứ 3.</span>
+                <span><strong className="text-white">Không chia sẻ với bên thứ 3:</strong> Zaplo không tích hợp bất kỳ SDK thu thập dữ liệu, analytics hay quảng cáo của bên thứ 3.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-emerald-400 mt-0.5 flex-shrink-0">🔒</span>
@@ -91,7 +91,7 @@ export default function TermsPage() {
               <span className="text-blue-400">3.</span> Bảo mật tài khoản & Dữ liệu
             </h2>
             <p className="text-slate-400 text-sm leading-relaxed mb-4">
-              Deplao được xây dựng theo kiến trúc toàn bộ dữ liệu được xử lý và lưu trữ ngay trên máy tính của bạn.
+              Zaplo được xây dựng theo kiến trúc toàn bộ dữ liệu được xử lý và lưu trữ ngay trên máy tính của bạn.
             </p>
             <ul className="space-y-2 text-slate-400 text-sm">
               <li className="flex items-start gap-2"><span className="text-blue-400 mt-0.5">•</span>
@@ -129,7 +129,7 @@ export default function TermsPage() {
             </h2>
             <ul className="space-y-3 text-slate-400 text-sm">
               <li className="flex items-start gap-2"><span className="text-amber-400 mt-0.5 flex-shrink-0">⚠️</span>
-                <span>Deplao là công cụ hỗ trợ. Người dùng <strong className="text-white">hoàn toàn chịu trách nhiệm</strong> về cách sử dụng phần mềm và tuân thủ pháp luật hiện hành.</span>
+                <span>Zaplo là công cụ hỗ trợ. Người dùng <strong className="text-white">hoàn toàn chịu trách nhiệm</strong> về cách sử dụng phần mềm và tuân thủ pháp luật hiện hành.</span>
               </li>
               <li className="flex items-start gap-2"><span className="text-amber-400 mt-0.5 flex-shrink-0">⚠️</span>
                 <span>Chúng tôi không chịu trách nhiệm nếu tài khoản Zalo của bạn bị Zalo hạn chế do sử dụng không đúng cách hoặc vi phạm điều khoản Zalo.</span>
@@ -150,7 +150,7 @@ export default function TermsPage() {
             </h2>
             <ul className="space-y-2 text-slate-400 text-sm">
               <li className="flex items-start gap-2"><span className="text-blue-400 mt-0.5">•</span>
-                <span>Trong giai đoạn hiện tại, Deplao đang được mở để người dùng có thể kích hoạt và sử dụng mà không cần thao tác gia hạn thủ công trên giao diện công khai.</span>
+                <span>Trong giai đoạn hiện tại, Zaplo đang được mở để người dùng có thể kích hoạt và sử dụng mà không cần thao tác gia hạn thủ công trên giao diện công khai.</span>
               </li>
               <li className="flex items-start gap-2"><span className="text-blue-400 mt-0.5">•</span>
                 <span>Tài khoản mới vẫn có thể được hệ thống ghi nhận dưới trạng thái <strong className="text-white">trial</strong> để phục vụ vận hành và theo dõi nội bộ.</span>
@@ -159,7 +159,7 @@ export default function TermsPage() {
                 <span>Thông tin kích hoạt và trạng thái sử dụng có thể được cập nhật phục vụ mục đích hỗ trợ, đồng bộ thiết bị và theo dõi vận hành hệ thống.</span>
               </li>
               <li className="flex items-start gap-2"><span className="text-blue-400 mt-0.5">•</span>
-                <span>Khi chính sách thương mại thay đổi trong tương lai, Deplao có thể cập nhật lại giao diện và điều khoản liên quan trước khi áp dụng công khai.</span>
+                <span>Khi chính sách thương mại thay đổi trong tương lai, Zaplo có thể cập nhật lại giao diện và điều khoản liên quan trước khi áp dụng công khai.</span>
               </li>
             </ul>
           </section>
@@ -170,7 +170,7 @@ export default function TermsPage() {
               <span className="text-blue-400">7.</span> Sở hữu trí tuệ
             </h2>
             <p className="text-slate-400 text-sm leading-relaxed">
-              Deplao và tất cả tài liệu liên quan là tài sản trí tuệ của <strong className="text-white">DepLao Team</strong>.
+              Zaplo và tất cả tài liệu liên quan là tài sản trí tuệ của <strong className="text-white">Zaplo Team</strong>.
               Nghiêm cấm sao chép, phân phối lại, reverse-engineer hoặc bán lại phần mềm dưới bất kỳ hình thức nào
               khi chưa có sự đồng ý bằng văn bản.
             </p>
@@ -186,7 +186,7 @@ export default function TermsPage() {
                 <span className="text-2xl">💬</span>
                 <div>
                   <p className="text-white text-sm font-medium">Telegram hỗ trợ</p>
-                  <a href="https://t.me/babyvibe9" className="text-blue-400 text-sm no-underline hover:underline" target="_blank" rel="noopener noreferrer">@Deplao_support</a>
+                  <a href="https://t.me/babyvibe9" className="text-blue-400 text-sm no-underline hover:underline" target="_blank" rel="noopener noreferrer">@Zaplo_support</a>
                 </div>
               </div>
             </div>
@@ -197,7 +197,7 @@ export default function TermsPage() {
       {/* Simple footer */}
       <footer className="border-t border-white/5 bg-[#060a18]">
         <div className="max-w-4xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-600">
-          <p>© {new Date().getFullYear()} Deplao. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Zaplo. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <Link to="/" className="hover:text-slate-400 transition-colors no-underline">Trang chủ</Link>
           </div>
