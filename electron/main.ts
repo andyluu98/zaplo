@@ -843,6 +843,11 @@ app.whenReady().then(async () => {
     try { require('../src/services/posting/agent-scheduler-service').default.getInstance().resumeActiveAgents(); }
     catch (err: any) { console.error('[main] resumeActiveAgents error:', err.message); }
   }, 3800);
+  // Start Chat Agent auto-reply dispatcher (listens to live incoming messages)
+  setTimeout(() => {
+    try { require('../src/services/chat-agent/chat-agent-dispatcher').default.getInstance().start(); }
+    catch (err: any) { console.error('[main] ChatAgentDispatcher start error:', err.message); }
+  }, 3900);
   // Initialize ERP Calendar reminders scheduler
   setTimeout(() => {
     try {
