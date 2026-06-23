@@ -2555,6 +2555,16 @@ class DatabaseService {
         this.run('UPDATE accounts SET is_active = 0 WHERE zalo_id = ?', [zaloId]);
     }
 
+    /** The logged-in account's own display name (used to strip the bot's @mention from text). */
+    public getAccountName(zaloId: string): string {
+        if (!this.initialized) return '';
+        const row = this.queryOne<{ full_name: string }>(
+            'SELECT full_name FROM accounts WHERE zalo_id = ?',
+            [zaloId],
+        );
+        return row?.full_name || '';
+    }
+
     public updateAccountLastSeen(zaloId: string): void {
         this.run('UPDATE accounts SET last_seen = datetime(\'now\') WHERE zalo_id = ?', [zaloId]);
     }

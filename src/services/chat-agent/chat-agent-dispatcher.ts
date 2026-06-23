@@ -22,15 +22,17 @@ import ConnectionManager from '../../utils/ConnectionManager';
 import EventBroadcaster from '../event/EventBroadcaster';
 import AIAssistantService from '../ai/AIAssistantService';
 import { parseStructuredResponse } from '../../utils/aiUtils';
-import { decideChatReply, shouldAutoResume, groupTriggerMatched } from './chat-agent-decider';
+import { decideChatReply, shouldAutoResume, groupTriggerMatched, stripSelfMentions, stripSelfMentionText } from './chat-agent-decider';
+import { MessageAggregator } from './message-aggregator';
 import type { ChatAgentRule, ThreadCtx } from './chat-agent-resolver';
 import Logger from '../../utils/Logger';
 import type { ChatAgent } from '../../models';
 
 /** Window (ms) for treating a SELF message as an echo of something the AI just sent. */
 const AI_SENT_TTL_MS = 60_000;
-/** Min delay between two AI replies on the SAME thread (anti-loop / anti-spam). */
-const MIN_REPLY_DELAY_MS = 8_000;
+/** Min delay between two AI replies on the SAME thread (anti-loop floor; smaller than the
+ *  debounce window so a normal debounced flush is never dropped). */
+const MIN_REPLY_DELAY_MS = 2_000;
 /** Default number of past messages fed to the assistant when the assistant has none configured. */
 const DEFAULT_CONTEXT_COUNT = 30;
 
@@ -46,6 +48,12 @@ class ChatAgentDispatcher {
     private lastReplyAt = new Map<string, number>();
     /** Threads currently being processed — prevents concurrent double-replies. */
     private processing = new Set<string>();
+    /** Debounce buffer — gom tin khách gửi ngắt quãng thành 1 lượt trước khi trả lời. */
+    private aggregator = new MessageAggregator();
+    /** Per-thread reply queue — flushed turns wait here and are sent sequentially (never dropped). */
+    private replyQueue = new Map<string, string[]>();
+    /** Thread keys with a drain loop running (so a second flush appends instead of racing). */
+    private draining = new Set<string>();
 
     public static getInstance(): ChatAgentDispatcher {
         if (!ChatAgentDispatcher.instance) ChatAgentDispatcher.instance = new ChatAgentDispatcher();
@@ -78,11 +86,15 @@ class ChatAgentDispatcher {
     public rehook(): void {
         if (!this.started) return;
         this.bind();
+        this.aggregator.clear();
+        this.replyQueue.clear();
         Logger.log('[ChatAgentDispatcher] re-hooked after hooks cleared');
     }
 
     public stop(): void {
         if (this.unsubscribe) { this.unsubscribe(); this.unsubscribe = null; }
+        this.aggregator.clear();
+        this.replyQueue.clear();
         this.started = false;
         Logger.log('[ChatAgentDispatcher] stopped');
     }
@@ -101,14 +113,19 @@ class ChatAgentDispatcher {
 
         const isSelf = !!((msg as any).isSelf || data?.isSelf);
         const isGroup = (msg as any).type === 1 || !!(msg as any).isGroup;
-        const content = this.extractContent(msgData, msg);
+        const mentions = msgData.mentions || (msg as any).mentions;
+        const uidFrom = String(msgData.uidFrom || (msg as any).uidFrom || '');
+        const rawContent = this.extractContent(msgData, msg);
 
         if (isSelf) {
-            this.handleSelfMessage(zaloId, threadId, content, String(msgData.msgId || ''), isGroup);
+            this.handleSelfMessage(zaloId, threadId, rawContent, String(msgData.msgId || ''), isGroup);
             return;
         }
 
-        // Ignore empty (sticker/media-only with no caption we can answer to).
+        // Strip the bot's OWN @mention so the AI answers the question, not the mentioned name
+        // (e.g. "@Esta Leasing chào bạn" → "chào bạn"). Mentions of others are kept.
+        const content = stripSelfMentions(rawContent, mentions, zaloId);
+        // Ignore empty (sticker/media-only, or a bare @mention with no text).
         if (!content.trim()) return;
 
         const db = DatabaseService.getInstance();
@@ -137,11 +154,17 @@ class ChatAgentDispatcher {
         const agent = this.findAgent(zaloId, decision.agentId);
         if (!agent) return;
 
-        // In a GROUP, only engage when addressed (@mention or trigger keyword) — avoid
-        // replying to every member message.
-        if (isGroup) {
-            const mentions = msgData.mentions || (msg as any).mentions;
+        // Buffer key: per-SENDER in a group (so one member's chatter never merges into another
+        // member's addressed turn), per-thread in a DM. Reply/throttle stay keyed per-thread.
+        const bufKey = isGroup ? `${zaloId}|${threadId}|${uidFrom}` : `${zaloId}|${threadId}`;
+
+        // In a GROUP, only engage when addressed. The FIRST fragment of a turn must address
+        // the bot (@mention or trigger keyword); once a turn is being buffered, subsequent
+        // quick fragments from the SAME sender join even without re-tagging (tags once, then
+        // types details).
+        if (isGroup && !this.aggregator.hasPending(bufKey)) {
             const keywords = ((agent as any).trigger_keywords || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+            // mention detection uses the original mentions array; keyword check uses cleaned text.
             if (!groupTriggerMatched(content, mentions, zaloId, keywords)) return;
         }
 
@@ -154,7 +177,10 @@ class ChatAgentDispatcher {
         }
 
         // ── mode === 'reply' ──────────────────────────────────────────────
-        await this.reply(zaloId, threadId, isGroup, agent, content);
+        // Gom tin ngắt quãng: chờ khách im DEBOUNCE_MS rồi xếp vào hàng đợi trả lời 1 lần.
+        this.aggregator.enqueue(bufKey, content, combined =>
+            this.enqueueReply(zaloId, threadId, isGroup, agent, combined),
+        );
     }
 
     /** Extract human-readable text from a message payload (same rules as the workflow engine). */
@@ -220,41 +246,87 @@ class ChatAgentDispatcher {
 
     // ─── Reply ────────────────────────────────────────────────────────────
 
+    /**
+     * Queue a flushed turn for sending and ensure a drain loop is running. Turns are sent
+     * sequentially per thread so a turn is NEVER dropped because a prior reply is in flight
+     * or the anti-spam throttle hasn't elapsed (the throttle becomes a delay, not a drop).
+     */
+    private enqueueReply(zaloId: string, threadId: string, isGroup: boolean, agent: ChatAgent, combined: string): void {
+        const key = `${zaloId}|${threadId}`;
+        const q = this.replyQueue.get(key) ?? [];
+        q.push(combined);
+        this.replyQueue.set(key, q);
+        if (!this.draining.has(key)) void this.drain(zaloId, threadId, isGroup, agent, key);
+    }
+
+    /** Drain a thread's reply queue one turn at a time, spacing sends by MIN_REPLY_DELAY_MS. */
+    private async drain(zaloId: string, threadId: string, isGroup: boolean, agent: ChatAgent, key: string): Promise<void> {
+        this.draining.add(key);
+        try {
+            for (;;) {
+                const q = this.replyQueue.get(key);
+                if (!q || q.length === 0) break;
+                const combined = q.shift()!;
+                if (q.length === 0) this.replyQueue.delete(key);
+                // Throttle as DELAY (not drop): keep at least MIN_REPLY_DELAY_MS between sends.
+                const wait = MIN_REPLY_DELAY_MS - (Date.now() - (this.lastReplyAt.get(key) ?? 0));
+                if (wait > 0) await new Promise(r => setTimeout(r, wait));
+                try {
+                    await this.reply(zaloId, threadId, isGroup, agent, combined);
+                } catch (err: any) {
+                    Logger.warn(`[ChatAgentDispatcher] reply error: ${err?.message || err}`);
+                }
+            }
+        } finally {
+            this.draining.delete(key);
+        }
+    }
+
     private async reply(zaloId: string, threadId: string, isGroup: boolean, agent: ChatAgent, currentText = ''): Promise<void> {
         const key = `${zaloId}|${threadId}`;
-        if (this.processing.has(key)) return;
-
-        // Min-delay throttle per thread (anti-loop / anti-spam).
-        const now = Date.now();
-        if (now - (this.lastReplyAt.get(key) ?? 0) < MIN_REPLY_DELAY_MS) {
-            Logger.log(`[ChatAgentDispatcher] throttle ${key} — skip reply`);
-            return;
-        }
+        if (this.processing.has(key)) return; // concurrency guard (drain serializes, so normally never trips)
 
         const conn = ConnectionManager.getConnection(zaloId);
         if (!conn?.api) {
             Logger.warn(`[ChatAgentDispatcher] ${zaloId}: not connected — skip reply`);
             return;
         }
-        if (!agent.assistant_id) {
-            Logger.warn(`[ChatAgentDispatcher] agent ${agent.id}: no assistant — skip reply`);
-            return;
-        }
 
         this.processing.add(key);
         try {
             const db = DatabaseService.getInstance();
-            const assistant = AIAssistantService.getInstance().getAssistant(agent.assistant_id);
+            // Re-check pause: a human may have taken over during the debounce window.
+            if (db.getConversationAiState(zaloId, threadId)?.paused) {
+                Logger.log(`[ChatAgentDispatcher] ${key} paused during debounce — skip reply`);
+                return;
+            }
+            // Re-validate the agent at flush time — it may have been disabled / lost its assistant
+            // during the debounce window (the captured row is stale).
+            const fresh = this.findAgent(zaloId, agent.id);
+            if (!fresh || !fresh.assistant_id) {
+                Logger.log(`[ChatAgentDispatcher] agent ${agent.id} no longer active — skip reply`);
+                return;
+            }
+            agent = fresh;
+            const assistantId = fresh.assistant_id; // narrowed to string by the guard above
+            const assistant = AIAssistantService.getInstance().getAssistant(assistantId);
             const contextCount = assistant?.contextMessageCount || DEFAULT_CONTEXT_COUNT;
+
+            // Strip the bot's own @mention from history too (stored content keeps "@<name> …";
+            // no TMention pos/len in the DB) so the assistant answers instead of "correcting" the
+            // addressed name across past turns. Name-agnostic — uses the account's display name.
+            const selfName = db.getAccountName(zaloId);
 
             // getMessages returns newest→oldest; reverse to old→new for the LLM.
             const history = db.getMessages(zaloId, threadId, contextCount)
                 .slice()
                 .reverse()
-                .map(m => ({
-                    role: m.is_sent ? 'assistant' : 'user',
-                    content: this.messageText(m),
-                }))
+                .map(m => {
+                    const role = m.is_sent ? 'assistant' : 'user';
+                    let content = this.messageText(m);
+                    if (role === 'user') content = stripSelfMentionText(content, selfName);
+                    return { role, content };
+                })
                 .filter(m => m.content.trim());
 
             // Ensure the current incoming question is the last user turn — the DB row for it
@@ -267,7 +339,7 @@ class ChatAgentDispatcher {
 
             if (!history.length) return;
 
-            const { result } = await AIAssistantService.getInstance().chatForWorkflow(agent.assistant_id, history);
+            const { result } = await AIAssistantService.getInstance().chatForWorkflow(assistantId, history);
             const threadType = isGroup ? ThreadType.Group : ThreadType.User;
             const sentCount = await this.sendResult(conn.api, threadId, threadType, result);
 

@@ -54,22 +54,40 @@ export default function AIQuickPanel({ onClose }: { onClose: () => void }) {
     setAiQuickPanelContextCountOverride,
   } = useAppStore();
 
-  // Load assistants
+  // Load assistants. Default the panel's brain to the agent that HANDLES this conversation
+  // (its assistant), so manual "Hỏi nhanh AI" uses the same brain as auto-reply — consistent
+  // voice. Falls back to the account default. Re-runs on conversation switch; manual pick still works.
   useEffect(() => {
     (async () => {
       setLoadingAssistants(true);
       try {
         const res = await ipc.ai?.listAssistants();
-        if (res?.success) {
-          const enabled = (res.assistants || []).filter((a: AssistantSummary) => a.enabled);
-          setAssistants(enabled);
-          const def = enabled.find((a: AssistantSummary) => a.isDefault) || enabled[0];
-          if (def) setActiveId(def.id);
+        const enabled = res?.success ? (res.assistants || []).filter((a: AssistantSummary) => a.enabled) : [];
+        setAssistants(enabled);
+
+        let pick: string | undefined;
+        if (activeAccountId && activeThreadId && ipc.chatAgent) {
+          try {
+            const contacts = (useChatStore.getState() as any).contacts?.[activeAccountId] || [];
+            const ct = contacts.find((c: any) => c.contact_id === activeThreadId)?.contact_type;
+            const threadType = ct === 'group' ? 'group' : 'user';
+            const [st, rt, al] = await Promise.all([
+              ipc.chatAgent.convState({ zaloId: activeAccountId, threadId: activeThreadId }),
+              ipc.chatAgent.resolveThread({ zaloId: activeAccountId, threadId: activeThreadId, threadType }),
+              ipc.chatAgent.list({ zaloId: activeAccountId }),
+            ]);
+            const agentId = (st as any)?.state?.pinned_agent_id ?? (rt as any)?.agentId ?? null;
+            const agent = agentId != null ? ((al as any)?.agents || []).find((a: any) => a.id === agentId) : null;
+            const brain = agent?.assistant_id;
+            if (brain && enabled.some((a: AssistantSummary) => a.id === brain)) pick = brain;
+          } catch {}
         }
+        if (!pick) { const def = enabled.find((a: AssistantSummary) => a.isDefault) || enabled[0]; pick = def?.id; }
+        if (pick) setActiveId(pick);
       } catch {}
       setLoadingAssistants(false);
     })();
-  }, []);
+  }, [activeAccountId, activeThreadId]);
 
   // Auto scroll
   useEffect(() => {
@@ -224,7 +242,7 @@ export default function AIQuickPanel({ onClose }: { onClose: () => void }) {
       <div className="px-4 py-3 border-b border-gray-700 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-sm font-semibold text-white flex items-center gap-1.5">
-            🤖 Trợ lý AI
+            🤖 Hỏi nhanh AI <span className="text-[10px] font-normal text-gray-400">(chỉ bạn thấy)</span>
           </h2>
           <button onClick={onClose}
             className="w-7 h-7 rounded-lg hover:bg-gray-700 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
