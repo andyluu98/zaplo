@@ -623,6 +623,18 @@ declare global {
       imageDelete:    (params: { zaloId: string; id: number }) => Promise<{ success: boolean; error?: string }>;
       imageGenerate:  (params: { zaloId: string; prompt: string }) => Promise<{ success: boolean; id?: number; rel_path?: string; error?: string }>;
     };
+    // ─── Chat Agent (auto-reply agent-centric) ──────────────────────────────────
+    chatAgent: {
+      list:          (params: { zaloId: string }) => Promise<{ success: boolean; agents: any[]; error?: string }>;
+      get:           (params: { id: number }) => Promise<{ success: boolean; agent: any | null; error?: string }>;
+      save:          (params: { zaloId: string; agent: any }) => Promise<{ success: boolean; id?: number; error?: string }>;
+      enable:        (params: { id: number; enabled: boolean }) => Promise<{ success: boolean; error?: string }>;
+      delete:        (params: { id: number }) => Promise<{ success: boolean; error?: string }>;
+      convState:     (params: { zaloId: string; threadId: string }) => Promise<{ success: boolean; state: import('@/../../src/models/automation').ConversationAiState | null; error?: string }>;
+      setAiState:    (params: { zaloId: string; threadId: string; paused: boolean }) => Promise<{ success: boolean; error?: string }>;
+      pin:           (params: { zaloId: string; threadId: string; agentId?: number | null }) => Promise<{ success: boolean; error?: string }>;
+      resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => Promise<{ success: boolean; agentId: number | null; error?: string }>;
+    };
   };
 }
 }
@@ -707,6 +719,7 @@ export const ipc = {
   erp,
   lockScreen: window.electronAPI?.lockScreen,
   posting: window.electronAPI?.posting,
+  chatAgent: window.electronAPI?.chatAgent,
   on: window.electronAPI?.on,
   removeAllListeners: window.electronAPI?.removeAllListeners,
 };

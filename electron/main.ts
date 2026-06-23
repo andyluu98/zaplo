@@ -25,6 +25,7 @@ import { registerErpNotificationIpc } from './ipc/erpNotificationIpc';
 import { registerErpHrmIpc } from './ipc/erpHrmIpc';
 import { registerLockScreenIpc } from './ipc/lockScreenIpc';
 import { registerPostingIpc } from './ipc/postingIpc';
+import { registerChatAgentIpc } from './ipc/chatAgentIpc';
 import PostingSchedulerService from '../src/services/posting/posting-scheduler-service';
 import WorkspaceManager from '../src/utils/WorkspaceManager';
 import HttpConnectionManager from '../src/services/http/HttpConnectionManager';
@@ -828,6 +829,7 @@ app.whenReady().then(async () => {
   registerErpHrmIpc();
   registerLockScreenIpc();
   registerPostingIpc();
+  registerChatAgentIpc();
   // Auto-reconnect Facebook accounts
   setTimeout(() => reconnectAllFBAccounts(), 4000);
   // Ordered startup: relay + Zalo for all local workspaces FIRST, then remote workspaces

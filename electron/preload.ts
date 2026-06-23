@@ -611,6 +611,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     imageGenerate:  (params: { zaloId: string; prompt: string }) => ipcRenderer.invoke('posting:image.generate', params),
   },
 
+  // ─── Chat Agent (auto-reply agent-centric) ────────────────────────
+  chatAgent: {
+    list:          (params: { zaloId: string }) => ipcRenderer.invoke('chat-agent:list', params),
+    get:           (params: { id: number }) => ipcRenderer.invoke('chat-agent:get', params),
+    save:          (params: { zaloId: string; agent: any }) => ipcRenderer.invoke('chat-agent:save', params),
+    enable:        (params: { id: number; enabled: boolean }) => ipcRenderer.invoke('chat-agent:enable', params),
+    delete:        (params: { id: number }) => ipcRenderer.invoke('chat-agent:delete', params),
+    convState:     (params: { zaloId: string; threadId: string }) => ipcRenderer.invoke('chat-agent:convState', params),
+    setAiState:    (params: { zaloId: string; threadId: string; paused: boolean }) => ipcRenderer.invoke('chat-agent:setAiState', params),
+    pin:           (params: { zaloId: string; threadId: string; agentId?: number | null }) => ipcRenderer.invoke('chat-agent:pin', params),
+    resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => ipcRenderer.invoke('chat-agent:resolveThread', params),
+  },
+
   lockScreen: {
     status:           () => ipcRenderer.invoke('lockScreen:status'),
     setup:            (params: { password: string }) => ipcRenderer.invoke('lockScreen:setup', params),
