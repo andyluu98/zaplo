@@ -22,7 +22,7 @@ import ConnectionManager from '../../utils/ConnectionManager';
 import EventBroadcaster from '../event/EventBroadcaster';
 import AIAssistantService from '../ai/AIAssistantService';
 import { parseStructuredResponse } from '../../utils/aiUtils';
-import { decideChatReply, shouldAutoResume, groupTriggerMatched, stripSelfMentions } from './chat-agent-decider';
+import { decideChatReply, shouldAutoResume, groupTriggerMatched, stripSelfMentions, stripSelfMentionText } from './chat-agent-decider';
 import { MessageAggregator } from './message-aggregator';
 import type { ChatAgentRule, ThreadCtx } from './chat-agent-resolver';
 import Logger from '../../utils/Logger';
@@ -312,14 +312,21 @@ class ChatAgentDispatcher {
             const assistant = AIAssistantService.getInstance().getAssistant(assistantId);
             const contextCount = assistant?.contextMessageCount || DEFAULT_CONTEXT_COUNT;
 
+            // Strip the bot's own @mention from history too (stored content keeps "@<name> …";
+            // no TMention pos/len in the DB) so the assistant answers instead of "correcting" the
+            // addressed name across past turns. Name-agnostic — uses the account's display name.
+            const selfName = db.getAccountName(zaloId);
+
             // getMessages returns newest→oldest; reverse to old→new for the LLM.
             const history = db.getMessages(zaloId, threadId, contextCount)
                 .slice()
                 .reverse()
-                .map(m => ({
-                    role: m.is_sent ? 'assistant' : 'user',
-                    content: this.messageText(m),
-                }))
+                .map(m => {
+                    const role = m.is_sent ? 'assistant' : 'user';
+                    let content = this.messageText(m);
+                    if (role === 'user') content = stripSelfMentionText(content, selfName);
+                    return { role, content };
+                })
                 .filter(m => m.content.trim());
 
             // Ensure the current incoming question is the last user turn — the DB row for it

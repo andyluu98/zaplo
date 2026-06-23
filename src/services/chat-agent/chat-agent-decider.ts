@@ -52,6 +52,21 @@ export function stripSelfMentions(
   return text.replace(/\s{2,}/g, ' ').trim();
 }
 
+/**
+ * Strip the bot's @mention from a message by its DISPLAY NAME (text-based).
+ * Used for HISTORY messages, where no TMention pos/len is stored — the DB keeps the raw
+ * content ("@Esta Leasing chào bạn"). Removing "@<selfName>" leaves the real text so the
+ * assistant answers instead of "correcting" the addressed name. Name-agnostic: works for
+ * whatever the account is called; mentions of OTHER names are untouched.
+ */
+export function stripSelfMentionText(content: string, selfName: string): string {
+  const text = content || '';
+  const name = (selfName || '').trim();
+  if (!name) return text;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return text.replace(new RegExp('@' + escaped, 'g'), '').replace(/\s{2,}/g, ' ').trim();
+}
+
 export interface PauseState { paused: number; paused_reason?: string; paused_at?: number }
 
 /**

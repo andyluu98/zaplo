@@ -6,7 +6,7 @@
  * "correcting" it ("mình là LMak, không phải Esta Leasing") instead of answering. The fix:
  * remove self-mention spans (TMention uid === self) using their pos/len, leaving "chào bạn".
  */
-import { stripSelfMentions } from '../services/chat-agent/chat-agent-decider';
+import { stripSelfMentions, stripSelfMentionText } from '../services/chat-agent/chat-agent-decider';
 
 const SELF = 'acc-self';
 
@@ -36,5 +36,43 @@ describe('stripSelfMentions', () => {
 
   test('collapses the gap left behind + trims', () => {
     expect(stripSelfMentions('hi @Esta Leasing nhé', [{ uid: SELF, pos: 3, len: 13 }], SELF)).toBe('hi nhé');
+  });
+});
+
+/**
+ * TDD — strip the bot's @mention from HISTORY by display name (no TMention pos/len available
+ * for stored messages — the DB has no mentions column, content is "@Esta Leasing chào bạn").
+ */
+describe('stripSelfMentionText', () => {
+  test('removes a leading "@Name" by display name', () => {
+    expect(stripSelfMentionText('@Esta Leasing chào bạn', 'Esta Leasing')).toBe('chào bạn');
+  });
+
+  test('removes "@Name" mid-sentence too, collapses spaces', () => {
+    expect(stripSelfMentionText('hi @Esta Leasing giá bao nhiêu', 'Esta Leasing')).toBe('hi giá bao nhiêu');
+  });
+
+  test('removes multiple occurrences', () => {
+    expect(stripSelfMentionText('@Esta Leasing a @Esta Leasing b', 'Esta Leasing')).toBe('a b');
+  });
+
+  test('empty self name → unchanged', () => {
+    expect(stripSelfMentionText('@Esta Leasing chào', '')).toBe('@Esta Leasing chào');
+  });
+
+  test('no mention of self → unchanged', () => {
+    expect(stripSelfMentionText('giá thuê bao nhiêu', 'Esta Leasing')).toBe('giá thuê bao nhiêu');
+  });
+
+  test('does not touch a DIFFERENT @name', () => {
+    expect(stripSelfMentionText('@Tuấn Anh ơi', 'Esta Leasing')).toBe('@Tuấn Anh ơi');
+  });
+
+  test('escapes regex-special characters in the name', () => {
+    expect(stripSelfMentionText('@A.B (x) hello', 'A.B (x)')).toBe('hello');
+  });
+
+  test('bare self-mention only → empty', () => {
+    expect(stripSelfMentionText('@Esta Leasing', 'Esta Leasing')).toBe('');
   });
 });
