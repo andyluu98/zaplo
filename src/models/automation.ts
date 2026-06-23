@@ -69,6 +69,41 @@ export interface AgentSchedule {
     enabled: number;              // 1 | 0
 }
 
+// ─── Chat Agent (auto-reply agent-centric module) ────────────────────────────
+
+export type ChatReplyMode = 'auto' | 'suggest';
+
+export interface ChatAgent {
+    id?: number;
+    owner_zalo_id: string;        // 1 agent = 1 Zalo account
+    name: string;
+    assistant_id?: string | null; // AI assistant (prompt+API); '' = default
+    enabled: number;              // 1 | 0
+    reply_mode: ChatReplyMode;    // 'auto' = send directly, 'suggest' = draft only
+    is_default: number;           // 1 = fallback agent for this account
+    default_scope_dm: number;          // 1 = covers direct messages (used when is_default)
+    default_scope_group: number;       // 1 = covers group threads (used when is_default)
+    default_stranger_only: number;     // 1 = only reply to non-friends (used when is_default)
+    autopause_on_human: number;        // 1 = pause AI when a human replies
+    autoresume_minutes: number;        // minutes of human silence before AI resumes (0 = never)
+    allow_manual_toggle: number;       // 1 = user may pause/resume per conversation
+    created_at?: number;
+    updated_at?: number;
+    // joined (not stored on the row):
+    thread_ids?: string[];
+    label_ids?: number[];
+}
+
+export interface ConversationAiState {
+    owner_zalo_id: string;
+    thread_id: string;
+    paused: number;               // 1 | 0
+    paused_reason?: string | null;
+    paused_at?: number | null;
+    pinned_agent_id?: number | null; // forces this thread to a specific chat agent
+    updated_at?: number;
+}
+
 export type ImageAssetOrigin = 'upload' | 'ai';
 
 export interface ImageAsset {

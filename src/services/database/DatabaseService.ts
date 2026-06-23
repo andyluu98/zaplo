@@ -4,7 +4,7 @@ import { app, safeStorage } from 'electron';
 import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
-import type { ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus, PostingAgent, AgentSchedule } from '../../models';
+import type { ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus, PostingAgent, AgentSchedule, ChatAgent, ConversationAiState } from '../../models';
 
 // better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
 let db: BetterSqlite3.Database | null = null;
@@ -810,6 +810,51 @@ class DatabaseService {
             CREATE INDEX IF NOT EXISTS idx_agent_sched ON agent_schedule(agent_id);
         `);
 
+        // ─── Chat Agents (auto-reply agent-centric module) ──────────────────────
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS chat_agent (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_zalo_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                assistant_id TEXT DEFAULT '',
+                enabled INTEGER NOT NULL DEFAULT 0,
+                reply_mode TEXT NOT NULL DEFAULT 'auto',
+                is_default INTEGER NOT NULL DEFAULT 0,
+                default_scope_dm INTEGER NOT NULL DEFAULT 0,
+                default_scope_group INTEGER NOT NULL DEFAULT 0,
+                default_stranger_only INTEGER NOT NULL DEFAULT 0,
+                autopause_on_human INTEGER NOT NULL DEFAULT 1,
+                autoresume_minutes INTEGER NOT NULL DEFAULT 0,
+                allow_manual_toggle INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS chat_agent_thread (
+                chat_agent_id INTEGER NOT NULL,
+                owner_zalo_id TEXT NOT NULL,
+                thread_id TEXT NOT NULL,
+                thread_type INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (chat_agent_id, thread_id)
+            );
+            CREATE TABLE IF NOT EXISTS chat_agent_label (
+                chat_agent_id INTEGER NOT NULL,
+                label_id INTEGER NOT NULL,
+                PRIMARY KEY (chat_agent_id, label_id)
+            );
+            CREATE TABLE IF NOT EXISTS conversation_ai_state (
+                owner_zalo_id TEXT NOT NULL,
+                thread_id TEXT NOT NULL,
+                paused INTEGER NOT NULL DEFAULT 0,
+                paused_reason TEXT DEFAULT '',
+                paused_at INTEGER DEFAULT 0,
+                pinned_agent_id INTEGER DEFAULT NULL,
+                updated_at INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (owner_zalo_id, thread_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_chat_agent_thread ON chat_agent_thread(thread_id);
+            CREATE INDEX IF NOT EXISTS idx_chat_agent_owner ON chat_agent(owner_zalo_id);
+        `);
+
         // ─── Local Labels (custom per-app labels, independent from Zalo) ────────
         this.exec(`
             CREATE TABLE IF NOT EXISTS local_labels (
@@ -1442,6 +1487,13 @@ class DatabaseService {
                 db!.exec(`ALTER TABLE messages ADD COLUMN is_edited INTEGER DEFAULT 0`);
                 this.save();
                 Logger.log('[DatabaseService] Migration: added is_edited column');
+            }
+
+            const hasSentBy = cols.some((c: any) => c.name === 'sent_by');
+            if (!hasSentBy) {
+                db!.exec(`ALTER TABLE messages ADD COLUMN sent_by TEXT`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: added sent_by column');
             }
 
             // Add listener_active column to accounts if missing
@@ -7715,6 +7767,116 @@ class DatabaseService {
                 this.run(`UPDATE post_log SET agent_id=NULL WHERE agent_id=?`, [id]);
             });
         } catch (err: any) { Logger.error(`[DB] deletePostingAgent: ${err.message}`); }
+    }
+
+    // ─── Chat Agents CRUD (auto-reply agent-centric module) ─────────────────
+    public listChatAgents(zaloId: string): ChatAgent[] {
+        if (!this.initialized) return [];
+        try { return this.query<any>(`SELECT * FROM chat_agent WHERE owner_zalo_id=? ORDER BY id ASC`, [zaloId]); }
+        catch (err: any) { Logger.error(`[DB] listChatAgents: ${err.message}`); return []; }
+    }
+
+    public getChatAgent(id: number): ChatAgent | null {
+        if (!this.initialized) return null;
+        try {
+            const a = this.query<any>(`SELECT * FROM chat_agent WHERE id=?`, [id])[0];
+            if (!a) return null;
+            a.thread_ids = this.query<any>(`SELECT thread_id FROM chat_agent_thread WHERE chat_agent_id=?`, [id]).map((r: any) => r.thread_id);
+            a.label_ids  = this.query<any>(`SELECT label_id FROM chat_agent_label WHERE chat_agent_id=?`, [id]).map((r: any) => r.label_id);
+            return a;
+        } catch (err: any) { Logger.error(`[DB] getChatAgent: ${err.message}`); return null; }
+    }
+
+    /** List enabled chat agents for an account, each with its thread_ids/label_ids (resolver input). */
+    public listEnabledChatAgents(zaloId: string): ChatAgent[] {
+        if (!this.initialized) return [];
+        try {
+            const agents = this.query<any>(`SELECT * FROM chat_agent WHERE owner_zalo_id=? AND enabled=1 ORDER BY id ASC`, [zaloId]);
+            agents.forEach((a: any) => {
+                a.thread_ids = this.query<any>(`SELECT thread_id FROM chat_agent_thread WHERE chat_agent_id=?`, [a.id]).map((r: any) => r.thread_id);
+                a.label_ids  = this.query<any>(`SELECT label_id FROM chat_agent_label WHERE chat_agent_id=?`, [a.id]).map((r: any) => r.label_id);
+            });
+            return agents;
+        } catch (err: any) { Logger.error(`[DB] listEnabledChatAgents: ${err.message}`); return []; }
+    }
+
+    /** Upsert chat agent + replace its thread/label links. */
+    public saveChatAgent(a: ChatAgent): number {
+        if (!this.initialized) return 0;
+        try {
+            const now = Date.now();
+            let id = a.id ?? 0;
+            this.transaction(() => {
+                if (a.id) {
+                    this.run(`UPDATE chat_agent SET name=?, assistant_id=?, enabled=?, reply_mode=?, is_default=?, default_scope_dm=?, default_scope_group=?, default_stranger_only=?, autopause_on_human=?, autoresume_minutes=?, allow_manual_toggle=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        [a.name, a.assistant_id ?? '', a.enabled ?? 0, a.reply_mode || 'auto', a.is_default ?? 0, a.default_scope_dm ?? 0, a.default_scope_group ?? 0, a.default_stranger_only ?? 0, a.autopause_on_human ?? 1, a.autoresume_minutes ?? 0, a.allow_manual_toggle ?? 1, now, a.id, a.owner_zalo_id]);
+                } else {
+                    id = this.runInsert(`INSERT INTO chat_agent (owner_zalo_id, name, assistant_id, enabled, reply_mode, is_default, default_scope_dm, default_scope_group, default_stranger_only, autopause_on_human, autoresume_minutes, allow_manual_toggle, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        [a.owner_zalo_id, a.name, a.assistant_id ?? '', a.enabled ?? 0, a.reply_mode || 'auto', a.is_default ?? 0, a.default_scope_dm ?? 0, a.default_scope_group ?? 0, a.default_stranger_only ?? 0, a.autopause_on_human ?? 1, a.autoresume_minutes ?? 0, a.allow_manual_toggle ?? 1, now, now]);
+                }
+                // replace links
+                this.run(`DELETE FROM chat_agent_thread WHERE chat_agent_id=?`, [id]);
+                (a.thread_ids || []).forEach(t => this.run(`INSERT OR IGNORE INTO chat_agent_thread (chat_agent_id, owner_zalo_id, thread_id, thread_type) VALUES (?,?,?,?)`, [id, a.owner_zalo_id, t, 1]));
+                this.run(`DELETE FROM chat_agent_label WHERE chat_agent_id=?`, [id]);
+                (a.label_ids || []).forEach(l => this.run(`INSERT OR IGNORE INTO chat_agent_label (chat_agent_id, label_id) VALUES (?,?)`, [id, l]));
+            });
+            return id;
+        } catch (err: any) { Logger.error(`[DB] saveChatAgent: ${err.message}`); return 0; }
+    }
+
+    public setChatAgentEnabled(id: number, enabled: number): void {
+        if (!this.initialized) return;
+        try { this.run(`UPDATE chat_agent SET enabled=?, updated_at=? WHERE id=?`, [enabled, Date.now(), id]); }
+        catch (err: any) { Logger.error(`[DB] setChatAgentEnabled: ${err.message}`); }
+    }
+
+    public deleteChatAgent(id: number): void {
+        if (!this.initialized) return;
+        try {
+            this.transaction(() => {
+                this.run(`DELETE FROM chat_agent_thread WHERE chat_agent_id=?`, [id]);
+                this.run(`DELETE FROM chat_agent_label WHERE chat_agent_id=?`, [id]);
+                this.run(`DELETE FROM chat_agent WHERE id=?`, [id]);
+                // Don't drop the conversation state — just clear the pin so it isn't orphaned.
+                this.run(`UPDATE conversation_ai_state SET pinned_agent_id=NULL WHERE pinned_agent_id=?`, [id]);
+            });
+        } catch (err: any) { Logger.error(`[DB] deleteChatAgent: ${err.message}`); }
+    }
+
+    // ─── Conversation AI State (per-thread pause/pin) ───────────────────────
+    public getConversationAiState(zaloId: string, threadId: string): ConversationAiState | null {
+        if (!this.initialized) return null;
+        try { return this.query<any>(`SELECT * FROM conversation_ai_state WHERE owner_zalo_id=? AND thread_id=?`, [zaloId, threadId])[0] ?? null; }
+        catch (err: any) { Logger.error(`[DB] getConversationAiState: ${err.message}`); return null; }
+    }
+
+    /** Upsert per-thread AI state. Only the supplied fields in `patch` are written. */
+    public setConversationAiState(zaloId: string, threadId: string, patch: Partial<ConversationAiState>): void {
+        if (!this.initialized) return;
+        try {
+            const now = Date.now();
+            const cur = this.getConversationAiState(zaloId, threadId);
+            const merged = {
+                paused:          patch.paused          ?? cur?.paused          ?? 0,
+                paused_reason:   patch.paused_reason   ?? cur?.paused_reason   ?? '',
+                paused_at:       patch.paused_at       ?? cur?.paused_at       ?? 0,
+                pinned_agent_id: patch.pinned_agent_id !== undefined ? patch.pinned_agent_id : (cur?.pinned_agent_id ?? null),
+            };
+            if (cur) {
+                this.run(`UPDATE conversation_ai_state SET paused=?, paused_reason=?, paused_at=?, pinned_agent_id=?, updated_at=? WHERE owner_zalo_id=? AND thread_id=?`,
+                    [merged.paused, merged.paused_reason, merged.paused_at, merged.pinned_agent_id, now, zaloId, threadId]);
+            } else {
+                this.run(`INSERT INTO conversation_ai_state (owner_zalo_id, thread_id, paused, paused_reason, paused_at, pinned_agent_id, updated_at) VALUES (?,?,?,?,?,?,?)`,
+                    [zaloId, threadId, merged.paused, merged.paused_reason, merged.paused_at, merged.pinned_agent_id, now]);
+            }
+        } catch (err: any) { Logger.error(`[DB] setConversationAiState: ${err.message}`); }
+    }
+
+    /** Count messages of a thread — used to detect the "first message" of a conversation. */
+    public countMessagesOfThread(zaloId: string, threadId: string): number {
+        if (!this.initialized) return 0;
+        try { return this.query<any>(`SELECT COUNT(*) AS n FROM messages WHERE owner_zalo_id=? AND thread_id=?`, [zaloId, threadId])[0]?.n ?? 0; }
+        catch (err: any) { Logger.error(`[DB] countMessagesOfThread: ${err.message}`); return 0; }
     }
 
     /** Remove past one-off (kind='once') schedule rows that can never fire again. Keeps DB + calendar clean. */

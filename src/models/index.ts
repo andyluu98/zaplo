@@ -60,4 +60,5 @@ export type {
     ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog,
     DraftApprovalStatus, DraftSource, ImageAssetOrigin, PostLogStatus,
     PostingAgent, AgentSchedule, AgentScheduleKind, AgentApprovalMode, AgentImageMode,
+    ChatAgent, ChatReplyMode, ConversationAiState,
 } from './automation';
