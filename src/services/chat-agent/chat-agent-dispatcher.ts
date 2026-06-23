@@ -22,7 +22,7 @@ import ConnectionManager from '../../utils/ConnectionManager';
 import EventBroadcaster from '../event/EventBroadcaster';
 import AIAssistantService from '../ai/AIAssistantService';
 import { parseStructuredResponse } from '../../utils/aiUtils';
-import { decideChatReply, shouldAutoResume, groupTriggerMatched } from './chat-agent-decider';
+import { decideChatReply, shouldAutoResume, groupTriggerMatched, stripSelfMentions } from './chat-agent-decider';
 import type { ChatAgentRule, ThreadCtx } from './chat-agent-resolver';
 import Logger from '../../utils/Logger';
 import type { ChatAgent } from '../../models';
@@ -101,14 +101,18 @@ class ChatAgentDispatcher {
 
         const isSelf = !!((msg as any).isSelf || data?.isSelf);
         const isGroup = (msg as any).type === 1 || !!(msg as any).isGroup;
-        const content = this.extractContent(msgData, msg);
+        const mentions = msgData.mentions || (msg as any).mentions;
+        const rawContent = this.extractContent(msgData, msg);
 
         if (isSelf) {
-            this.handleSelfMessage(zaloId, threadId, content, String(msgData.msgId || ''), isGroup);
+            this.handleSelfMessage(zaloId, threadId, rawContent, String(msgData.msgId || ''), isGroup);
             return;
         }
 
-        // Ignore empty (sticker/media-only with no caption we can answer to).
+        // Strip the bot's OWN @mention so the AI answers the question, not the mentioned name
+        // (e.g. "@Esta Leasing chào bạn" → "chào bạn"). Mentions of others are kept.
+        const content = stripSelfMentions(rawContent, mentions, zaloId);
+        // Ignore empty (sticker/media-only, or a bare @mention with no text).
         if (!content.trim()) return;
 
         const db = DatabaseService.getInstance();
@@ -140,8 +144,8 @@ class ChatAgentDispatcher {
         // In a GROUP, only engage when addressed (@mention or trigger keyword) — avoid
         // replying to every member message.
         if (isGroup) {
-            const mentions = msgData.mentions || (msg as any).mentions;
             const keywords = ((agent as any).trigger_keywords || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+            // mention detection uses the original mentions array; keyword check uses cleaned text.
             if (!groupTriggerMatched(content, mentions, zaloId, keywords)) return;
         }
 

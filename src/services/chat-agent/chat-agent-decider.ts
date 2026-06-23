@@ -30,6 +30,28 @@ export function groupTriggerMatched(
   return keywords.some(k => k.trim() && text.includes(k.trim().toLowerCase()));
 }
 
+/**
+ * Remove the bot's OWN @mention spans from a message before sending it to the AI.
+ * In a group, addressing the bot ("@Esta Leasing chào bạn") would otherwise make the
+ * assistant fixate on / "correct" the mentioned name instead of answering. We drop the
+ * self-mention substrings (by TMention pos/len) and keep the real text ("chào bạn").
+ * Mentions of other people are left intact.
+ */
+export function stripSelfMentions(
+  content: string,
+  mentions: Array<{ uid: string; pos: number; len: number }> | undefined,
+  selfUid: string,
+): string {
+  let text = content || '';
+  const selfM = (mentions || []).filter(
+    m => m.uid === selfUid && Number.isFinite(m.pos) && Number.isFinite(m.len) && m.len > 0,
+  );
+  // Splice from the end so earlier positions stay valid.
+  selfM.sort((a, b) => b.pos - a.pos);
+  for (const m of selfM) text = text.slice(0, m.pos) + text.slice(m.pos + m.len);
+  return text.replace(/\s{2,}/g, ' ').trim();
+}
+
 export interface PauseState { paused: number; paused_reason?: string; paused_at?: number }
 
 /**
