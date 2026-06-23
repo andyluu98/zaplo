@@ -208,6 +208,11 @@ export function registerWorkspaceIpc(mainWindow: BrowserWindow | null): void {
                     }
                 } catch {}
 
+                // Re-hook ChatAgentDispatcher too — clearBeforeSendHooks wiped its
+                // 'event:message' listener, so auto-reply would silently die otherwise.
+                try { require('../../src/services/chat-agent/chat-agent-dispatcher').default.getInstance().rehook(); }
+                catch (err: any) { console.error('[workspaceIpc] chat-agent rehook:', err?.message); }
+
                 // Sync latest cookies from active ConnectionManager connections into the newly loaded DB
                 // (Zalo may have refreshed cookies while boss was on a different workspace)
                 try {

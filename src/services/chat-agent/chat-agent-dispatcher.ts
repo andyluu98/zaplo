@@ -22,7 +22,7 @@ import ConnectionManager from '../../utils/ConnectionManager';
 import EventBroadcaster from '../event/EventBroadcaster';
 import AIAssistantService from '../ai/AIAssistantService';
 import { parseStructuredResponse } from '../../utils/aiUtils';
-import { decideChatReply } from './chat-agent-decider';
+import { decideChatReply, shouldAutoResume } from './chat-agent-decider';
 import type { ChatAgentRule, ThreadCtx } from './chat-agent-resolver';
 import Logger from '../../utils/Logger';
 import type { ChatAgent } from '../../models';
@@ -52,17 +52,33 @@ class ChatAgentDispatcher {
         return ChatAgentDispatcher.instance;
     }
 
-    /** Subscribe to the live incoming-message stream. Idempotent. */
-    public start(): void {
-        if (this.started) return;
-        this.started = true;
+    /** Bind the 'event:message' listener (idempotent on unsubscribe handle). */
+    private bind(): void {
+        if (this.unsubscribe) this.unsubscribe();
         this.unsubscribe = EventBroadcaster.onBeforeSend('event:message', (data: any) => {
             // Never let a handler error bubble into the broadcaster.
             Promise.resolve(this.onMessage(data)).catch(err =>
                 Logger.warn(`[ChatAgentDispatcher] onMessage error: ${err?.message || err}`),
             );
         });
+    }
+
+    /** Subscribe to the live incoming-message stream. Idempotent. */
+    public start(): void {
+        if (this.started) return;
+        this.started = true;
+        this.bind();
         Logger.log('[ChatAgentDispatcher] started');
+    }
+
+    /**
+     * Re-attach the listener after EventBroadcaster.clearBeforeSendHooks() (workspace switch)
+     * wiped it. Safe to call regardless of `started`; only re-binds if previously started.
+     */
+    public rehook(): void {
+        if (!this.started) return;
+        this.bind();
+        Logger.log('[ChatAgentDispatcher] re-hooked after hooks cleared');
     }
 
     public stop(): void {
@@ -88,7 +104,7 @@ class ChatAgentDispatcher {
         const content = this.extractContent(msgData, msg);
 
         if (isSelf) {
-            this.handleSelfMessage(zaloId, threadId, content, String(msgData.msgId || ''));
+            this.handleSelfMessage(zaloId, threadId, content, String(msgData.msgId || ''), isGroup);
             return;
         }
 
@@ -102,9 +118,20 @@ class ChatAgentDispatcher {
         if (!agents.length) return;
 
         const ctx = this.buildThreadCtx(zaloId, threadId, isGroup);
-        const paused = !!db.getConversationAiState(zaloId, threadId)?.paused;
+        let st = db.getConversationAiState(zaloId, threadId);
 
-        const decision = decideChatReply(ctx, agents, { paused });
+        // Auto-resume a HUMAN handoff after the owning agent's configured silence window.
+        if (st?.paused) {
+            const owner = decideChatReply(ctx, agents, { paused: false });
+            const ownerAgent = owner.agentId != null ? this.findAgent(zaloId, owner.agentId) : null;
+            if (ownerAgent && shouldAutoResume(st, ownerAgent.autoresume_minutes || 0, Date.now())) {
+                db.setConversationAiState(zaloId, threadId, { paused: 0, paused_reason: '', paused_at: 0 });
+                EventBroadcaster.emit('chatAgent:update', { zaloId, threadId, agentId: ownerAgent.id, type: 'resumed' });
+                st = null;
+            }
+        }
+
+        const decision = decideChatReply(ctx, agents, { paused: !!st?.paused });
         if (decision.skip || decision.agentId == null) return;
 
         const agent = this.findAgent(zaloId, decision.agentId);
@@ -314,7 +341,7 @@ class ChatAgentDispatcher {
      *  - It does NOT match → a human typed by hand → auto-pause the thread if the
      *    responsible agent has autopause_on_human.
      */
-    private handleSelfMessage(zaloId: string, threadId: string, content: string, msgId: string): void {
+    private handleSelfMessage(zaloId: string, threadId: string, content: string, msgId: string, isGroup: boolean): void {
         const text = (content || '').trim();
         if (!text) return;
 
@@ -327,12 +354,16 @@ class ChatAgentDispatcher {
             return;
         }
 
+        // Echo guard: if the AI replied on this thread very recently, a non-matching self
+        // message is most likely a reformatted echo (Zalo rewrites links/emoji) — not a human.
+        // Skip auto-pause to avoid the AI pausing itself.
+        if (Date.now() - (this.lastReplyAt.get(`${zaloId}|${threadId}`) ?? 0) < AI_SENT_TTL_MS) return;
+
         // Human typed by hand → auto-pause if the agent that owns this thread wants it.
         try {
             const db = DatabaseService.getInstance();
             const agents = this.loadAgentRules(zaloId);
             if (!agents.length) return;
-            const isGroup = false; // self message thread type unknown here; resolver still works (labels/threads/default-dm).
             const ctx = this.buildThreadCtx(zaloId, threadId, isGroup);
             // Don't let an existing pause flip the routing; we just want the owning agent.
             const decision = decideChatReply(ctx, agents, { paused: false });

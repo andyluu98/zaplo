@@ -14,6 +14,20 @@ export interface ChatDecision {
   skip: 'paused' | 'no-agent' | null;
 }
 
+export interface PauseState { paused: number; paused_reason?: string; paused_at?: number }
+
+/**
+ * Should an auto-paused conversation hand back to the AI?
+ * Only resumes a HUMAN handoff (reason='human') after `autoresumeMinutes` of silence.
+ * Manual off (reason='manual') is never auto-resumed; 0 minutes disables auto-resume.
+ */
+export function shouldAutoResume(state: PauseState | null, autoresumeMinutes: number, now: number): boolean {
+  if (!state || !state.paused) return false;
+  if (state.paused_reason !== 'human') return false;
+  if (!autoresumeMinutes || autoresumeMinutes <= 0) return false;
+  return now - (state.paused_at ?? 0) >= autoresumeMinutes * 60_000;
+}
+
 export function decideChatReply(thread: ThreadCtx, agents: ChatAgentRule[], state: ConvState): ChatDecision {
   if (state.paused) return { agentId: null, mode: null, skip: 'paused' };
 
