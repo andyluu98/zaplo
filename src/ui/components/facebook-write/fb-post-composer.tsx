@@ -6,7 +6,7 @@ import { generateVariations } from '@/../../src/services/facebook/write/generate
 // Tab "Đăng bài": soạn (tự/AI) → chọn Tường + nhiều nhóm (theo tên) → hàng đợi → duyệt & đăng.
 // 1 bài → nhiều đích nhờ expandQueue. Gọi ipc.facebookWrite.sendApproved (engine đã verify).
 
-interface QueueItem { actionType: 'post_personal' | 'post_group'; target: string; content: string; label: string; }
+interface QueueItem { actionType: 'post_personal' | 'post_group'; target: string; content: string; label: string; imageAssetIds?: number[]; }
 interface Progress { total: number; done: number; sent: number; failed: number; skipped: number; stoppedReason?: string; }
 interface SavedGroup { group_id: string; name: string; }
 
@@ -42,8 +42,8 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
   // Lắng nghe tiến độ gửi loạt
   useEffect(() => {
     const h = (_e: any, p: Progress) => setProgress(p);
-    ipc.on?.('facebook:write:progress', h);
-    return () => ipc.removeAllListeners?.('facebook:write:progress');
+    const off = ipc.on?.('facebook:write:progress', h);
+    return () => off?.();
   }, []);
 
   const aiGenerate = async () => {

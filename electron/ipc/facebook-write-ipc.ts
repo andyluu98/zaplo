@@ -63,6 +63,7 @@ export function registerFacebookWriteIpc(): void {
 
   // ─── Gửi loạt đã duyệt (tuần tự, có delay, dừng khi hết quota) ───────────────────
   ipcMain.handle('facebook:write:sendApproved', async (_e, { accountId, items }: { accountId: string; items: WriteBatchItem[] }) => {
+    if (!accountId) return { success: false, error: 'Thiếu tài khoản Facebook.' };
     const list = Array.isArray(items) ? items : [];
     const progress: WriteBatchProgress = {
       accountId, actionType: list[0]?.actionType || 'comment',
