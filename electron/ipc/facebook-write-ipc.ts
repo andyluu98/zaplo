@@ -20,12 +20,9 @@ import * as actionLog from '../../src/services/facebook/write/facebook-action-lo
 import * as groupService from '../../src/services/facebook/write/facebook-group-service';
 import { buildVariables } from '../../src/services/facebook/write/facebook-write-variables';
 import { uploadPhoto } from '../../src/services/facebook/write/facebook-photo-upload';
+import { shouldDedupe, dedupeKeyOf } from '../../src/services/facebook/write/dedupe-policy';
 import FileStorageService from '../../src/services/file/FileStorageService';
 import type { WriteActionType, WriteBatchItem, WriteBatchProgress } from '../../src/services/facebook/write/facebook-write-types';
-
-function dedupeKeyOf(item: WriteBatchItem): string {
-  return item.dedupeKey || item.target;
-}
 
 /** id-path để rút id đối tượng tạo ra theo loại mutation (tinh chỉnh khi SPIKE doc_id). */
 const ID_PATH: Partial<Record<WriteActionType, string[]>> = {
@@ -53,7 +50,7 @@ export function registerFacebookWriteIpc(): void {
       const list = Array.isArray(items) ? items : [];
       const annotated = list.map(it => ({
         ...it,
-        duplicate: actionLog.isDuplicate(accountId, it.actionType, dedupeKeyOf(it)),
+        duplicate: shouldDedupe(it.actionType) && actionLog.isDuplicate(accountId, it.actionType, dedupeKeyOf(it)),
         hasDocId: !!FB_WRITE_DOC_IDS[it.actionType]?.docId,
       }));
       // Tổng hợp quota còn lại theo loại
@@ -89,8 +86,8 @@ export function registerFacebookWriteIpc(): void {
     for (const item of list) {
       const dk = dedupeKeyOf(item);
 
-      // 1. Dedupe
-      if (actionLog.isDuplicate(accountId, item.actionType, dk)) {
+      // 1. Dedupe — CHỈ áp cho comment (bài đăng được phép đăng lại)
+      if (shouldDedupe(item.actionType) && actionLog.isDuplicate(accountId, item.actionType, dk)) {
         progress.skipped++; progress.done++;
         EventBroadcaster.emit('facebook:write:progress', progress);
         continue;
