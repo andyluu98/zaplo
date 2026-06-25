@@ -624,6 +624,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => ipcRenderer.invoke('chat-agent:resolveThread', params),
   },
 
+  // ─── Lịch nội dung (content_schedule_item) ────────────────────────
+  schedule: {
+    range:      (params: { from: number; to: number }) => ipcRenderer.invoke('schedule:range', params),
+    spread:     (params: any) => ipcRenderer.invoke('schedule:spread', params),
+    delete:     (params: { id: number }) => ipcRenderer.invoke('schedule:delete', params),
+    runDueNow:  () => ipcRenderer.invoke('schedule:runDueNow'),
+  },
+
   // ─── Kho bài (post_store: dùng chung FB+Zalo) ─────────────────────
   postStore: {
     list:       () => ipcRenderer.invoke('poststore:list'),

@@ -734,6 +734,7 @@ export const ipc = {
   facebookWrite: window.electronAPI?.facebookWrite,
   agentMc: (window.electronAPI as any)?.agentMc,
   postStore: (window.electronAPI as any)?.postStore,
+  schedule: (window.electronAPI as any)?.schedule,
   on: window.electronAPI?.on,
   removeAllListeners: window.electronAPI?.removeAllListeners,
 };

@@ -29,6 +29,8 @@ import { registerChatAgentIpc } from './ipc/chatAgentIpc';
 import { registerFacebookWriteIpc } from './ipc/facebook-write-ipc';
 import { registerAgentMcIpc } from './ipc/agent-mc-ipc';
 import { registerPostStoreIpc } from './ipc/post-store-ipc';
+import { registerScheduleIpc } from './ipc/schedule-ipc';
+import { startScheduleRunner } from '../src/services/schedule/schedule-runner';
 import PostingSchedulerService from '../src/services/posting/posting-scheduler-service';
 import WorkspaceManager from '../src/utils/WorkspaceManager';
 import HttpConnectionManager from '../src/services/http/HttpConnectionManager';
@@ -861,6 +863,8 @@ app.whenReady().then(async () => {
   registerFacebookWriteIpc();
   registerAgentMcIpc();
   registerPostStoreIpc();
+  registerScheduleIpc();
+  startScheduleRunner();
   // Auto-reconnect Facebook accounts
   setTimeout(() => reconnectAllFBAccounts(), 4000);
   // Ordered startup: relay + Zalo for all local workspaces FIRST, then remote workspaces

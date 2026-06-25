@@ -428,6 +428,31 @@ class DatabaseService {
     }
     public deleteAllPosts(): void { this.run(`DELETE FROM post_store`, []); this.save(); }
 
+    // ─── Content schedule (Lịch nội dung — rải bài) ─────────────────────────────
+    public addScheduleItems(items: Array<{ post_id: number; channel: string; account_id: string; group_id: string; scheduled_at: number }>): void {
+        const now = Date.now();
+        for (const it of items) {
+            this.run(`INSERT INTO content_schedule_item (post_id, channel, account_id, group_id, scheduled_at, status, created_at) VALUES (?,?,?,?,?,'scheduled',?)`,
+                [it.post_id, it.channel, it.account_id, it.group_id || '', it.scheduled_at, now]);
+        }
+        this.save();
+    }
+    /** Item trong khoảng [from,to] (epoch) — join nội dung bài cho lịch. */
+    public listScheduleRange(from: number, to: number): any[] {
+        return this.query(
+            `SELECT s.*, p.title, p.content FROM content_schedule_item s LEFT JOIN post_store p ON p.id=s.post_id
+             WHERE s.scheduled_at>=? AND s.scheduled_at<? ORDER BY s.scheduled_at`, [from, to]);
+    }
+    public listDueSchedule(now: number): any[] {
+        return this.query(
+            `SELECT s.*, p.title, p.content, p.image_count FROM content_schedule_item s LEFT JOIN post_store p ON p.id=s.post_id
+             WHERE s.status='scheduled' AND s.scheduled_at<=? ORDER BY s.scheduled_at LIMIT 20`, [now]);
+    }
+    public markScheduleItem(id: number, status: string, error?: string): void {
+        this.run(`UPDATE content_schedule_item SET status=?, error=? WHERE id=?`, [status, error || null, id]); this.save();
+    }
+    public deleteScheduleItem(id: number): void { this.run(`DELETE FROM content_schedule_item WHERE id=?`, [id]); this.save(); }
+
     /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0 */
     private normalizeVietnamPhone(phone?: string): string {
         if (!phone) return '';
@@ -911,6 +936,18 @@ class DatabaseService {
                 created_at INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL DEFAULT 0
             );
+            CREATE TABLE IF NOT EXISTS content_schedule_item (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_id INTEGER NOT NULL,
+                channel TEXT NOT NULL DEFAULT 'fb',
+                account_id TEXT NOT NULL,
+                group_id TEXT NOT NULL DEFAULT '',
+                scheduled_at INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'scheduled',
+                error TEXT,
+                created_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_sched_due ON content_schedule_item(status, scheduled_at);
         `);
 
         // ─── Chat Agents (auto-reply agent-centric module) ──────────────────────
@@ -1732,6 +1769,12 @@ class DatabaseService {
                     image_count INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'manual',
                     created_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0
                 );
+                CREATE TABLE IF NOT EXISTS content_schedule_item (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL, channel TEXT NOT NULL DEFAULT 'fb',
+                    account_id TEXT NOT NULL, group_id TEXT NOT NULL DEFAULT '', scheduled_at INTEGER NOT NULL DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'scheduled', error TEXT, created_at INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE INDEX IF NOT EXISTS idx_sched_due ON content_schedule_item(status, scheduled_at);
             `);
             this.save();
             Logger.log('[DatabaseService] ✅ Migration: ensured agent-centric tables exist');

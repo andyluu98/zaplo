@@ -5,16 +5,18 @@ import FbGroupsManager from './fb-groups-manager';
 import FbWriteLimits from './fb-write-limits';
 import FbWriteLog from './fb-write-log';
 import PostStoreTab from '@/components/post-store/post-store-tab';
+import ContentCalendarTab from '@/components/schedule/content-calendar-tab';
 
 // Trang "Facebook — Đăng bài & Tương tác". Tab Đăng bài đã verify chạy thật.
 // Auto-Comment / Agent để placeholder (làm phase sau).
 
-type FbTab = 'post' | 'store' | 'groups' | 'comment' | 'agent' | 'log' | 'limit';
+type FbTab = 'post' | 'store' | 'calendar' | 'groups' | 'comment' | 'agent' | 'log' | 'limit';
 
 const TABS: Array<{ id: FbTab; label: string }> = [
-  { id: 'post',    label: '📝 Đăng bài' },
-  { id: 'store',   label: '🗂️ Kho bài' },
-  { id: 'groups',  label: '👥 Nhóm' },
+  { id: 'post',     label: '📝 Đăng bài' },
+  { id: 'store',    label: '🗂️ Kho bài' },
+  { id: 'calendar', label: '📅 Lịch nội dung' },
+  { id: 'groups',   label: '👥 Nhóm' },
   { id: 'comment', label: '💬 Auto-Comment' },
   { id: 'agent',   label: '🤖 Agent tự động' },
   { id: 'log',     label: '📜 Nhật ký' },
@@ -74,6 +76,7 @@ export default function FbWritePage() {
           <>
             {activeTab === 'post'    && <FbPostComposer accountId={accountId} accountName={active?.name || accountId} />}
             {activeTab === 'store'   && <PostStoreTab />}
+            {activeTab === 'calendar' && <ContentCalendarTab />}
             {activeTab === 'groups'  && <FbGroupsManager accountId={accountId} />}
             {activeTab === 'comment' && <Placeholder text="Auto-Comment sẽ gắn với tab Quét (Scan) ở phase sau — lấy bài đã quét rồi tự bình luận." />}
             {activeTab === 'agent'   && <Placeholder text="Agent tự động (đăng theo lịch như Agent Zalo) làm ở phase sau cùng." />}
