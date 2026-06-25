@@ -406,6 +406,28 @@ class DatabaseService {
     public setMcAgentEnabled(id: number, enabled: number): void { this.run(`UPDATE mc_agent SET enabled=?, updated_at=? WHERE id=?`, [enabled, Date.now(), id]); this.save(); }
     public deleteMcAgent(id: number): void { this.run(`DELETE FROM mc_agent WHERE id=?`, [id]); this.run(`DELETE FROM agent_target WHERE agent_id=?`, [id]); this.save(); }
 
+    // ─── Post store (Kho bài — dùng chung FB+Zalo) ──────────────────────────────
+    public savePost(p: { id?: number; title: string; content: string; image_count: number; source?: string }): number {
+        const now = Date.now();
+        if (p.id) {
+            this.run(`UPDATE post_store SET title=?, content=?, image_count=?, updated_at=? WHERE id=?`,
+                [p.title, p.content, p.image_count, now, p.id]);
+            this.save(); return p.id;
+        }
+        const id = this.runInsert(`INSERT INTO post_store (title, content, image_count, source, created_at, updated_at) VALUES (?,?,?,?,?,?)`,
+            [p.title, p.content, p.image_count, p.source || 'manual', now, now]);
+        this.save(); return id;
+    }
+    public listPosts(): any[] { return this.query(`SELECT * FROM post_store ORDER BY id DESC`); }
+    public countPosts(): number { return this.queryOne<{ c: number }>(`SELECT COUNT(*) AS c FROM post_store`)?.c || 0; }
+    public deletePost(id: number): void { this.run(`DELETE FROM post_store WHERE id=?`, [id]); this.save(); }
+    public deletePosts(ids: number[]): void {
+        if (!ids.length) return;
+        this.run(`DELETE FROM post_store WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
+        this.save();
+    }
+    public deleteAllPosts(): void { this.run(`DELETE FROM post_store`, []); this.save(); }
+
     /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0 */
     private normalizeVietnamPhone(phone?: string): string {
         if (!phone) return '';
@@ -877,6 +899,15 @@ class DatabaseService {
                 content_source TEXT NOT NULL DEFAULT 'store',
                 schedule_json TEXT DEFAULT '',
                 enabled INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS post_store (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL DEFAULT '',
+                content TEXT NOT NULL DEFAULT '',
+                image_count INTEGER NOT NULL DEFAULT 0,
+                source TEXT NOT NULL DEFAULT 'manual',
                 created_at INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL DEFAULT 0
             );
@@ -1694,6 +1725,11 @@ class DatabaseService {
                     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, assistant_id TEXT DEFAULT '',
                     type TEXT NOT NULL DEFAULT 'posting', content_source TEXT NOT NULL DEFAULT 'store',
                     schedule_json TEXT DEFAULT '', enabled INTEGER NOT NULL DEFAULT 0,
+                    created_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS post_store (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL DEFAULT '', content TEXT NOT NULL DEFAULT '',
+                    image_count INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'manual',
                     created_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0
                 );
             `);
