@@ -32,11 +32,14 @@ function contentTypeOf(filePath: string): string {
 /** Upload 1 ảnh từ filePath → photoID. Throw nếu fail (caller bắt + log action). */
 export async function uploadPhoto(dataFB: FBSessionData, filePath: string, httpsAgent?: any): Promise<string> {
   if (!fs.existsSync(filePath)) throw new Error(`Không tìm thấy ảnh: ${filePath}`);
+  // Đọc thành Buffer (KHÔNG dùng createReadStream) — trong Electron, stream khiến
+  // form-data không tính đúng Content-Length → FB nhận file rỗng/hỏng → "không đọc được file".
+  const buf = fs.readFileSync(filePath);
   const fd = new FormData();
   fd.append('source', '8');
   fd.append('profile_id', dataFB.FacebookID);
   fd.append('waterfallxapp', 'comet');
-  fd.append('farr', fs.createReadStream(filePath), { filename: 'photo' + path.extname(filePath), contentType: contentTypeOf(filePath) });
+  fd.append('farr', buf, { filename: 'photo' + path.extname(filePath), contentType: contentTypeOf(filePath) });
   fd.append('av', dataFB.FacebookID);
   fd.append('__user', dataFB.FacebookID);
   fd.append('__a', '1');
@@ -59,9 +62,13 @@ export async function uploadPhoto(dataFB: FBSessionData, filePath: string, https
 
   const id = parsePhotoId(res.data);
   if (!id) {
-    const err = (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)).slice(0, 160);
-    Logger.warn(`[fb-photo-upload] không lấy được photoID: ${err}`);
-    throw new Error('Upload ảnh thất bại (FB từ chối file).');
+    // Bóc lỗi FB thật để chẩn đoán (errorSummary/errorDescription).
+    let j: any = res.data;
+    if (typeof j === 'string') { try { j = JSON.parse(j.replace(/^for\s*\(;;\);/, '').trim()); } catch {} }
+    const fbErr = j?.errorSummary || j?.error?.message || j?.errorDescription || (typeof res.data === 'string' ? res.data.slice(0, 120) : JSON.stringify(j).slice(0, 120));
+    const sz = (() => { try { return fs.statSync(filePath).size; } catch { return -1; } })();
+    Logger.warn(`[fb-photo-upload] FB từ chối: ${fbErr} | file=${path.basename(filePath)} size=${sz} status=${res.status}`);
+    throw new Error(`FB từ chối ảnh: ${fbErr} (file=${path.basename(filePath)}, size=${sz}B)`);
   }
   return id;
 }
