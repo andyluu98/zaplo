@@ -7,7 +7,7 @@ import FbImagePicker from './fb-image-picker';
 // Tab "Đăng bài": soạn (tự/AI) → chọn Tường + nhiều nhóm (theo tên) → hàng đợi → duyệt & đăng.
 // 1 bài → nhiều đích nhờ expandQueue. Gọi ipc.facebookWrite.sendApproved (engine đã verify).
 
-interface QueueItem { actionType: 'post_personal' | 'post_group'; target: string; content: string; label: string; imageAssetIds?: number[]; }
+interface QueueItem { actionType: 'post_personal' | 'post_group'; target: string; content: string; label: string; imagePaths?: string[]; }
 interface Progress { total: number; done: number; sent: number; failed: number; skipped: number; stoppedReason?: string; }
 interface SavedGroup { group_id: string; name: string; }
 
@@ -110,7 +110,7 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
     if (!queue.length || sending) return;
     setSending(true); setProgress(null); setMsg('');
     try {
-      const items = queue.map(q => ({ actionType: q.actionType, target: q.target, content: q.content, label: q.label }));
+      const items = queue.map(q => ({ actionType: q.actionType, target: q.target, content: q.content, label: q.label, imagePaths: q.imagePaths || [] }));
       const res = await ipc.facebookWrite?.sendApproved({ accountId, items });
       if (res?.success) {
         const p = res.progress;
