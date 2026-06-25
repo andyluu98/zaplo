@@ -12,9 +12,12 @@ import { sleep } from '../FacebookUtils';
 import type { RateLimitConfig, WriteActionType } from './facebook-write-types';
 import { countToday } from './facebook-action-log-service';
 
-/** Mức mặc định an toàn — chờ user chốt (Q4 trong plan). */
+/**
+ * Mặc định MỞ RỘNG — user tự set giới hạn & chịu trách nhiệm (theo yêu cầu).
+ * Để số cao = gần như không chặn; user chỉnh lại ở tab "Giới hạn an toàn" nếu muốn siết.
+ */
 const DEFAULT_CONFIG: RateLimitConfig = {
-  perDay: { comment: 10, post_personal: 3, post_group: 3, reply_dm: 200 },
+  perDay: { comment: 1000, post_personal: 1000, post_group: 1000, reply_dm: 5000 },
   delayMs: [4000, 9000],
 };
 
