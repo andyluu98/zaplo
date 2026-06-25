@@ -17,7 +17,7 @@ test('bỏ bài rỗng và khi không có đích', () => {
   expect(expandQueue([{ content: 'A' }], [])).toHaveLength(0);
 });
 
-test('giữ imageAssetIds theo từng bài', () => {
-  const out = expandQueue([{ content: 'A', imageAssetIds: [5, 7] }], [{ kind: 'wall', id: '', name: 'T' }]);
-  expect(out[0].imageAssetIds).toEqual([5, 7]);
+test('giữ imagePaths theo từng bài', () => {
+  const out = expandQueue([{ content: 'A', imagePaths: ['C:/a.png', 'C:/b.jpg'] }], [{ kind: 'wall', id: '', name: 'T' }]);
+  expect(out[0].imagePaths).toEqual(['C:/a.png', 'C:/b.jpg']);
 });

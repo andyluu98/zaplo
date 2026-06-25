@@ -41,6 +41,15 @@ export const FB_WRITE_DOC_IDS: Record<WriteActionType, DocIdEntry> = {
   reply_dm:      { friendlyName: '',                              docId: null },
 };
 
+/**
+ * Upload ảnh feed (SPIKE S2 — dò 2026-06-25, đã verify trả photoID).
+ * Multipart POST tới URL dưới, fields: source='8', profile_id=fbId, waterfallxapp='comet',
+ * farr=<file (filename+contentType)>, av, __user, __a, fb_dtsg, jazoest, lsd.
+ * Headers: cookie, origin, referer, x-fb-lsd, x-asbd-id. Trả: payload.photoID.
+ * photoID dùng trong story variables: attachments:[{photo:{id: photoID}}].
+ */
+export const FB_PHOTO_UPLOAD_URL = 'https://www.facebook.com/ajax/react_composer/attachments/photo/upload';
+
 /** doc_id của Note — ĐÃ BIẾT, dùng để smoke-test khung sendMutation. */
 export const KNOWN_NOTE_DOC_ID = '7370547589079803';
 export const KNOWN_NOTE_FRIENDLY_NAME = 'CometCreateNoteMutation';

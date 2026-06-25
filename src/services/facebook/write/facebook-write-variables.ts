@@ -165,11 +165,11 @@ export function buildStoryVariables(text: string, fbId: string, opts: StoryOpts 
 
 // ─── Dispatch ─────────────────────────────────────────────────────────────────
 
-export function buildVariables(item: WriteBatchItem, fbId: string): Record<string, any> {
+export function buildVariables(item: WriteBatchItem, fbId: string, photoIds: string[] = []): Record<string, any> {
   switch (item.actionType as WriteActionType) {
     case 'comment':       return buildCommentVariables(item.target, item.content);
-    case 'post_personal': return buildStoryVariables(item.content, fbId, {});
-    case 'post_group':    return buildStoryVariables(item.content, fbId, { groupId: item.target });
+    case 'post_personal': return buildStoryVariables(item.content, fbId, { photoIds });
+    case 'post_group':    return buildStoryVariables(item.content, fbId, { groupId: item.target, photoIds });
     default:              return { input: { message: { text: item.content }, actor_id: fbId } };
   }
 }

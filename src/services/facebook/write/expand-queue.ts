@@ -6,9 +6,9 @@
 
 import type { WriteBatchItem } from './facebook-write-types';
 
-export type Draft = { content: string; imageAssetIds?: number[] };
+export type Draft = { content: string; imagePaths?: string[] };
 export type Target = { kind: 'wall' | 'group'; id: string; name: string };
-export type ExpandedItem = WriteBatchItem & { imageAssetIds?: number[] };
+export type ExpandedItem = WriteBatchItem & { imagePaths?: string[] };
 
 /** Mỗi (bài có nội dung × đích) → 1 item. Bỏ bài rỗng; không đích → rỗng. */
 export function expandQueue(drafts: Draft[], targets: Target[]): ExpandedItem[] {
@@ -22,7 +22,7 @@ export function expandQueue(drafts: Draft[], targets: Target[]): ExpandedItem[] 
         target: t.kind === 'group' ? t.id : '',
         content,
         label: t.name,
-        imageAssetIds: d.imageAssetIds || [],
+        imagePaths: d.imagePaths || [],
       });
     }
   }

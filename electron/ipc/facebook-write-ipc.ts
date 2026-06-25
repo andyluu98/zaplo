@@ -19,6 +19,8 @@ import * as rateLimiter from '../../src/services/facebook/write/facebook-write-r
 import * as actionLog from '../../src/services/facebook/write/facebook-action-log-service';
 import * as groupService from '../../src/services/facebook/write/facebook-group-service';
 import { buildVariables } from '../../src/services/facebook/write/facebook-write-variables';
+import { uploadPhoto } from '../../src/services/facebook/write/facebook-photo-upload';
+import FileStorageService from '../../src/services/file/FileStorageService';
 import type { WriteActionType, WriteBatchItem, WriteBatchProgress } from '../../src/services/facebook/write/facebook-write-types';
 
 function dedupeKeyOf(item: WriteBatchItem): string {
@@ -101,11 +103,22 @@ export function registerFacebookWriteIpc(): void {
       // 3. Delay ngẫu nhiên
       await rateLimiter.randomDelay();
 
+      // 3b. Upload ảnh (nếu có) → photoIds
+      let photoIds: string[] = [];
+      const imagePaths: string[] = (item as any).imagePaths || [];
+      let uploadErr = '';
+      for (const p of imagePaths) {
+        // path tuyệt đối (chọn từ máy) dùng thẳng; rel_path (thư viện/AI) → resolve.
+        const abs = /^([A-Za-z]:[\\/]|\/)/.test(p) ? p : FileStorageService.resolveAbsolutePath(p);
+        try { photoIds.push(await uploadPhoto(dataFB, abs)); }
+        catch (e: any) { uploadErr = e?.message || String(e); Logger.warn(`[facebook-write] upload ảnh lỗi: ${uploadErr}`); }
+      }
+
       // 4. Gửi
       const docEntry = FB_WRITE_DOC_IDS[item.actionType];
       const result = await sendMutation(
         dataFB,
-        { friendlyName: docEntry.friendlyName, docId: docEntry.docId || '', variables: buildVariables(item, fbId) },
+        { friendlyName: docEntry.friendlyName, docId: docEntry.docId || '', variables: buildVariables(item, fbId, photoIds) },
         ID_PATH[item.actionType],
       );
 
@@ -113,7 +126,7 @@ export function registerFacebookWriteIpc(): void {
       actionLog.record({
         account_id: accountId, action_type: item.actionType, target: item.target,
         status: result.success ? 'success' : 'failed',
-        result_id: result.id, error: result.error, dedupe_key: dk,
+        result_id: result.id, error: result.error || (uploadErr ? `(ảnh: ${uploadErr})` : undefined), dedupe_key: dk,
       });
       if (result.success) { progress.sent++; rateLimiter.recordSend(accountId, item.actionType); }
       else { progress.failed++; Logger.warn(`[facebook-write] gửi thất bại ${item.actionType} → ${item.target}: ${result.error}`); }

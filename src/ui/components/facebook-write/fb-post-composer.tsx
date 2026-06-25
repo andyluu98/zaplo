@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ipc from '@/lib/ipc';
 import { expandQueue, type Draft, type Target } from '@/../../src/services/facebook/write/expand-queue';
 import { generateVariations } from '@/../../src/services/facebook/write/generate-variations';
+import FbImagePicker from './fb-image-picker';
 
 // Tab "Đăng bài": soạn (tự/AI) → chọn Tường + nhiều nhóm (theo tên) → hàng đợi → duyệt & đăng.
 // 1 bài → nhiều đích nhờ expandQueue. Gọi ipc.facebookWrite.sendApproved (engine đã verify).
@@ -18,6 +19,8 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
   const [count, setCount] = useState(3);
   const [variations, setVariations] = useState<string[]>([]);
   const [content, setContent] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [showPicker, setShowPicker] = useState(false);
   const [privacy, setPrivacy] = useState<'EVERYONE' | 'FRIENDS' | 'SELF'>('EVERYONE');
   const [postToWall, setPostToWall] = useState(true);
   const [groups, setGroups] = useState<SavedGroup[]>([]);
@@ -86,14 +89,15 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
   const addToQueue = () => {
     const targets = buildTargets();
     if (!targets.length) { setMsg('Chọn ít nhất 1 đích (Tường hoặc nhóm).'); return; }
+    const imgs = images.length ? [...images] : undefined;
     let drafts: Draft[];
     if (mode === 'bulk') {
-      drafts = variations.map(v => ({ content: v })).filter(d => d.content.trim());
+      drafts = variations.map(v => ({ content: v, imagePaths: imgs })).filter(d => d.content.trim());
       if (!drafts.length) { setMsg('Chưa có bài nào (bấm "AI sinh" trước).'); return; }
     } else {
       const text = content.trim();
       if (!text) { setMsg('Nhập nội dung trước.'); return; }
-      drafts = [{ content: text }];
+      drafts = [{ content: text, imagePaths: imgs }];
     }
     const items = expandQueue(drafts, targets) as QueueItem[];
     setQueue(q => [...q, ...items]);
@@ -212,6 +216,11 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
                 ))}
               </div>
             )}
+            {/* Ảnh */}
+            <div className="mt-3 flex items-center gap-2">
+              <button onClick={() => setShowPicker(true)} className="px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-100">🖼️ Ảnh ({images.length})</button>
+              {images.length > 0 && <button onClick={() => setImages([])} className="text-xs text-gray-500 hover:text-red-400">Xóa ảnh</button>}
+            </div>
             <button onClick={addToQueue} className="mt-3 w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">➕ Thêm vào hàng đợi</button>
           </div>
         </div>
@@ -261,6 +270,11 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
           )}
         </div>
       </div>
+
+      {showPicker && (
+        <FbImagePicker accountId={accountId} onClose={() => setShowPicker(false)}
+          onConfirm={(paths) => setImages(prev => [...prev, ...paths.filter(p => !prev.includes(p))])} />
+      )}
     </div>
   );
 }
