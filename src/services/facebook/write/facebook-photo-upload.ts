@@ -33,13 +33,34 @@ function contentTypeOf(filePath: string): string {
 export async function uploadPhoto(dataFB: FBSessionData, filePath: string, httpsAgent?: any): Promise<string> {
   if (!fs.existsSync(filePath)) throw new Error(`Không tìm thấy ảnh: ${filePath}`);
   // Đọc thành Buffer (KHÔNG dùng createReadStream) — trong Electron, stream khiến
-  // form-data không tính đúng Content-Length → FB nhận file rỗng/hỏng → "không đọc được file".
-  const buf = fs.readFileSync(filePath);
+  // form-data không tính đúng Content-Length → FB nhận file rỗng/hỏng.
+  let buf = fs.readFileSync(filePath);
+  let fname = 'photo' + path.extname(filePath);
+  let ctype = contentTypeOf(filePath);
+
+  // FB giới hạn ảnh < 10MB. Ảnh điện thoại thường lớn hơn → tự nén/thu nhỏ qua nativeImage.
+  const FB_MAX = 9_500_000;
+  if (buf.length > FB_MAX) {
+    try {
+      const { nativeImage } = require('electron');
+      const img = nativeImage.createFromPath(filePath);
+      const { width } = img.getSize();
+      const targetW = Math.min(width || 2048, 2048);
+      let q = 85;
+      let out = img.resize({ width: targetW }).toJPEG(q);
+      while (out.length > FB_MAX && q > 35) { q -= 15; out = img.resize({ width: targetW }).toJPEG(q); }
+      buf = out; fname = 'photo.jpg'; ctype = 'image/jpeg';
+      Logger.info(`[fb-photo-upload] resized ảnh lớn → ${buf.length}B (q=${q}, w=${targetW})`);
+    } catch (e: any) {
+      Logger.warn(`[fb-photo-upload] resize lỗi: ${e?.message} — gửi ảnh gốc (có thể bị FB từ chối nếu >10MB)`);
+    }
+  }
+
   const fd = new FormData();
   fd.append('source', '8');
   fd.append('profile_id', dataFB.FacebookID);
   fd.append('waterfallxapp', 'comet');
-  fd.append('farr', buf, { filename: 'photo' + path.extname(filePath), contentType: contentTypeOf(filePath) });
+  fd.append('farr', buf, { filename: fname, contentType: ctype });
   fd.append('av', dataFB.FacebookID);
   fd.append('__user', dataFB.FacebookID);
   fd.append('__a', '1');
