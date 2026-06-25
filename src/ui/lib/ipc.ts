@@ -732,6 +732,7 @@ export const ipc = {
   posting: window.electronAPI?.posting,
   chatAgent: window.electronAPI?.chatAgent,
   facebookWrite: window.electronAPI?.facebookWrite,
+  agentMc: (window.electronAPI as any)?.agentMc,
   on: window.electronAPI?.on,
   removeAllListeners: window.electronAPI?.removeAllListeners,
 };

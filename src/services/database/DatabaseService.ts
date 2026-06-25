@@ -388,6 +388,24 @@ class DatabaseService {
         return this.query(`SELECT * FROM agent_target WHERE agent_id=?`, [agentId]);
     }
 
+    // ─── Multi-channel Agent (mc_agent) — agent đa-kênh FB+Zalo ─────────────────
+    public saveMcAgent(a: { id?: number; name: string; assistant_id: string; type: string; content_source: string; schedule_json: string; enabled: number }): number {
+        const now = Date.now();
+        if (a.id) {
+            this.run(`UPDATE mc_agent SET name=?, assistant_id=?, type=?, content_source=?, schedule_json=?, enabled=?, updated_at=? WHERE id=?`,
+                [a.name, a.assistant_id, a.type, a.content_source, a.schedule_json, a.enabled, now, a.id]);
+            this.save(); return a.id;
+        }
+        const id = this.runInsert(`INSERT INTO mc_agent (name, assistant_id, type, content_source, schedule_json, enabled, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+            [a.name, a.assistant_id, a.type, a.content_source, a.schedule_json, a.enabled, now, now]);
+        this.save(); return id;
+    }
+
+    public listMcAgents(): any[] { return this.query(`SELECT * FROM mc_agent ORDER BY id DESC`); }
+    public getMcAgent(id: number): any { return this.query(`SELECT * FROM mc_agent WHERE id=?`, [id])[0] || null; }
+    public setMcAgentEnabled(id: number, enabled: number): void { this.run(`UPDATE mc_agent SET enabled=?, updated_at=? WHERE id=?`, [enabled, Date.now(), id]); this.save(); }
+    public deleteMcAgent(id: number): void { this.run(`DELETE FROM mc_agent WHERE id=?`, [id]); this.run(`DELETE FROM agent_target WHERE agent_id=?`, [id]); this.save(); }
+
     /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0 */
     private normalizeVietnamPhone(phone?: string): string {
         if (!phone) return '';
@@ -851,6 +869,17 @@ class DatabaseService {
                 PRIMARY KEY (agent_id, channel, account_id, group_id)
             );
             CREATE INDEX IF NOT EXISTS idx_agent_target ON agent_target(agent_id);
+            CREATE TABLE IF NOT EXISTS mc_agent (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                assistant_id TEXT DEFAULT '',
+                type TEXT NOT NULL DEFAULT 'posting',
+                content_source TEXT NOT NULL DEFAULT 'store',
+                schedule_json TEXT DEFAULT '',
+                enabled INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
         `);
 
         // ─── Chat Agents (auto-reply agent-centric module) ──────────────────────
@@ -1661,6 +1690,12 @@ class DatabaseService {
                     group_id TEXT NOT NULL DEFAULT '', PRIMARY KEY (agent_id, channel, account_id, group_id)
                 );
                 CREATE INDEX IF NOT EXISTS idx_agent_target ON agent_target(agent_id);
+                CREATE TABLE IF NOT EXISTS mc_agent (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, assistant_id TEXT DEFAULT '',
+                    type TEXT NOT NULL DEFAULT 'posting', content_source TEXT NOT NULL DEFAULT 'store',
+                    schedule_json TEXT DEFAULT '', enabled INTEGER NOT NULL DEFAULT 0,
+                    created_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0
+                );
             `);
             this.save();
             Logger.log('[DatabaseService] ✅ Migration: ensured agent-centric tables exist');

@@ -4,12 +4,14 @@ import AccountSelectorDropdown, { AccountOption } from '@/components/common/Acco
 import GroupPostingPage from '@/components/posting/group-posting-page';
 import ChatAgentsTab from './chat-agents-tab';
 import AIAssistantPage from '@/components/integration/AIAssistantPage';
+import McAgentManager from '@/components/ai-agent-hub/mc-agent-manager';
 
-type HubTab = 'assistant' | 'posting' | 'chat';
+type HubTab = 'assistant' | 'mcagent' | 'posting' | 'chat';
 
 const TABS: Array<{ id: HubTab; label: string }> = [
   { id: 'assistant', label: '🧠 Trợ lý AI' },
-  { id: 'posting',   label: '✒️ Agent đăng bài' },
+  { id: 'mcagent',   label: '🌐 Agent đa kênh' },
+  { id: 'posting',   label: '✒️ Agent đăng bài (Zalo)' },
   { id: 'chat',      label: '💬 Agent chat' },
 ];
 
@@ -42,6 +44,7 @@ export default function AgentHubPage() {
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Trợ lý AI (bộ não) — chuyển từ Tích hợp ra, tái dùng nguyên AIAssistantPage */}
         {activeTab === 'assistant' && <AIAssistantPage />}
+        {activeTab === 'mcagent' && <McAgentManager />}
         {/* Agent đăng bài tái dùng nguyên GroupPostingPage (có header + tab riêng của nó) */}
         {activeTab === 'posting' && <GroupPostingPage />}
         {activeTab === 'chat' && (!activeAccountId ? <NoAccountPrompt /> : <ChatAgentsTab zaloId={activeAccountId} />)}

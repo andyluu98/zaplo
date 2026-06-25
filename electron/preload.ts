@@ -624,6 +624,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => ipcRenderer.invoke('chat-agent:resolveThread', params),
   },
 
+  // ─── Agent đa-kênh (mc_agent: FB + Zalo) ──────────────────────────
+  agentMc: {
+    listAccounts: () => ipcRenderer.invoke('agent:mc.listAccounts'),
+    groups:       (params: { accountId: string; channel: 'fb' | 'zalo' }) => ipcRenderer.invoke('agent:mc.groups', params),
+    list:         () => ipcRenderer.invoke('agent:mc.list'),
+    get:          (params: { id: number }) => ipcRenderer.invoke('agent:mc.get', params),
+    save:         (params: { agent: any }) => ipcRenderer.invoke('agent:mc.save', params),
+    delete:       (params: { id: number }) => ipcRenderer.invoke('agent:mc.delete', params),
+    setEnabled:   (params: { id: number; enabled: boolean }) => ipcRenderer.invoke('agent:mc.setEnabled', params),
+  },
+
   // ─── Facebook Write (comment / đăng bài / reply) ──────────────────
   facebookWrite: {
     getLimits:     () => ipcRenderer.invoke('facebook:write:getLimits'),
