@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ipc from '@/lib/ipc';
 import { expandQueue, type Draft, type Target } from '@/../../src/services/facebook/write/expand-queue';
+import { generateVariations } from '@/../../src/services/facebook/write/generate-variations';
 
 // Tab "Đăng bài": soạn (tự/AI) → chọn Tường + nhiều nhóm (theo tên) → hàng đợi → duyệt & đăng.
 // 1 bài → nhiều đích nhờ expandQueue. Gọi ipc.facebookWrite.sendApproved (engine đã verify).
@@ -12,6 +13,10 @@ interface SavedGroup { group_id: string; name: string; }
 export default function FbPostComposer({ accountId, accountName }: { accountId: string; accountName: string }) {
   const [assistants, setAssistants] = useState<any[]>([]);
   const [assistantId, setAssistantId] = useState('');
+  const [mode, setMode] = useState<'single' | 'bulk'>('single');
+  const [topic, setTopic] = useState('');
+  const [count, setCount] = useState(3);
+  const [variations, setVariations] = useState<string[]>([]);
   const [content, setContent] = useState('');
   const [privacy, setPrivacy] = useState<'EVERYONE' | 'FRIENDS' | 'SELF'>('EVERYONE');
   const [postToWall, setPostToWall] = useState(true);
@@ -63,12 +68,33 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
     return targets;
   };
 
+  const generateBulk = async () => {
+    if (!assistantId) { setMsg('Chọn trợ lý AI để sinh nhiều bài.'); return; }
+    if (!topic.trim()) { setMsg('Nhập chủ đề.'); return; }
+    setAiBusy(true); setMsg('');
+    try {
+      const chatFn = async (messages: any[]) => {
+        const res = await ipc.ai?.chat(assistantId, messages);
+        return (res?.success && res?.result) ? res.result : '';
+      };
+      const list = await generateVariations(topic.trim(), count, chatFn);
+      if (list.length) setVariations(list); else setMsg('AI không sinh được bài nào.');
+    } catch (e: any) { setMsg('Lỗi AI: ' + (e?.message || e)); }
+    finally { setAiBusy(false); }
+  };
+
   const addToQueue = () => {
-    const text = content.trim();
-    if (!text) { setMsg('Nhập nội dung trước.'); return; }
     const targets = buildTargets();
     if (!targets.length) { setMsg('Chọn ít nhất 1 đích (Tường hoặc nhóm).'); return; }
-    const drafts: Draft[] = [{ content: text }];
+    let drafts: Draft[];
+    if (mode === 'bulk') {
+      drafts = variations.map(v => ({ content: v })).filter(d => d.content.trim());
+      if (!drafts.length) { setMsg('Chưa có bài nào (bấm "AI sinh" trước).'); return; }
+    } else {
+      const text = content.trim();
+      if (!text) { setMsg('Nhập nội dung trước.'); return; }
+      drafts = [{ content: text }];
+    }
     const items = expandQueue(drafts, targets) as QueueItem[];
     setQueue(q => [...q, ...items]);
     setMsg('');
@@ -98,20 +124,59 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
         {/* Cột soạn */}
         <div className="space-y-4">
           <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4">
-            <h3 className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-3">Soạn nội dung</h3>
-            <label className="block text-xs text-gray-400 mb-1">Trợ lý AI (tùy chọn)</label>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs uppercase tracking-wide text-gray-400 font-semibold">Soạn nội dung</h3>
+              <div className="flex gap-1 text-xs">
+                <button onClick={() => setMode('single')} className={`px-2.5 py-1 rounded-lg ${mode === 'single' ? 'bg-blue-600 text-white' : 'bg-gray-900 border border-gray-600 text-gray-300'}`}>1 bài</button>
+                <button onClick={() => setMode('bulk')} className={`px-2.5 py-1 rounded-lg ${mode === 'bulk' ? 'bg-blue-600 text-white' : 'bg-gray-900 border border-gray-600 text-gray-300'}`}>Nhiều bài</button>
+              </div>
+            </div>
+            <label className="block text-xs text-gray-400 mb-1">Trợ lý AI {mode === 'bulk' ? '(bắt buộc để sinh)' : '(tùy chọn)'}</label>
             <select value={assistantId} onChange={e => setAssistantId(e.target.value)}
               className="w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2 mb-3">
               <option value="">— Tự viết —</option>
               {assistants.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select>
-            <textarea value={content} onChange={e => setContent(e.target.value)} rows={6}
-              placeholder="Nhập nội dung bài đăng, hoặc gõ gợi ý rồi bấm 'AI viết giúp'..."
-              className="w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2 resize-y" />
-            <button onClick={aiGenerate} disabled={aiBusy}
-              className="mt-2 px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-100 disabled:opacity-50">
-              {aiBusy ? '✨ Đang viết...' : '✨ AI viết giúp'}
-            </button>
+
+            {mode === 'single' ? (
+              <>
+                <textarea value={content} onChange={e => setContent(e.target.value)} rows={6}
+                  placeholder="Nhập nội dung bài đăng, hoặc gõ gợi ý rồi bấm 'AI viết giúp'..."
+                  className="w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2 resize-y" />
+                <button onClick={aiGenerate} disabled={aiBusy}
+                  className="mt-2 px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-100 disabled:opacity-50">
+                  {aiBusy ? '✨ Đang viết...' : '✨ AI viết giúp'}
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="Chủ đề (vd: ưu đãi khai giảng tháng 7)"
+                    className="flex-1 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2" />
+                  <select value={count} onChange={e => setCount(Number(e.target.value))}
+                    className="bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-2 py-2">
+                    {[2, 3, 5, 8, 10].map(n => <option key={n} value={n}>{n} bài</option>)}
+                  </select>
+                </div>
+                <button onClick={generateBulk} disabled={aiBusy}
+                  className="mt-2 px-3 py-1.5 text-xs rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-100 disabled:opacity-50">
+                  {aiBusy ? '✨ Đang sinh...' : `✨ AI sinh ${count} bài`}
+                </button>
+                {variations.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {variations.map((v, i) => (
+                      <div key={i} className="relative">
+                        <textarea value={v} rows={3}
+                          onChange={e => setVariations(arr => arr.map((x, idx) => idx === i ? e.target.value : x))}
+                          className="w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2 resize-y" />
+                        <button onClick={() => setVariations(arr => arr.filter((_, idx) => idx !== i))}
+                          className="absolute top-1 right-1 text-gray-500 hover:text-red-400 text-xs">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4">
