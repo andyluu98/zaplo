@@ -13,20 +13,20 @@ import ContentCalendarTab from '@/components/schedule/content-calendar-tab';
 type FbTab = 'post' | 'store' | 'calendar' | 'groups' | 'comment' | 'agent' | 'log' | 'limit';
 
 const TABS: Array<{ id: FbTab; label: string }> = [
+  { id: 'log',      label: '📊 Thống kê' },
   { id: 'post',     label: '📝 Đăng bài' },
   { id: 'store',    label: '🗂️ Kho bài' },
   { id: 'calendar', label: '📅 Lịch nội dung' },
   { id: 'groups',   label: '👥 Nhóm' },
-  { id: 'comment', label: '💬 Auto-Comment' },
-  { id: 'agent',   label: '🤖 Agent tự động' },
-  { id: 'log',     label: '📜 Nhật ký' },
-  { id: 'limit',   label: '⚙️ Giới hạn an toàn' },
+  { id: 'comment',  label: '💬 Auto-Comment' },
+  { id: 'agent',    label: '🤖 Agent tự động' },
+  { id: 'limit',    label: '⚙️ Giới hạn an toàn' },
 ];
 
 interface FbAccount { id: string; facebook_id: string; name: string; avatar_url?: string; status?: string; }
 
 export default function FbWritePage() {
-  const [activeTab, setActiveTab] = useState<FbTab>('post');
+  const [activeTab, setActiveTab] = useState<FbTab>('log');
   const [accounts, setAccounts] = useState<FbAccount[]>([]);
   const [accountId, setAccountId] = useState<string>('');
 
