@@ -372,6 +372,22 @@ class DatabaseService {
         this.save();
     }
 
+    // ─── Agent targets (đa-kênh: account+channel+group cho 1 agent) ─────────────
+    public setAgentTargets(agentId: number, targets: Array<{ channel: string; account_id: string; group_id: string }>): void {
+        this.run(`DELETE FROM agent_target WHERE agent_id=?`, [agentId]);
+        for (const t of targets) {
+            this.run(
+                `INSERT OR IGNORE INTO agent_target(agent_id, channel, account_id, group_id) VALUES(?,?,?,?)`,
+                [agentId, t.channel, t.account_id, t.group_id || ''],
+            );
+        }
+        this.save();
+    }
+
+    public listAgentTargets(agentId: number): Array<{ agent_id: number; channel: string; account_id: string; group_id: string }> {
+        return this.query(`SELECT * FROM agent_target WHERE agent_id=?`, [agentId]);
+    }
+
     /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0 */
     private normalizeVietnamPhone(phone?: string): string {
         if (!phone) return '';
@@ -827,6 +843,14 @@ class DatabaseService {
                 enabled INTEGER NOT NULL DEFAULT 1
             );
             CREATE INDEX IF NOT EXISTS idx_agent_sched ON agent_schedule(agent_id);
+            CREATE TABLE IF NOT EXISTS agent_target (
+                agent_id INTEGER NOT NULL,
+                channel TEXT NOT NULL DEFAULT 'fb',
+                account_id TEXT NOT NULL,
+                group_id TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (agent_id, channel, account_id, group_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_agent_target ON agent_target(agent_id);
         `);
 
         // ─── Chat Agents (auto-reply agent-centric module) ──────────────────────
@@ -1632,6 +1656,11 @@ class DatabaseService {
                     window_start TEXT DEFAULT '08:00', window_end TEXT DEFAULT '21:00', posts_per_day INTEGER NOT NULL DEFAULT 1, enabled INTEGER NOT NULL DEFAULT 1
                 );
                 CREATE INDEX IF NOT EXISTS idx_agent_sched ON agent_schedule(agent_id);
+                CREATE TABLE IF NOT EXISTS agent_target (
+                    agent_id INTEGER NOT NULL, channel TEXT NOT NULL DEFAULT 'fb', account_id TEXT NOT NULL,
+                    group_id TEXT NOT NULL DEFAULT '', PRIMARY KEY (agent_id, channel, account_id, group_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_agent_target ON agent_target(agent_id);
             `);
             this.save();
             Logger.log('[DatabaseService] ✅ Migration: ensured agent-centric tables exist');
