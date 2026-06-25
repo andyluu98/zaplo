@@ -1,0 +1,1651 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Zaplo — Zalo Đăng bài nhóm (Làm tay)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1420;--panel:#161c2b;--p2:#1d2436;--bd:#2a3346;
+  --tx:#e5e9f0;--mut:#8a93a6;--bl:#3b82f6;--bl2:#2563eb;
+  --gn:#22c55e;--rd:#ef4444;--am:#f59e0b;--pp:#8b5cf6;
+  /* Zalo blue accent */
+  --zl:#0068ff;--zl2:#0050cc;--zl-soft:rgba(0,104,255,.12)
+}
+body{background:var(--bg);color:var(--tx);font-family:"Segoe UI",system-ui,Arial,sans-serif;font-size:14px;height:100vh;overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* HEADER */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--bd);flex-shrink:0;gap:12px}
+.hdr-left{display:flex;align-items:center;gap:10px}
+.hdr-logo{font-size:15px;font-weight:700;color:var(--tx)}
+.hdr-logo span{color:var(--zl)}
+.hdr-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px}
+.acct-btn{display:flex;align-items:center;gap:8px;background:var(--p2);border:1px solid var(--bd);border-radius:10px;padding:6px 12px;cursor:pointer;position:relative;user-select:none}
+.acct-btn:hover{border-color:var(--zl)}
+.av{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#0068ff,#00c6ff);flex-shrink:0}
+.av.zl2{background:linear-gradient(135deg,#06b6d4,#0068ff)}
+.dot-on{width:8px;height:8px;border-radius:50%;background:var(--gn)}
+.acct-drop{position:absolute;top:calc(100% + 6px);right:0;background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:6px;min-width:200px;z-index:100;display:none}
+.acct-drop.open{display:block}
+.acct-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px}
+.acct-item:hover{background:var(--p2)}
+
+/* TABS */
+.tabs-bar{display:flex;align-items:center;gap:2px;padding:8px 16px 0;border-bottom:1px solid var(--bd);background:var(--panel);flex-shrink:0;overflow-x:auto}
+.tab{padding:8px 14px;font-size:13px;font-weight:500;color:var(--mut);border-bottom:2px solid transparent;cursor:pointer;border-radius:8px 8px 0 0;white-space:nowrap;transition:color .15s}
+.tab:hover{color:var(--tx);background:rgba(255,255,255,.03)}
+.tab.active{color:var(--zl);border-bottom-color:var(--zl);background:var(--zl-soft)}
+
+/* CONTENT */
+.content{flex:1;overflow-y:auto;padding:18px;background:var(--bg)}
+.pane{display:none}
+.pane.active{display:block}
+
+/* CARDS */
+.card{background:var(--panel);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+.card-title{font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+
+/* FORM ELEMENTS */
+label.lab{display:block;font-size:12px;color:var(--mut);margin:10px 0 5px}
+textarea,input[type=text],input[type=datetime-local],input[type=number],select{
+  width:100%;background:var(--p2);border:1px solid var(--bd);border-radius:9px;
+  color:var(--tx);padding:9px 12px;font-size:13px;font-family:inherit;outline:none;
+  transition:border-color .15s
+}
+textarea{min-height:110px;resize:vertical}
+textarea:focus,input:focus,select:focus{border-color:var(--zl)}
+select option{background:var(--panel)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--zl);color:#fff;border:none;border-radius:9px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:13px;transition:background .15s;white-space:nowrap}
+.btn:hover{background:var(--zl2)}
+.btn.ghost{background:var(--p2);border:1px solid var(--bd);color:var(--tx)}
+.btn.ghost:hover{border-color:var(--zl);color:var(--zl)}
+.btn.green{background:var(--gn)} .btn.green:hover{background:#16a34a}
+.btn.red{background:var(--rd)} .btn.red:hover{background:#dc2626}
+.btn.amber{background:var(--am);color:#0f1420} .btn.amber:hover{background:#d97706}
+.btn.purple{background:var(--pp)} .btn.purple:hover{background:#7c3aed}
+.btn.sm{padding:5px 11px;font-size:12px;border-radius:7px}
+.btn.xs{padding:3px 8px;font-size:11px;border-radius:6px}
+
+/* PILLS */
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{padding:7px 14px;border-radius:20px;background:var(--p2);border:1px solid var(--bd);color:var(--mut);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s}
+.pill.on{background:var(--zl-soft);border-color:var(--zl);color:#60a5fa}
+
+/* ROWS */
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row-sb{display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+/* TOGGLE */
+.tgl{width:40px;height:22px;border-radius:20px;background:#3a445a;position:relative;cursor:pointer;flex-shrink:0;transition:background .2s}
+.tgl.on{background:var(--gn)}
+.tgl::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .2s}
+.tgl.on::after{left:20px}
+
+/* PROGRESS BAR */
+.meter{height:8px;background:var(--p2);border-radius:6px;overflow:hidden;border:1px solid var(--bd)}
+.meter-fill{height:100%;background:var(--gn);border-radius:6px;transition:width .4s ease;width:0}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
+.badge.bl{background:rgba(0,104,255,.15);color:#60a5fa}
+.badge.gn{background:rgba(34,197,94,.15);color:#86efac}
+.badge.rd{background:rgba(239,68,68,.15);color:#fca5a5}
+.badge.am{background:rgba(245,158,11,.15);color:#fde68a}
+.badge.pp{background:rgba(139,92,246,.15);color:#c4b5fd}
+.badge.ai{background:rgba(139,92,246,.2);color:#c4b5fd;font-size:10px}
+
+/* LISTS */
+.list-box{border:1px solid var(--bd);border-radius:10px;overflow:hidden;max-height:220px;overflow-y:auto}
+.list-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
+.list-item:last-child{border-bottom:none}
+.list-item:hover{background:rgba(255,255,255,.03)}
+.list-ic{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#0068ff,#00c6ff);flex-shrink:0}
+.list-ic.var2{background:linear-gradient(135deg,#f59e0b,#ef4444)}
+.list-ic.var3{background:linear-gradient(135deg,#8b5cf6,#0068ff)}
+input[type=checkbox]{accent-color:var(--zl);width:15px;height:15px;cursor:pointer}
+
+/* NOTES */
+.note{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:#fde68a;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.5}
+.note.blue{background:rgba(0,104,255,.08);border-color:rgba(0,104,255,.25);color:#93c5fd}
+.note.green{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.25);color:#86efac}
+.note.red{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.25);color:#fca5a5}
+
+/* BANNER */
+.banner{background:linear-gradient(90deg,rgba(0,104,255,.12),transparent);border-left:3px solid var(--zl);border-radius:0 10px 10px 0;padding:10px 14px;font-size:13px;margin-bottom:14px;color:#93c5fd}
+
+/* KPI */
+.kpi-card{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:16px}
+.kpi-num{font-size:28px;font-weight:700;line-height:1.1}
+.kpi-label{font-size:12px;color:var(--mut);margin-top:4px}
+.kpi-trend{font-size:11px;color:var(--gn);margin-top:6px}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:8px 10px;color:var(--mut);font-size:11px;text-transform:uppercase;border-bottom:1px solid var(--bd)}
+.tbl td{padding:9px 10px;border-bottom:1px solid var(--bd)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(255,255,255,.02)}
+
+/* BAR CHART */
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:100px}
+.bar-col{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1}
+.bar{width:100%;border-radius:4px 4px 0 0;background:var(--zl);opacity:.8;min-height:4px;transition:opacity .2s}
+.bar:hover{opacity:1}
+.bar-label{font-size:10px;color:var(--mut)}
+
+/* CALENDAR */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-head{text-align:center;font-size:11px;color:var(--mut);padding:6px 0;font-weight:600}
+.cal-day{min-height:56px;background:var(--p2);border:1px solid var(--bd);border-radius:8px;padding:5px;cursor:pointer;transition:border-color .15s;position:relative}
+.cal-day:hover{border-color:var(--zl)}
+.cal-day.today{border-color:var(--zl);background:var(--zl-soft)}
+.cal-day.selected{border-color:var(--pp);background:rgba(139,92,246,.08)}
+.cal-day.empty{background:transparent;border-color:transparent;cursor:default}
+.cal-day .dn{font-size:12px;font-weight:600;margin-bottom:3px}
+.cal-dots{display:flex;gap:3px;flex-wrap:wrap;margin-top:2px}
+.cal-dot{width:7px;height:7px;border-radius:50%}
+
+/* IMG GRID */
+.img-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.img-thumb{aspect-ratio:1;border-radius:10px;overflow:hidden;position:relative;cursor:pointer;border:1px solid var(--bd)}
+.img-thumb img,.img-thumb .ph{width:100%;height:100%;object-fit:cover;display:block}
+.img-thumb .ph{background:linear-gradient(135deg,var(--bd),var(--p2))}
+.img-thumb .ov{position:absolute;inset:0;background:rgba(0,0,0,.65);display:flex;gap:6px;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;border-radius:10px}
+.img-thumb:hover .ov{opacity:1}
+.img-thumb .ai-badge{position:absolute;top:6px;left:6px}
+
+/* MODALS */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--panel);border:1px solid var(--bd);border-radius:16px;padding:22px;min-width:460px;max-width:640px;width:100%;max-height:85vh;overflow-y:auto;position:relative}
+.modal-lg{max-width:760px}
+.modal-close{position:absolute;top:14px;right:14px;background:var(--p2);border:1px solid var(--bd);color:var(--tx);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:var(--rd);border-color:var(--rd)}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px;padding-right:30px}
+
+/* MODAL TABS */
+.m-tabs{display:flex;gap:4px;margin-bottom:16px}
+.m-tab{padding:7px 14px;border-radius:8px;cursor:pointer;font-size:13px;color:var(--mut);border:1px solid transparent}
+.m-tab.active{background:var(--zl-soft);border-color:rgba(0,104,255,.3);color:#60a5fa}
+.m-tab:hover:not(.active){background:var(--p2)}
+
+/* DRAFT LIST */
+.draft-item{background:var(--p2);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:8px}
+.draft-item textarea{min-height:60px;margin-top:6px}
+
+/* GROUP ITEM */
+.grp-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--bd)}
+.grp-item:last-child{border-bottom:none}
+.grp-ic{width:30px;height:30px;border-radius:8px;flex-shrink:0}
+
+/* AGENT CARD */
+.agent-card{background:var(--p2);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:10px}
+
+/* KHO BÀI - TOOLBAR */
+.kho-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--panel);border:1px solid var(--bd);border-radius:12px}
+.kho-search{flex:1;min-width:160px;background:var(--p2);border:1px solid var(--bd);border-radius:8px;color:var(--tx);padding:7px 12px;font-size:13px;outline:none}
+.kho-search:focus{border-color:var(--zl)}
+.kho-sep{width:1px;height:28px;background:var(--bd);flex-shrink:0}
+/* KHO BÀI - POST CARD */
+.kho-card{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:14px;position:relative;transition:border-color .15s}
+.kho-card:hover{border-color:rgba(0,104,255,.4)}
+.kho-card.selected{border-color:var(--zl);background:rgba(0,104,255,.04)}
+.kho-card-cb{position:absolute;top:12px;left:12px;width:17px;height:17px;cursor:pointer;accent-color:var(--zl)}
+.kho-card-body{padding-left:26px}
+.kho-card-title{font-size:13px;line-height:1.5;margin-bottom:8px;font-weight:500}
+.kho-card-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.kho-card-actions{display:flex;gap:6px;flex-wrap:wrap}
+/* KGRID */
+.kgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+/* PROGRESS MODAL */
+.prog-modal-bar{height:10px;background:var(--p2);border-radius:6px;overflow:hidden;border:1px solid var(--bd);margin-top:8px}
+.prog-modal-fill{height:100%;background:linear-gradient(90deg,var(--zl),var(--pp));border-radius:6px;transition:width .3s ease}
+/* HIDDEN */
+.hidden{display:none!important}
+/* CHIP PILLAR */
+.chip-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:20px;background:var(--p2);border:1px solid var(--bd);color:var(--tx);font-size:12px;font-weight:500}
+.chip.colored{background:var(--zl-soft);border-color:rgba(0,104,255,.4);color:#93c5fd}
+.chip-rm{background:none;border:none;color:var(--mut);cursor:pointer;font-size:14px;padding:0;line-height:1}
+.chip-rm:hover{color:var(--rd)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--mut)}
+
+/* SELECTED THUMB */
+.sel-thumb{position:relative;display:inline-block;margin:4px}
+.sel-thumb img,.sel-thumb .ph-sm{width:60px;height:60px;border-radius:8px;object-fit:cover;border:2px solid var(--zl)}
+.sel-thumb .ph-sm{background:linear-gradient(135deg,var(--zl),var(--pp));display:block}
+.sel-thumb .rm{position:absolute;top:-5px;right:-5px;background:var(--rd);color:#fff;width:18px;height:18px;border-radius:50%;border:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center}
+
+/* RESULT LOG */
+.result-log{background:var(--p2);border:1px solid var(--bd);border-radius:10px;padding:10px;font-size:12px;line-height:1.8;max-height:140px;overflow-y:auto;display:none}
+.result-log.show{display:block}
+
+/* DRAG DROP */
+.drop-zone{border:2px dashed var(--bd);border-radius:12px;padding:30px;text-align:center;color:var(--mut);cursor:pointer;transition:border-color .15s}
+.drop-zone:hover,.drop-zone.drag-over{border-color:var(--zl);color:var(--zl)}
+
+/* HUB POINTER */
+.hub-card{background:linear-gradient(135deg,rgba(0,104,255,.08),rgba(139,92,246,.08));border:1px solid rgba(0,104,255,.3);border-radius:16px;padding:30px;text-align:center;margin-bottom:14px}
+
+/* MISC */
+.mt4{margin-top:4px}.mt8{margin-top:8px}.mt10{margin-top:10px}.mt12{margin-top:12px}.mt16{margin-top:16px}
+.mb4{margin-bottom:4px}.mb8{margin-bottom:8px}.mb10{margin-bottom:10px}.mb12{margin-bottom:12px}.mb16{margin-bottom:16px}
+.muted{color:var(--mut)}.small{font-size:12px}.semibold{font-weight:600}
+.sep{border:none;border-top:1px solid var(--bd);margin:14px 0}
+.tag{display:inline-flex;align-items:center;gap:4px;background:var(--p2);border:1px solid var(--bd);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-logo">Zap<span>lo</span></div>
+    <div style="color:var(--bd);font-size:16px">|</div>
+    <div class="hdr-title">💙 Zalo — Đăng bài nhóm</div>
+  </div>
+  <div class="acct-btn" onclick="toggleAcctDrop()" id="acctBtn">
+    <div class="av"></div>
+    <span style="font-size:13px;font-weight:600">Tt (Zalo)</span>
+    <div class="dot-on"></div>
+    <span style="color:var(--mut);font-size:11px">▾</span>
+    <div class="acct-drop" id="acctDrop">
+      <div class="acct-item" onclick="event.stopPropagation()">
+        <div class="av"></div><span style="font-weight:600">Tt (Zalo)</span><div class="dot-on" style="margin-left:auto"></div>
+      </div>
+      <div class="acct-item" onclick="event.stopPropagation()">
+        <div class="av zl2"></div><span>Account 2</span><div class="dot-on" style="background:var(--mut);margin-left:auto"></div>
+      </div>
+      <hr class="sep" style="margin:4px 0"/>
+      <div class="acct-item" onclick="event.stopPropagation()" style="color:var(--zl)">+ Thêm tài khoản Zalo</div>
+    </div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs-bar">
+  <div class="tab active" onclick="switchTab(0,this)">📝 Soạn &amp; Đăng</div>
+  <div class="tab" onclick="switchTab(1,this)">🗂️ Kho bài</div>
+  <div class="tab" onclick="switchTab(2,this)">🖼️ Thư viện ảnh</div>
+  <div class="tab" onclick="switchTab(3,this)">📅 Lịch nội dung</div>
+  <div class="tab" onclick="switchTab(4,this)">👥 Nhóm Zalo</div>
+  <div class="tab" onclick="switchTab(5,this)">🧩 Chủ đề</div>
+  <div class="tab" onclick="switchTab(6,this)">📊 Thống kê</div>
+  <div class="tab" onclick="switchTab(7,this)">🤖 Tự động (→ Hub)</div>
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+
+<!-- TAB 0: SOẠN & ĐĂNG -->
+<div class="pane active" id="pane0">
+  <div class="banner">✍️ Soạn bài thủ công → chọn nhóm Zalo → hẹn lịch hoặc đăng ngay. Tự động hoá quản ở Hub AI &amp; Agent.</div>
+  <div class="grid2">
+    <!-- LEFT -->
+    <div>
+      <div class="card">
+        <div class="card-title">Trợ lý AI</div>
+        <select id="aiModel">
+          <option>GPT-4o (OpenAI)</option>
+          <option>Claude 3.5 Sonnet</option>
+          <option>Gemini 1.5 Pro</option>
+          <option>Llama 3.1 (Local)</option>
+        </select>
+        <div class="row mt12">
+          <span style="font-size:12px;color:var(--mut)">Chế độ:</span>
+          <div class="pills" id="modePills">
+            <div class="pill on" onclick="setMode('single',this)">1 bài</div>
+            <div class="pill" onclick="setMode('multi',this)">Nhiều bài</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SINGLE MODE -->
+      <div id="singleMode">
+        <div class="card">
+          <div class="card-title">Nội dung bài viết</div>
+          <textarea id="postContent" placeholder="Nhập nội dung bài viết... hoặc để AI viết giúp bạn."></textarea>
+          <div class="row mt12">
+            <button class="btn purple" onclick="aiWrite()">✨ AI viết</button>
+            <button class="btn ghost" onclick="openImgPicker()">🖼️ Ảnh <span id="imgCount">(0)</span></button>
+            <button class="btn ghost" onclick="saveToLib()">💾 Lưu Kho bài</button>
+          </div>
+          <div id="selectedImgs" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px"></div>
+        </div>
+      </div>
+
+      <!-- MULTI MODE -->
+      <div id="multiMode" class="hidden">
+        <div class="card">
+          <div class="card-title">Sinh nhiều bài</div>
+          <label class="lab">Chủ đề / nội dung cốt lõi</label>
+          <textarea id="multiTopic" placeholder="Ví dụ: Khuyến mãi hè — giảm 40% toàn bộ sản phẩm..." style="min-height:70px"></textarea>
+          <div class="row mt10">
+            <label class="lab" style="margin:0">Số bài:</label>
+            <input type="number" id="numPosts" value="3" min="1" max="20" style="width:80px"/>
+            <button class="btn purple" onclick="genMulti()">🤖 AI sinh bài</button>
+          </div>
+        </div>
+        <div id="draftList"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div>
+      <div class="card">
+        <div class="card-title">Đăng tới nhóm Zalo</div>
+        <div class="note blue mb12" style="font-size:12px;margin-bottom:10px">
+          💙 Zalo chỉ đăng vào <strong>Nhóm Zalo</strong> (không có Tường cá nhân kiểu FB, không có Fanpage).
+        </div>
+        <div class="list-box" id="groupPickList">
+          <div class="list-item"><input type="checkbox" checked/><div class="list-ic"></div><span style="flex:1">Cộng đồng Làm Đẹp Việt</span><span class="small muted" style="white-space:nowrap">4.2k TV</span></div>
+          <div class="list-item"><input type="checkbox"/><div class="list-ic var2"></div><span style="flex:1">Nhóm Kinh Doanh Online</span><span class="small muted" style="white-space:nowrap">2.8k TV</span></div>
+          <div class="list-item"><input type="checkbox" checked/><div class="list-ic var3"></div><span style="flex:1">Hội Mẹ Bỉm Sữa HN</span><span class="small muted" style="white-space:nowrap">6.1k TV</span></div>
+          <div class="list-item"><input type="checkbox"/><div class="list-ic"></div><span style="flex:1">Zalo Bán Hàng Miền Nam</span><span class="small muted" style="white-space:nowrap">1.5k TV</span></div>
+          <div class="list-item"><input type="checkbox" checked/><div class="list-ic var2"></div><span style="flex:1">Hội Yêu Sức Khoẻ</span><span class="small muted" style="white-space:nowrap">3.3k TV</span></div>
+          <div class="list-item"><input type="checkbox"/><div class="list-ic var3"></div><span style="flex:1">Cộng Đồng Startup VN</span><span class="small muted" style="white-space:nowrap">900 TV</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Thời điểm đăng</div>
+        <div class="pills" id="timePills" style="margin-bottom:12px">
+          <div class="pill on" onclick="setTime('now',this)">⚡ Đăng ngay</div>
+          <div class="pill" onclick="setTime('schedule',this)">📅 Hẹn lịch</div>
+        </div>
+        <div id="scheduleInput" class="hidden">
+          <label class="lab">Thời gian đăng</label>
+          <input type="datetime-local" id="schedDt"/>
+        </div>
+        <button class="btn green" style="width:100%;margin-top:12px;justify-content:center" onclick="doPost()">✅ Đăng / Lên lịch</button>
+        <div id="postProgress" class="hidden" style="margin-top:12px">
+          <div class="row-sb mb8">
+            <span class="small">Đang đăng vào nhóm Zalo...</span>
+            <span class="small" id="postPct">0%</span>
+          </div>
+          <div class="meter"><div class="meter-fill" id="postBar"></div></div>
+        </div>
+        <div class="result-log" id="resultLog"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 1: KHO BÀI -->
+<div class="pane" id="pane1">
+  <!-- Toolbar -->
+  <div class="kho-toolbar">
+    <button class="btn purple" onclick="openModal('aiGenManyModal')">✨ AI tạo nhiều bài</button>
+    <button class="btn ghost" onclick="newLibPost()">+ Bài mới</button>
+    <div class="kho-sep"></div>
+    <input class="kho-search" type="text" placeholder="🔍 Tìm bài..." oninput="filterKho(this.value)" id="khoSearch"/>
+    <div class="kho-sep"></div>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;white-space:nowrap">
+      <input type="checkbox" id="chkSelectAll" style="accent-color:var(--zl);width:15px;height:15px" onchange="toggleSelectAll(this.checked)"/> Chọn tất cả
+    </label>
+    <button class="btn red hidden" id="btnDeleteSelected" onclick="deleteSelected()">🗑 Xóa đã chọn (<span id="selCountLabel">0</span>)</button>
+    <button class="btn ghost" style="border-color:var(--rd);color:var(--rd)" onclick="deleteAllKho()">🗑 Xóa tất cả</button>
+    <button class="btn amber hidden" id="btnRaiSelected" onclick="openRaiLich('selected')">📅 Rải bài đã chọn vào lịch</button>
+  </div>
+  <!-- Total info -->
+  <div class="row-sb mb10">
+    <span class="small muted" id="khoTotalLabel">Tổng: 0 bài trong kho</span>
+  </div>
+  <!-- Grid -->
+  <div id="libGrid" class="kgrid"><!-- populated by JS --></div>
+  <!-- Edit modal inside tab -->
+  <div id="editPostModal" class="hidden" style="background:var(--panel);border:1px solid var(--bd);border-radius:14px;padding:20px;margin-top:16px">
+    <div class="row-sb mb12">
+      <span class="semibold">✏️ Sửa bài</span>
+      <button class="btn ghost sm" onclick="closeEditPost()">✕ Đóng</button>
+    </div>
+    <textarea id="editPostTxt" style="min-height:120px"></textarea>
+    <div class="row mt10">
+      <button class="btn green sm" onclick="saveEditPost()">💾 Lưu</button>
+      <button class="btn sm" onclick="useLibPost()">📤 Đăng ngay</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 2: THƯ VIỆN ẢNH -->
+<div class="pane" id="pane2">
+  <div class="row-sb mb12">
+    <div class="hdr-title">🖼️ Thư viện ảnh</div>
+    <div class="row">
+      <button class="btn ghost" onclick="document.getElementById('uploadFile').click()">⬆️ Tải ảnh lên</button>
+      <input type="file" id="uploadFile" class="hidden" accept="image/*" multiple onchange="handleUpload(this)"/>
+      <button class="btn purple" onclick="openAiImgModal()">✨ AI sinh ảnh</button>
+    </div>
+  </div>
+  <div class="img-grid" id="imgGallery"></div>
+</div>
+
+<!-- TAB 3: LỊCH NỘI DUNG -->
+<div class="pane" id="pane3">
+  <div class="row-sb mb12">
+    <div class="hdr-title">📅 Lịch nội dung tháng <span id="calMonthLabel"></span></div>
+    <div class="row">
+      <button class="btn amber" onclick="openRaiLich('random')">📅 Rải bài đã chọn vào lịch</button>
+      <button class="btn ghost sm" onclick="calPrev()">‹ Trước</button>
+      <button class="btn ghost sm" onclick="calNext()">Sau ›</button>
+    </div>
+  </div>
+  <div class="card" style="padding:12px">
+    <div class="cal-grid" id="calHead"></div>
+    <div class="cal-grid mt4" id="calGrid"></div>
+  </div>
+  <div id="dayDetail" class="hidden card" style="margin-top:12px">
+    <div class="row-sb mb10">
+      <span class="semibold" id="dayDetailTitle">Chi tiết ngày</span>
+      <button class="btn ghost sm" onclick="document.getElementById('dayDetail').classList.add('hidden')">✕</button>
+    </div>
+    <div id="dayPosts"></div>
+  </div>
+</div>
+
+<!-- TAB 4: NHÓM ZALO -->
+<div class="pane" id="pane4">
+  <div class="banner">
+    💙 Nhóm Zalo lấy <strong>trực tiếp từ tài khoản</strong> — không cần cào theo từ khóa như Facebook. Dùng "Đồng bộ nhóm Zalo" để tự động cập nhật danh sách.
+  </div>
+  <div class="row mb12">
+    <button class="btn ghost" onclick="openModal('addGrpModal')">+ Thêm tay</button>
+    <button class="btn ghost" onclick="openModal('csvModal')">📄 Nhập CSV</button>
+    <button class="btn" onclick="syncZaloGroups()">🔄 Đồng bộ nhóm Zalo</button>
+  </div>
+  <div id="syncStatus" class="hidden note blue mb12">⏳ Đang kết nối Zalo và lấy danh sách nhóm...</div>
+  <div class="card">
+    <div class="card-title" id="savedGrpsTitle">Nhóm đã lưu (0)</div>
+    <div id="savedGrpList">
+      <div class="muted small" style="padding:10px">Chưa có nhóm. Nhấn "Đồng bộ nhóm Zalo" để tự động lấy, hoặc thêm tay.</div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 5: CHỦ ĐỀ (PILLARS) -->
+<div class="pane" id="pane5">
+  <div class="banner">🧩 Quản lý chủ đề nội dung (Content Pillars). AI &amp; Agent dùng chủ đề này để sinh bài đúng hướng.</div>
+  <div class="card">
+    <div class="card-title">Chủ đề hiện có</div>
+    <div class="chip-wrap" id="pillarChips"></div>
+    <div class="row mt4">
+      <input type="text" id="newPillarInput" placeholder="Tên chủ đề mới..." style="width:220px"/>
+      <button class="btn" onclick="addPillar()">+ Thêm chủ đề</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Hướng dẫn dùng chủ đề</div>
+    <div style="font-size:13px;line-height:1.8;color:var(--mut)">
+      <div>1. Tạo các chủ đề phù hợp với chiến lược nội dung của bạn (vd: Khuyến mãi, Tin tức, Tuyển dụng, Tips...).</div>
+      <div>2. Khi dùng AI viết bài ở tab <strong>Soạn &amp; Đăng</strong>, AI sẽ gợi ý bài theo chủ đề.</div>
+      <div>3. Agent tự động ở <strong>Hub AI &amp; Agent</strong> sẽ luân phiên theo chủ đề để đa dạng nội dung.</div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 6: THỐNG KÊ -->
+<div class="pane" id="pane6">
+  <div class="hdr-title mb12">📊 Thống kê Zalo — 30 ngày qua</div>
+  <div class="grid4 mb16">
+    <div class="kpi-card"><div class="kpi-num" style="color:var(--zl)">93</div><div class="kpi-label">Bài đã đăng</div><div class="kpi-trend">▲ +18% vs tháng trước</div></div>
+    <div class="kpi-card"><div class="kpi-num" style="color:var(--gn)">88%</div><div class="kpi-label">Tỉ lệ thành công</div><div class="kpi-trend">▲ +5% vs tháng trước</div></div>
+    <div class="kpi-card"><div class="kpi-num" style="color:var(--pp)">1,240</div><div class="kpi-label">Lượt tương tác</div><div class="kpi-trend">▲ +22% vs tháng trước</div></div>
+    <div class="kpi-card"><div class="kpi-num" style="color:var(--am)">18</div><div class="kpi-label">Nhóm hoạt động</div><div class="kpi-trend">▲ +3 nhóm mới</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Bài đăng theo ngày (7 ngày)</div>
+      <div class="bar-chart" id="barChart" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Theo nhóm Zalo (Top 6)</div>
+      <table class="tbl">
+        <thead><tr><th>Nhóm</th><th>Bài</th><th>✅</th><th>❌</th></tr></thead>
+        <tbody id="statsTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 7: TỰ ĐỘNG (→ Hub) -->
+<div class="pane" id="pane7">
+  <div class="note blue mb12">🤖 <strong>Tự động hoá Zalo quản lý tập trung ở Hub "AI &amp; Agent"</strong>. Trang Zalo này chỉ dùng để LÀM TAY: soạn &amp; đăng, kho bài, ảnh, lịch, nhóm, chủ đề, thống kê.</div>
+  <div class="hub-card">
+    <div style="font-size:36px;margin-bottom:10px">🤖</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">Agent đăng tự động Zalo</div>
+    <div style="font-size:13px;color:var(--mut);max-width:520px;margin:0 auto 18px;line-height:1.6">
+      Agent lấy bài từ <strong>Kho bài</strong>, luân phiên theo <strong>Chủ đề</strong>, đăng theo lịch vào các nhóm Zalo đã lưu — chạy nền, log kết quả. Tạo &amp; quản lý tại Hub để dùng chung cho cả FB &amp; Zalo.
+    </div>
+    <button class="btn" style="font-size:14px;padding:11px 24px" onclick="alert('(mô phỏng) Mở Hub AI & Agent → tab Agent đăng bài → lọc kênh Zalo')">↗ Mở Hub AI &amp; Agent</button>
+  </div>
+  <div class="card">
+    <div class="card-title">Agent Zalo đang chạy (xem nhanh)</div>
+    <div id="agentList"></div>
+  </div>
+</div>
+
+</div><!-- end .content -->
+</div><!-- end .app -->
+
+<!-- ===================== MODALS ===================== -->
+
+<!-- IMG PICKER MODAL -->
+<div class="modal-bg hidden" id="imgPickerModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('imgPickerModal')">✕</button>
+    <div class="modal-title">🖼️ Chọn ảnh đính kèm</div>
+    <div class="m-tabs">
+      <div class="m-tab active" onclick="switchMTab('iFrom',this)">Từ máy</div>
+      <div class="m-tab" onclick="switchMTab('iLib',this)">Thư viện</div>
+      <div class="m-tab" onclick="switchMTab('iAI',this)">AI sinh</div>
+    </div>
+    <div id="iFrom">
+      <div class="drop-zone" onclick="document.getElementById('pickerFileInput').click()" id="pickerDrop">
+        <div style="font-size:32px;margin-bottom:8px">📂</div>
+        <div>Kéo thả hoặc click để chọn ảnh</div>
+        <div class="small muted mt4">PNG, JPG, WEBP — tối đa 10MB/ảnh</div>
+      </div>
+      <input type="file" id="pickerFileInput" class="hidden" accept="image/*" multiple onchange="handlePickerFile(this)"/>
+    </div>
+    <div id="iLib" class="hidden">
+      <div class="img-grid" id="pickerLibGrid"></div>
+    </div>
+    <div id="iAI" class="hidden">
+      <label class="lab">Mô tả ảnh cần AI sinh</label>
+      <textarea id="aiImgDesc" placeholder="Ví dụ: Sản phẩm chụp studio nền trắng, ánh sáng mềm..." style="min-height:70px"></textarea>
+      <button class="btn purple mt8" onclick="aiGenPickerImg()">✨ AI sinh ảnh</button>
+      <div id="aiPickerResult" class="mt8"></div>
+    </div>
+    <div class="sep"></div>
+    <div class="row-sb">
+      <span class="small muted" id="pickerSelCount">0 ảnh được chọn</span>
+      <button class="btn" onclick="confirmImgPick()">✅ Xác nhận chọn</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI IMAGE GENERATION MODAL -->
+<div class="modal-bg hidden" id="aiImgModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('aiImgModal')">✕</button>
+    <div class="modal-title">✨ AI sinh ảnh</div>
+    <label class="lab">Mô tả ảnh (tiếng Việt hoặc tiếng Anh)</label>
+    <textarea id="aiImgPrompt" placeholder="Ví dụ: Cô gái trẻ ngồi uống trà, không gian Việt Nam, ánh sáng buổi sáng..." style="min-height:90px"></textarea>
+    <label class="lab mt8">Phong cách</label>
+    <select id="aiImgStyle">
+      <option>Thực tế (Realistic)</option>
+      <option>Nghệ thuật (Artistic)</option>
+      <option>Hoạt hình (Cartoon)</option>
+      <option>Studio sản phẩm</option>
+    </select>
+    <button class="btn purple mt12" onclick="genAiImg()">✨ Sinh ảnh</button>
+    <div id="aiImgResult" class="mt12"></div>
+  </div>
+</div>
+
+<!-- ADD GROUP MODAL -->
+<div class="modal-bg hidden" id="addGrpModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('addGrpModal')">✕</button>
+    <div class="modal-title">+ Thêm nhóm Zalo thủ công</div>
+    <div class="note mb12" style="font-size:12px">Zalo không có URL nhóm công khai như FB. Nhập tên nhóm và ID (nếu có) hoặc chỉ tên để tra cứu.</div>
+    <label class="lab">Tên nhóm Zalo</label>
+    <input type="text" id="addGrpName" placeholder="Tên nhóm hiển thị trong Zalo"/>
+    <label class="lab">ID nhóm (tuỳ chọn)</label>
+    <input type="text" id="addGrpId" placeholder="Zalo group ID (nếu biết)"/>
+    <label class="lab">Số thành viên (tuỳ chọn)</label>
+    <input type="number" id="addGrpMembers" placeholder="0"/>
+    <div class="row mt12" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="closeModal('addGrpModal')">Hủy</button>
+      <button class="btn" onclick="addGroupManual()">➕ Thêm nhóm</button>
+    </div>
+  </div>
+</div>
+
+<!-- CSV IMPORT MODAL -->
+<div class="modal-bg hidden" id="csvModal">
+  <div class="modal modal-lg">
+    <button class="modal-close" onclick="closeModal('csvModal')">✕</button>
+    <div class="modal-title">📄 Nhập nhóm từ CSV</div>
+    <div class="note blue mb12" style="font-size:12px">Cột gợi ý: <strong>group_name, group_id, members</strong></div>
+    <div class="drop-zone" id="csvDrop" onclick="document.getElementById('csvFile').click()">
+      <div style="font-size:32px;margin-bottom:8px">📋</div>
+      <div>Kéo thả hoặc click để chọn file CSV</div>
+      <div class="small muted mt4">Cột: group_name, group_id, members</div>
+    </div>
+    <input type="file" id="csvFile" class="hidden" accept=".csv" onchange="handleCSV(this)"/>
+    <div id="csvPreview" class="hidden mt12">
+      <div class="card-title mb8">Xem trước dữ liệu</div>
+      <div style="overflow-x:auto">
+        <table class="tbl" id="csvTable">
+          <thead><tr><th>#</th><th>Tên nhóm</th><th>ID nhóm</th><th>Thành viên</th><th>Trạng thái</th></tr></thead>
+          <tbody id="csvBody"></tbody>
+        </table>
+      </div>
+      <div class="row mt12" style="justify-content:flex-end">
+        <button class="btn ghost" onclick="closeModal('csvModal')">Hủy</button>
+        <button class="btn green" onclick="importCSV()">✅ Nhập tất cả</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI TẠO NHIỀU BÀI MODAL (Zalo) -->
+<div class="modal-bg hidden" id="aiGenManyModal">
+  <div class="modal modal-lg">
+    <button class="modal-close" onclick="closeModal('aiGenManyModal')">✕</button>
+    <div class="modal-title">✨ AI tạo nhiều bài hàng loạt</div>
+    <label class="lab">Trợ lý AI</label>
+    <select id="aiGenManyModel">
+      <option>GPT-4o (OpenAI)</option>
+      <option>Claude 3.5 Sonnet</option>
+      <option>Gemini 1.5 Pro</option>
+      <option>Llama 3.1 (Local)</option>
+    </select>
+    <label class="lab">Chủ đề / nội dung cốt lõi</label>
+    <textarea id="aiGenManyTopic" placeholder="Ví dụ: Sản phẩm chăm sóc da mùa hè, nhắm giới trẻ 18-30 tuổi..." style="min-height:80px"></textarea>
+    <div class="grid2 mt12" style="gap:12px">
+      <div>
+        <label class="lab" style="margin-top:0">Số lượng bài cần tạo</label>
+        <div class="pills" id="aiGenQtyPills" style="gap:6px">
+          <div class="pill on" onclick="setAiGenQty(10,this)">10 bài</div>
+          <div class="pill" onclick="setAiGenQty(30,this)">30 bài</div>
+          <div class="pill" onclick="setAiGenQty(50,this)">50 bài</div>
+          <div class="pill" onclick="setAiGenQty(100,this)">100 bài</div>
+        </div>
+        <input type="number" id="aiGenManyQty" value="10" min="1" max="200" style="width:120px;margin-top:8px" placeholder="Hoặc nhập số..."/>
+      </div>
+      <div>
+        <label class="lab" style="margin-top:0">Số ảnh mỗi bài (ngẫu nhiên)</label>
+        <div class="row" style="gap:8px;align-items:center">
+          <span class="small muted">Ngẫu nhiên từ</span>
+          <input type="number" id="aiGenImgMin" value="1" min="0" max="10" style="width:60px"/>
+          <span class="small muted">đến</span>
+          <input type="number" id="aiGenImgMax" value="3" min="1" max="10" style="width:60px"/>
+          <span class="small muted">ảnh</span>
+        </div>
+        <div class="note blue mt8" style="font-size:11.5px">Ảnh được chọn ngẫu nhiên từ Thư viện khi đăng</div>
+      </div>
+    </div>
+    <!-- Progress -->
+    <div id="aiGenManyProgress" class="hidden mt12">
+      <div class="row-sb mb4">
+        <span class="small muted">Đang tạo bài...</span>
+        <span class="small" id="aiGenManyPct">0%</span>
+      </div>
+      <div class="prog-modal-bar"><div class="prog-modal-fill" id="aiGenManyBar" style="width:0%"></div></div>
+      <div class="small muted mt8" id="aiGenManyStatus">Đang khởi tạo...</div>
+    </div>
+    <div class="row mt16" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="closeModal('aiGenManyModal')">Hủy</button>
+      <button class="btn purple" id="btnAiGenMany" onclick="doAiGenMany()">✨ Sinh <span id="aiGenBtnLabel">10</span> bài</button>
+    </div>
+  </div>
+</div>
+
+<!-- RẢI BÀI VÀO LỊCH MODAL (Zalo) -->
+<div class="modal-bg hidden" id="raiLichModal">
+  <div class="modal modal-lg">
+    <button class="modal-close" onclick="closeModal('raiLichModal')">✕</button>
+    <div class="modal-title">📅 Rải bài vào Lịch nội dung</div>
+    <div class="note blue mb12" id="raiLichSourceNote">Nguồn: ngẫu nhiên từ Kho bài</div>
+    <div class="grid2" style="gap:12px">
+      <div>
+        <label class="lab" style="margin-top:0">Từ ngày</label>
+        <input type="date" id="raiTuNgay"/>
+        <label class="lab">Đến ngày</label>
+        <input type="date" id="raiDenNgay"/>
+      </div>
+      <div>
+        <label class="lab" style="margin-top:0">Mỗi ngày bao nhiêu bài?</label>
+        <input type="number" id="raiMoiNgay" value="2" min="1" max="20" style="width:120px"/>
+        <label class="lab">Khung giờ đăng</label>
+        <select id="raiGioKhung">
+          <option value="08:00">8:00 sáng</option>
+          <option value="10:00">10:00 sáng</option>
+          <option value="12:00">12:00 trưa</option>
+          <option value="14:00" selected>14:00 chiều</option>
+          <option value="17:00">17:00 chiều</option>
+          <option value="20:00">20:00 tối</option>
+          <option value="random">Ngẫu nhiên (8:00–21:00)</option>
+        </select>
+      </div>
+    </div>
+    <div class="note mt12" style="font-size:12px" id="raiLichPreview">Chọn ngày để xem số bài sẽ rải...</div>
+    <!-- Progress -->
+    <div id="raiLichProgress" class="hidden mt12">
+      <div class="row-sb mb4">
+        <span class="small muted">Đang rải bài...</span>
+        <span class="small" id="raiLichPct">0%</span>
+      </div>
+      <div class="prog-modal-bar"><div class="prog-modal-fill" id="raiLichBar" style="width:0%"></div></div>
+    </div>
+    <div class="row mt16" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="closeModal('raiLichModal')">Hủy</button>
+      <button class="btn amber" onclick="doRaiLich()">📅 Rải bài vào lịch</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+const S = {
+  tab: 0,
+  mode: 'single',
+  timeMode: 'now',
+  selectedImgs: [],
+  gallery: [],
+  groups: [],
+  libPosts: [],
+  agents: [],
+  pillars: [],
+  editPostIdx: -1,
+  calYear: 0, calMonth: 0,
+  calData: {},
+  pickerSelected: [],
+  khoFilter: '',
+  raiSource: 'random',
+  aiGenQty: 10,
+};
+
+// ===== INIT =====
+(function init(){
+  // Seed gallery
+  const grads = [
+    'linear-gradient(135deg,#0068ff,#00c6ff)',
+    'linear-gradient(135deg,#10b981,#0068ff)',
+    'linear-gradient(135deg,#f59e0b,#ef4444)',
+    'linear-gradient(135deg,#8b5cf6,#ec4899)',
+    'linear-gradient(135deg,#06b6d4,#0068ff)',
+    'linear-gradient(135deg,#f97316,#f59e0b)',
+    'linear-gradient(135deg,#22c55e,#10b981)',
+    'linear-gradient(135deg,#ec4899,#8b5cf6)',
+  ];
+  grads.forEach((g,i)=>{
+    S.gallery.push({id:i+1,gradient:g,ai:i<3,name:`anh-zalo-${i+1}`});
+  });
+
+  // Seed lib posts — 15 mock posts (~100 total concept)
+  const _zPostTpls = [
+    {emoji:'💙',txt:'Ưu đãi hè: Giảm 40% toàn bộ sản phẩm dưỡng da chính hãng!',t:'1 giờ trước'},
+    {emoji:'🌿',txt:'Bí quyết chăm sóc da mùa hè dành cho mẹ bỉm sữa bận rộn',t:'Hôm qua'},
+    {emoji:'⚡',txt:'Flash sale 48h: Serum vitamin C giảm 60% — số lượng có hạn!',t:'3 ngày trước'},
+    {emoji:'✨',txt:'Top 5 sản phẩm dưỡng ẩm tốt nhất cho da khô mùa đông',t:'1 tuần trước'},
+    {emoji:'🎁',txt:'Tặng gift set trị giá 500k khi mua từ 2 sản phẩm',t:'10 ngày trước'},
+    {emoji:'🌸',txt:'Review thật: Kem chống nắng SPF 50+ sau 1 tháng sử dụng',t:'2 tuần trước'},
+    {emoji:'💅',txt:'Top 5 màu nail xu hướng hè 2024 — Zalo exclusive',t:'2 tuần trước'},
+    {emoji:'🔥',txt:'Combo tiết kiệm: Mua 2 tặng 1 — hôm nay cuối ngày!',t:'3 tuần trước'},
+    {emoji:'💎',txt:'Collagen nước Nhật chính hãng — nhận hàng 2-3 ngày toàn quốc',t:'3 tuần trước'},
+    {emoji:'☀️',txt:'Kem chống nắng mới: test da dầu không bóng nhờn, không trôi',t:'1 tháng trước'},
+    {emoji:'🎀',txt:'Set quà mỹ phẩm cao cấp — tặng sinh nhật cực chuẩn vị',t:'1 tháng trước'},
+    {emoji:'💧',txt:'Tẩy trang bọt khí: làm sạch sâu mà không làm khô da',t:'5 tuần trước'},
+    {emoji:'🌺',txt:'Xịt dưỡng tóc không cần xả — mái tóc mềm mượt suốt ngày',t:'5 tuần trước'},
+    {emoji:'🍑',txt:'Dưỡng thể hương đào — da mềm mịn, mùi thơm lưu cả ngày',t:'6 tuần trước'},
+    {emoji:'🌙',txt:'Kem dưỡng ban đêm: ngủ dậy da căng bóng như muốn tuột',t:'7 tuần trước'},
+  ];
+  S.libPosts = _zPostTpls.map((p,i)=>({
+    id:i+1,
+    title:`${p.emoji} ${p.txt}`,
+    content:`${p.emoji} ${p.txt}\n\nNội dung chi tiết bài Zalo số ${i+1}. Sản phẩm chính hãng, nhắn tin để được tư vấn miễn phí!`,
+    imgs: Math.floor(Math.random()*4)+1,
+    time: p.t,
+    selected: false,
+  }));
+
+  // Seed agents (Zalo)
+  S.agents = [
+    {id:1,name:'Agent Zalo Daily Posts',source:'Kho bài Zalo',groups:'4 nhóm',schedule:'Mỗi ngày 9:00 sáng',on:true},
+    {id:2,name:'Agent Zalo Sale Weekend',source:'Kho bài Sale',groups:'8 nhóm',schedule:'Thứ 7 & CN, 19:00',on:false},
+  ];
+
+  // Seed pillars
+  S.pillars = ['Khuyến mãi','Tin tức sản phẩm','Tips & Tricks','Tuyển dụng','Chia sẻ cộng đồng'];
+
+  // Seed groups
+  S.groups = [
+    {name:'Cộng đồng Làm Đẹp Việt',id:'zl-g-001',members:'4,200',src:'đồng bộ'},
+    {name:'Hội Mẹ Bỉm Sữa HN',id:'zl-g-002',members:'6,100',src:'đồng bộ'},
+    {name:'Nhóm Test Thủ Công',id:'',members:'50',src:'thủ công'},
+  ];
+
+  // Calendar
+  const now = new Date();
+  S.calYear = now.getFullYear(); S.calMonth = now.getMonth();
+  const base = `${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}`;
+  S.calData[`${base}-05`]=[{title:'Bài khuyến mãi hè',group:'Cộng đồng Làm Đẹp Việt',status:'ok'},{title:'Tips dưỡng da',group:'Hội Mẹ Bỉm',status:'ok'}];
+  S.calData[`${base}-09`]=[{title:'Flash sale serum',group:'Nhóm KD Online',status:'ok'}];
+  S.calData[`${base}-12`]=[{title:'Bài hẹn lịch: Gift set',group:'Cộng đồng LĐV',status:'scheduled'}];
+  S.calData[`${base}-16`]=[{title:'Bài lỗi — nhóm full',group:'Nhóm Test',status:'error'}];
+  S.calData[`${base}-20`]=[{title:'Bài cuối tuần',group:'Hội Mẹ Bỉm',status:'scheduled'},{title:'Flash sale',group:'KD Online',status:'scheduled'}];
+
+  renderAll();
+})();
+
+function renderAll(){
+  renderGallery();
+  renderLibGrid();
+  renderCalendar();
+  renderStats();
+  renderAgents();
+  renderGroupList();
+  renderPillars();
+}
+
+// ===== TABS =====
+function switchTab(idx, el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pane'+idx).classList.add('active');
+  S.tab = idx;
+  // Re-render calendar when switching to tab 3
+  if(idx===3) renderCalendar();
+}
+
+// ===== ACCT DROPDOWN =====
+function toggleAcctDrop(){
+  document.getElementById('acctDrop').classList.toggle('open');
+}
+document.addEventListener('click',e=>{
+  if(!document.getElementById('acctBtn').contains(e.target)){
+    document.getElementById('acctDrop').classList.remove('open');
+  }
+});
+
+// ===== MODE TOGGLE =====
+function setMode(m, el){
+  S.mode = m;
+  document.querySelectorAll('#modePills .pill').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('singleMode').classList.toggle('hidden', m!=='single');
+  document.getElementById('multiMode').classList.toggle('hidden', m!=='multi');
+}
+
+// ===== AI WRITE =====
+const aiTexts = [
+  '💙 Bạn đang tìm kiếm sản phẩm làm đẹp uy tín, giá tốt?\n\nChúng mình vừa nhập về lô hàng mỹ phẩm chính hãng Hàn Quốc với nhiều ưu đãi hấp dẫn! 🌸\n\n✅ Giảm 40% toàn bộ dưỡng da\n✅ Tặng gift set khi mua từ 400k\n✅ Giao hàng toàn quốc 2-3 ngày\n\nNhắn tin ngay để được tư vấn miễn phí! 💬',
+  '🌿 Skincare mùa hè 2024 — Bí quyết cho làn da sáng khoẻ!\n\nMình đã thử và yêu thích 3 sản phẩm này:\n\n1️⃣ Kem chống nắng SPF 50+ nhẹ, không nhờn\n2️⃣ Serum vitamin C — da sáng đều sau 2 tuần\n3️⃣ Kem dưỡng ẩm ban đêm — ngủ dậy da căng mịn\n\nCùng chia sẻ thêm nhé! 🌟',
+  '⚡ FLASH SALE ZALO — Chỉ hôm nay!\n\nGiảm đến 60% tất cả sản phẩm chăm sóc da cao cấp. Không cần mã giảm giá — áp dụng tự động!\n\n⏰ Hết hạn: 23:59 hôm nay\n📦 Số lượng có hạn\n🚀 Giao nhanh 24h\n\nNhắn tin ngay để chốt đơn! 🛍️',
+];
+let aiIdx = 0;
+function aiWrite(){
+  const el = document.getElementById('postContent');
+  el.value = aiTexts[aiIdx % aiTexts.length];
+  aiIdx++;
+  el.style.borderColor='var(--pp)';
+  setTimeout(()=>el.style.borderColor='',1200);
+}
+
+// ===== MULTI POSTS =====
+function genMulti(){
+  const topic = document.getElementById('multiTopic').value || 'Sản phẩm chất lượng';
+  const n = parseInt(document.getElementById('numPosts').value)||3;
+  const container = document.getElementById('draftList');
+  container.innerHTML = '<div class="small muted mb8">⏳ AI đang soạn bài Zalo...</div>';
+  setTimeout(()=>{
+    container.innerHTML = '';
+    for(let i=0;i<n;i++){
+      const texts=[
+        `💙 Bài ${i+1}: ${topic}\n\nSản phẩm chính hãng, giá tốt nhất thị trường. Nhắn tin để được tư vấn!`,
+        `🌟 [Zalo] ${topic} — Ưu đãi #${i+1}\n\nCơ hội mua sắm tuyệt vời chỉ trong hôm nay. Đừng bỏ lỡ!`,
+        `✨ Bài ${i+1} — ${topic}\n\nLiên hệ ngay hôm nay để nhận ưu đãi đặc biệt từ chúng mình!`,
+      ];
+      const div=document.createElement('div');
+      div.className='draft-item';
+      div.innerHTML=`<div class="row-sb mb4"><span class="badge bl">Bài ${i+1}</span><button class="btn xs red" onclick="this.closest('.draft-item').remove()">✕</button></div><textarea style="min-height:80px">${texts[i%3]}</textarea>`;
+      container.appendChild(div);
+    }
+  },1000);
+}
+
+// ===== IMAGE PICKER =====
+function openImgPicker(){
+  S.pickerSelected = [...S.selectedImgs];
+  renderPickerLib();
+  openModal('imgPickerModal');
+}
+function renderPickerLib(){
+  const grid = document.getElementById('pickerLibGrid');
+  grid.innerHTML = '';
+  S.gallery.forEach((img,idx)=>{
+    const sel = S.pickerSelected.includes(idx);
+    const div = document.createElement('div');
+    div.className='img-thumb';
+    div.innerHTML=`<div class="ph" style="background:${img.gradient}"></div>${img.ai?'<span class="ai-badge badge ai">AI</span>':''}<div class="ov"><button class="btn sm" onclick="togglePickerSel(${idx},this.closest('.img-thumb'))">${sel?'✓ Đã chọn':'+ Chọn'}</button></div>`;
+    if(sel) div.style.outline='2px solid var(--zl)';
+    grid.appendChild(div);
+  });
+  updatePickerCount();
+}
+function togglePickerSel(idx,el){
+  const i=S.pickerSelected.indexOf(idx);
+  if(i>-1){S.pickerSelected.splice(i,1);el.style.outline='';el.querySelector('.btn').textContent='+ Chọn';}
+  else{S.pickerSelected.push(idx);el.style.outline='2px solid var(--zl)';el.querySelector('.btn').textContent='✓ Đã chọn';}
+  updatePickerCount();
+}
+function updatePickerCount(){
+  document.getElementById('pickerSelCount').textContent=S.pickerSelected.length+' ảnh được chọn';
+}
+function handlePickerFile(input){
+  const files=Array.from(input.files);
+  files.forEach(f=>{
+    const idx=S.gallery.length;
+    S.gallery.push({id:idx+1,gradient:'linear-gradient(135deg,#6b7280,#374151)',ai:false,name:f.name});
+    S.pickerSelected.push(idx);
+  });
+  renderPickerLib();
+}
+function aiGenPickerImg(){
+  const desc=document.getElementById('aiImgDesc').value||'Sản phẩm đẹp';
+  const res=document.getElementById('aiPickerResult');
+  res.innerHTML='<div class="small muted">⏳ AI đang sinh ảnh...</div>';
+  const grads=['linear-gradient(135deg,#0068ff,#00c6ff)','linear-gradient(135deg,#ec4899,#8b5cf6)','linear-gradient(135deg,#f97316,#ef4444)'];
+  setTimeout(()=>{
+    const idx=S.gallery.length;
+    const g=grads[Math.floor(Math.random()*grads.length)];
+    S.gallery.push({id:idx+1,gradient:g,ai:true,name:'ai-gen-'+Date.now()});
+    S.pickerSelected.push(idx);
+    res.innerHTML=`<div class="row mt4"><div style="width:60px;height:60px;border-radius:8px;background:${g};border:2px solid var(--zl)"></div><span class="small muted" style="margin-left:8px">✅ Đã sinh: "${desc.slice(0,30)}..."</span></div>`;
+    updatePickerCount();
+  },1400);
+}
+function confirmImgPick(){
+  S.selectedImgs=[...S.pickerSelected];
+  renderSelectedThumbs();
+  closeModal('imgPickerModal');
+}
+function renderSelectedThumbs(){
+  const container=document.getElementById('selectedImgs');
+  container.innerHTML='';
+  document.getElementById('imgCount').textContent='('+S.selectedImgs.length+')';
+  S.selectedImgs.forEach((idx,i)=>{
+    const img=S.gallery[idx];
+    const span=document.createElement('span');
+    span.className='sel-thumb';
+    span.innerHTML=`<div class="ph-sm" style="background:${img.gradient}"></div><button class="rm" onclick="removeSelImg(${i})">✕</button>`;
+    container.appendChild(span);
+  });
+}
+function removeSelImg(i){
+  S.selectedImgs.splice(i,1);
+  renderSelectedThumbs();
+}
+
+// ===== TIME MODE =====
+function setTime(m,el){
+  S.timeMode=m;
+  document.querySelectorAll('#timePills .pill').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('scheduleInput').classList.toggle('hidden',m!=='schedule');
+}
+
+// ===== POST =====
+function doPost(){
+  const content = document.getElementById('postContent').value.trim();
+  if(!content && S.mode==='single'){showToast('⚠️ Nhập nội dung bài viết trước!');return;}
+  const prog=document.getElementById('postProgress');
+  const bar=document.getElementById('postBar');
+  const pct=document.getElementById('postPct');
+  const log=document.getElementById('resultLog');
+  prog.classList.remove('hidden');
+  log.classList.add('show');
+  log.innerHTML='';
+  bar.style.width='0%';
+  let p=0;
+  const targets=['Cộng đồng Làm Đẹp Việt','Hội Mẹ Bỉm Sữa HN','Hội Yêu Sức Khoẻ'];
+  const tgt=[...targets];
+  const interval=setInterval(()=>{
+    p+=Math.floor(Math.random()*18)+8;
+    if(p>=100){p=100;clearInterval(interval);}
+    bar.style.width=p+'%';
+    pct.textContent=p+'%';
+    if(p>=30 && tgt.length>0){
+      const t=tgt.shift();
+      const ok=Math.random()>0.12;
+      log.innerHTML+=`<div style="color:${ok?'var(--gn)':'var(--rd)'}">${ok?'✅':'❌'} ${t} — ${ok?'Đăng thành công':'Lỗi: Nhóm không phản hồi'}</div>`;
+      log.scrollTop=log.scrollHeight;
+    }
+  },350);
+}
+
+
+// ===== KHO BÀI =====
+function renderLibGrid(){
+  const grid=document.getElementById('libGrid');
+  grid.innerHTML='';
+  const filter=S.khoFilter.toLowerCase();
+  const visible=S.libPosts.filter(p=>!filter||p.title.toLowerCase().includes(filter));
+  document.getElementById('khoTotalLabel').textContent=`Tổng: ${S.libPosts.length} bài trong kho (hiển thị ${visible.length})`;
+  visible.forEach((p)=>{
+    const i=S.libPosts.indexOf(p);
+    const div=document.createElement('div');
+    div.className='kho-card'+(p.selected?' selected':'');
+    div.id='kcard-'+p.id;
+    div.innerHTML=`
+      <input type="checkbox" class="kho-card-cb" ${p.selected?'checked':''} onchange="toggleKhoCard(${i},this.checked)"/>
+      <div class="kho-card-body">
+        <div class="kho-card-title">${p.title}</div>
+        <div class="kho-card-meta">
+          <span class="badge am">🖼️ ${p.imgs} ảnh (ngẫu nhiên)</span>
+          <span class="small muted">${p.time}</span>
+        </div>
+        <div class="kho-card-actions">
+          <button class="btn ghost xs" onclick="editLibPost(${i})">✏️ Sửa</button>
+          <button class="btn xs" onclick="useLibPost(${i})">📤 Đăng</button>
+          <button class="btn amber xs" onclick="openRaiLichSingle(${i})">📅 Rải vào lịch</button>
+          <button class="btn red xs" onclick="deleteLibPost(${i})">🗑️</button>
+        </div>
+      </div>`;
+    grid.appendChild(div);
+  });
+  updateSelectionUI();
+}
+
+function filterKho(v){
+  S.khoFilter=v;
+  renderLibGrid();
+}
+
+function toggleKhoCard(i,checked){
+  S.libPosts[i].selected=checked;
+  const card=document.getElementById('kcard-'+S.libPosts[i].id);
+  if(card) card.classList.toggle('selected',checked);
+  updateSelectionUI();
+}
+
+function toggleSelectAll(checked){
+  const filter=S.khoFilter.toLowerCase();
+  S.libPosts.forEach(p=>{
+    if(!filter||p.title.toLowerCase().includes(filter)) p.selected=checked;
+  });
+  renderLibGrid();
+}
+
+function updateSelectionUI(){
+  const n=S.libPosts.filter(p=>p.selected).length;
+  const btnDel=document.getElementById('btnDeleteSelected');
+  const btnRai=document.getElementById('btnRaiSelected');
+  document.getElementById('selCountLabel').textContent=n;
+  if(n>0){
+    btnDel.classList.remove('hidden');
+    btnRai.classList.remove('hidden');
+  } else {
+    btnDel.classList.add('hidden');
+    btnRai.classList.add('hidden');
+  }
+  const allVisible=S.libPosts.filter(p=>{
+    const f=S.khoFilter.toLowerCase();
+    return !f||p.title.toLowerCase().includes(f);
+  });
+  const chk=document.getElementById('chkSelectAll');
+  if(chk) chk.checked=allVisible.length>0&&allVisible.every(p=>p.selected);
+}
+
+function deleteSelected(){
+  const n=S.libPosts.filter(p=>p.selected).length;
+  if(!confirm(`Xóa ${n} bài đã chọn khỏi kho?`))return;
+  S.libPosts=S.libPosts.filter(p=>!p.selected);
+  renderLibGrid();
+  showToast(`🗑️ Đã xóa ${n} bài!`);
+}
+
+function deleteAllKho(){
+  if(!S.libPosts.length){showToast('Kho đang trống!');return;}
+  if(!confirm(`Xóa tất cả ${S.libPosts.length} bài khỏi kho? Không thể hoàn tác!`))return;
+  const n=S.libPosts.length;
+  S.libPosts=[];
+  renderLibGrid();
+  showToast(`🗑️ Đã xóa tất cả ${n} bài!`);
+}
+
+function editLibPost(i){
+  S.editPostIdx=i;
+  const ed=document.getElementById('editPostModal');
+  ed.classList.remove('hidden');
+  document.getElementById('editPostTxt').value=S.libPosts[i].content||S.libPosts[i].title;
+  ed.scrollIntoView({behavior:'smooth'});
+}
+function saveEditPost(){
+  if(S.editPostIdx<0)return;
+  const txt=document.getElementById('editPostTxt').value;
+  S.libPosts[S.editPostIdx].title=txt.slice(0,90)+(txt.length>90?'...':'');
+  S.libPosts[S.editPostIdx].content=txt;
+  S.libPosts[S.editPostIdx].time='Vừa sửa';
+  renderLibGrid();
+  closeEditPost();
+  showToast('✅ Đã lưu thay đổi!');
+}
+function closeEditPost(){document.getElementById('editPostModal').classList.add('hidden');S.editPostIdx=-1;}
+function useLibPost(i){
+  const p=typeof i==='number'?S.libPosts[i]:S.libPosts[S.editPostIdx>=0?S.editPostIdx:0];
+  if(!p)return;
+  document.getElementById('postContent').value=p.content||p.title;
+  switchTab(0,document.querySelectorAll('.tab')[0]);
+  showToast('📋 Đã copy sang tab Soạn & Đăng!');
+}
+function newLibPost(){
+  const imgs=Math.floor(Math.random()*3)+1;
+  S.libPosts.unshift({id:Date.now(),title:'Bài mới Zalo — click Sửa để chỉnh nội dung...',content:'',imgs,time:'Vừa tạo',selected:false});
+  renderLibGrid();
+  editLibPost(0);
+}
+function deleteLibPost(i){
+  if(!confirm('Xóa bài này khỏi kho?'))return;
+  S.libPosts.splice(i,1);
+  renderLibGrid();
+  showToast('🗑️ Đã xóa bài!');
+}
+
+// ===== AI TẠO NHIỀU BÀI =====
+function setAiGenQty(n,el){
+  S.aiGenQty=n;
+  document.querySelectorAll('#aiGenQtyPills .pill').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('aiGenManyQty').value=n;
+  document.getElementById('aiGenBtnLabel').textContent=n;
+}
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.id==='aiGenManyQty'){
+    document.getElementById('aiGenBtnLabel').textContent=e.target.value;
+    S.aiGenQty=parseInt(e.target.value)||10;
+    document.querySelectorAll('#aiGenQtyPills .pill').forEach(p=>p.classList.remove('on'));
+  }
+});
+
+const _zEmojiPool=['💙','🌿','⚡','✨','🎁','🌸','💅','🔥','💎','☀️','🎀','💧','🌺','🍑','🌙','💫','🎯','🏆','💪','💕','🌟','🎊'];
+const _zTxtPool=[
+  'Ưu đãi hấp dẫn — không thể bỏ qua hôm nay!',
+  'Sản phẩm mới về kho — review thực tế từ khách hàng',
+  'Bí quyết làm đẹp đơn giản tại nhà chỉ với 5 phút',
+  'Flash deal Zalo: số lượng có hạn, nhanh tay kẻo hết!',
+  'Chia sẻ thật: sau 2 tuần dùng, da mình thay đổi thế này',
+  'Combo tiết kiệm — mua nhiều giảm thêm 15%',
+  'Câu hỏi thường gặp về sản phẩm — giải đáp tất tần tật',
+  'Hành trình chăm sóc da 30 ngày — kết quả gây bất ngờ',
+  'Top trending Zalo — sản phẩm được tìm kiếm nhiều nhất',
+  'So sánh A vs B: cái nào đáng mua hơn cho bạn?',
+];
+
+function doAiGenMany(){
+  const topic=document.getElementById('aiGenManyTopic').value||'Sản phẩm mỹ phẩm chất lượng cao';
+  const n=parseInt(document.getElementById('aiGenManyQty').value)||10;
+  const imgMin=parseInt(document.getElementById('aiGenImgMin').value)||1;
+  const imgMax=parseInt(document.getElementById('aiGenImgMax').value)||3;
+  const prog=document.getElementById('aiGenManyProgress');
+  const bar=document.getElementById('aiGenManyBar');
+  const pct=document.getElementById('aiGenManyPct');
+  const status=document.getElementById('aiGenManyStatus');
+  const btn=document.getElementById('btnAiGenMany');
+  prog.classList.remove('hidden');
+  btn.disabled=true;
+  btn.textContent='Đang tạo...';
+  let done=0;
+  const interval=setInterval(()=>{
+    done+=Math.ceil(n*0.12);
+    if(done>=n){done=n;clearInterval(interval);finishAiGen(n,imgMin,imgMax,topic,btn,prog);}
+    const p=Math.round(done/n*100);
+    bar.style.width=p+'%';
+    pct.textContent=p+'%';
+    status.textContent=`Đã tạo ${done}/${n} bài...`;
+  },220);
+}
+
+function finishAiGen(n,imgMin,imgMax,topic,btn,prog){
+  const newPosts=[];
+  for(let i=0;i<n;i++){
+    const em=_zEmojiPool[i%_zEmojiPool.length];
+    const txt=_zTxtPool[i%_zTxtPool.length];
+    const imgs=imgMin+Math.floor(Math.random()*(imgMax-imgMin+1));
+    newPosts.push({id:Date.now()+i,title:`${em} [AI] ${topic.slice(0,30)} — ${txt}`,content:'',imgs,time:'Vừa tạo',selected:false});
+  }
+  S.libPosts=newPosts.concat(S.libPosts);
+  renderLibGrid();
+  prog.classList.add('hidden');
+  btn.disabled=false;
+  btn.innerHTML=`✨ Sinh <span id="aiGenBtnLabel">${n}</span> bài`;
+  closeModal('aiGenManyModal');
+  showToast(`✅ Đã tạo ${n} bài Zalo vào Kho!`);
+}
+
+// ===== RẢI BÀI VÀO LỊCH =====
+function openRaiLich(source){
+  S.raiSource=source;
+  const note=document.getElementById('raiLichSourceNote');
+  const selN=S.libPosts.filter(p=>p.selected).length;
+  if(source==='selected'&&selN>0){
+    note.textContent=`Nguồn: ${selN} bài đã chọn trong Kho`;
+    note.className='note green mb12';
+  } else {
+    note.textContent='Nguồn: Ngẫu nhiên từ Kho bài ('+S.libPosts.length+' bài)';
+    note.className='note blue mb12';
+    S.raiSource='random';
+  }
+  const today=new Date();
+  const end=new Date(today); end.setDate(end.getDate()+7);
+  document.getElementById('raiTuNgay').value=today.toISOString().slice(0,10);
+  document.getElementById('raiDenNgay').value=end.toISOString().slice(0,10);
+  updateRaiPreview();
+  document.getElementById('raiLichProgress').classList.add('hidden');
+  openModal('raiLichModal');
+}
+
+function openRaiLichSingle(i){
+  S.libPosts.forEach((p,idx)=>p.selected=idx===i);
+  updateSelectionUI();
+  openRaiLich('selected');
+}
+
+function updateRaiPreview(){
+  const from=document.getElementById('raiTuNgay').value;
+  const to=document.getElementById('raiDenNgay').value;
+  const perDay=parseInt(document.getElementById('raiMoiNgay').value)||2;
+  if(!from||!to){return;}
+  const d1=new Date(from),d2=new Date(to);
+  const days=Math.max(0,Math.round((d2-d1)/(1000*60*60*24)))+1;
+  const total=days*perDay;
+  document.getElementById('raiLichPreview').textContent=`Sẽ rải ${total} bài vào ${days} ngày (${perDay} bài/ngày) từ ${from} đến ${to}.`;
+}
+
+document.addEventListener('change',function(e){
+  if(['raiTuNgay','raiDenNgay','raiMoiNgay'].includes(e.target&&e.target.id)){
+    updateRaiPreview();
+  }
+});
+document.addEventListener('input',function(e){
+  if(e.target&&e.target.id==='raiMoiNgay') updateRaiPreview();
+});
+
+function doRaiLich(){
+  const from=document.getElementById('raiTuNgay').value;
+  const to=document.getElementById('raiDenNgay').value;
+  const perDay=parseInt(document.getElementById('raiMoiNgay').value)||2;
+  const gioKhung=document.getElementById('raiGioKhung').value;
+  if(!from||!to){showToast('Chọn khoảng ngày trước!');return;}
+  const d1=new Date(from),d2=new Date(to);
+  const days=Math.max(0,Math.round((d2-d1)/(1000*60*60*24)))+1;
+  let sourcePosts=S.raiSource==='selected'?S.libPosts.filter(p=>p.selected):S.libPosts;
+  if(!sourcePosts.length){showToast('Không có bài nào!');return;}
+  const prog=document.getElementById('raiLichProgress');
+  const bar=document.getElementById('raiLichBar');
+  const pct=document.getElementById('raiLichPct');
+  prog.classList.remove('hidden');
+  let stepDone=0;
+  const totalSteps=days*perDay;
+  let postIdx=0;
+  const hours=[8,10,12,14,17,20];
+  const interval=setInterval(()=>{
+    stepDone+=Math.ceil(totalSteps*0.15);
+    if(stepDone>=totalSteps){stepDone=totalSteps;clearInterval(interval);finishRai(days,totalSteps,bar,pct,prog);return;}
+    bar.style.width=Math.round(stepDone/totalSteps*100)+'%';
+    pct.textContent=Math.round(stepDone/totalSteps*100)+'%';
+  },180);
+  // fill calData
+  for(let di=0;di<days;di++){
+    const d=new Date(d1); d.setDate(d1.getDate()+di);
+    const key=d.toISOString().slice(0,10);
+    if(!S.calData[key]) S.calData[key]=[];
+    for(let pi=0;pi<perDay;pi++){
+      const post=sourcePosts[postIdx%sourcePosts.length]; postIdx++;
+      const hour=gioKhung==='random'?hours[Math.floor(Math.random()*hours.length)]:parseInt(gioKhung.split(':')[0]);
+      const timeStr=String(hour).padStart(2,'0')+':00';
+      S.calData[key].push({title:post.title.slice(0,40)+'...',group:'Nhóm Zalo — hẹn tự động',status:'scheduled',hour:timeStr});
+    }
+  }
+}
+
+function finishRai(days,total,bar,pct,prog){
+  bar.style.width='100%';
+  pct.textContent='100%';
+  renderCalendar();
+  setTimeout(()=>{
+    prog.classList.add('hidden');
+    closeModal('raiLichModal');
+    showToast(`📅 Đã lên lịch ${total} bài vào ${days} ngày!`);
+  },400);
+}
+
+// ===== SAVE TO LIB =====
+function saveToLib(){
+  const txt=document.getElementById('postContent').value;
+  if(!txt.trim()){showToast('⚠️ Vui lòng nhập nội dung bài viết!');return;}
+  S.libPosts.unshift({id:Date.now(),title:txt.slice(0,80)+(txt.length>80?'...':''),content:txt,imgs:S.selectedImgs.length||1,time:'Vừa xong',selected:false});
+  renderLibGrid();
+  showToast('💾 Đã lưu vào Kho bài!');
+}
+
+// ===== GALLERY =====
+function renderGallery(){
+  const grid=document.getElementById('imgGallery');
+  grid.innerHTML='';
+  S.gallery.forEach((img,idx)=>{
+    const div=document.createElement('div');
+    div.className='img-thumb';
+    div.innerHTML=`<div class="ph" style="background:${img.gradient}"></div>${img.ai?'<span class="ai-badge badge ai">AI</span>':''}<div class="ov"><button class="btn sm ghost" onclick="deleteGalleryImg(${idx})">🗑️</button><button class="btn sm" onclick="selectFromGallery(${idx})">✓ Chọn</button></div>`;
+    grid.appendChild(div);
+  });
+}
+function deleteGalleryImg(idx){
+  S.gallery.splice(idx,1);
+  renderGallery();
+  showToast('🗑️ Đã xóa ảnh!');
+}
+function selectFromGallery(idx){
+  showToast('✅ Ảnh đã được chọn vào Soạn bài!');
+}
+function handleUpload(input){
+  Array.from(input.files).forEach(f=>{
+    S.gallery.unshift({id:Date.now(),gradient:'linear-gradient(135deg,#6b7280,#374151)',ai:false,name:f.name});
+  });
+  renderGallery();
+  showToast(`⬆️ Đã tải lên ${input.files.length} ảnh!`);
+}
+function openAiImgModal(){openModal('aiImgModal');}
+function genAiImg(){
+  const prompt=document.getElementById('aiImgPrompt').value||'Sản phẩm đẹp';
+  const res=document.getElementById('aiImgResult');
+  res.innerHTML='<div class="small muted">⏳ AI đang sinh ảnh...</div>';
+  const grads=['linear-gradient(135deg,#0068ff,#00c6ff)','linear-gradient(135deg,#ec4899,#8b5cf6)','linear-gradient(135deg,#f97316,#ef4444)','linear-gradient(135deg,#f59e0b,#22c55e)'];
+  setTimeout(()=>{
+    const g=grads[Math.floor(Math.random()*grads.length)];
+    S.gallery.unshift({id:Date.now(),gradient:g,ai:true,name:'ai-'+Date.now()});
+    renderGallery();
+    res.innerHTML=`<div class="note green">✅ Đã sinh ảnh thành công! Xem trong thư viện.</div>`;
+    setTimeout(()=>closeModal('aiImgModal'),1500);
+  },1800);
+}
+
+// ===== CALENDAR =====
+const MONTHS=['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+const DAYS=['T2','T3','T4','T5','T6','T7','CN'];
+function renderCalendar(){
+  document.getElementById('calMonthLabel').textContent=MONTHS[S.calMonth]+' '+S.calYear;
+  const head=document.getElementById('calHead');
+  head.innerHTML=DAYS.map(d=>`<div class="cal-head">${d}</div>`).join('');
+  const grid=document.getElementById('calGrid');
+  grid.innerHTML='';
+  const first=new Date(S.calYear,S.calMonth,1);
+  let startDow=(first.getDay()+6)%7;
+  const daysInMonth=new Date(S.calYear,S.calMonth+1,0).getDate();
+  const today=new Date();
+  for(let i=0;i<startDow;i++){
+    const e=document.createElement('div');e.className='cal-day empty';grid.appendChild(e);
+  }
+  for(let d=1;d<=daysInMonth;d++){
+    const key=`${S.calYear}-${String(S.calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const posts=S.calData[key]||[];
+    const isToday=today.getFullYear()===S.calYear&&today.getMonth()===S.calMonth&&today.getDate()===d;
+    const div=document.createElement('div');
+    div.className='cal-day'+(isToday?' today':'');
+    const dots=posts.map(p=>{
+      const c=p.status==='ok'?'#22c55e':p.status==='scheduled'?'#f59e0b':'#ef4444';
+      return `<div class="cal-dot" style="background:${c}" title="${p.title}"></div>`;
+    }).join('');
+    div.innerHTML=`<div class="dn">${d}</div><div class="cal-dots">${dots}</div>${posts.length>0?`<div style="font-size:10px;color:var(--mut)">${posts.length} bài</div>`:''}`;
+    div.onclick=()=>showDayDetail(key,d,posts);
+    grid.appendChild(div);
+  }
+}
+function calPrev(){if(S.calMonth===0){S.calMonth=11;S.calYear--;}else S.calMonth--;renderCalendar();}
+function calNext(){if(S.calMonth===11){S.calMonth=0;S.calYear++;}else S.calMonth++;renderCalendar();}
+function showDayDetail(key,d,posts){
+  document.querySelectorAll('.cal-day.selected').forEach(el=>el.classList.remove('selected'));
+  const detail=document.getElementById('dayDetail');
+  detail.classList.remove('hidden');
+  document.getElementById('dayDetailTitle').textContent=`Chi tiết ngày ${d}/${S.calMonth+1}/${S.calYear}`;
+  const container=document.getElementById('dayPosts');
+  if(!posts.length){container.innerHTML='<div class="muted small">Không có bài nào ngày này.</div>';return;}
+  container.innerHTML=posts.map(p=>{
+    const sc=p.status==='ok'?'gn':p.status==='scheduled'?'am':'rd';
+    const sl=p.status==='ok'?'Đã đăng':p.status==='scheduled'?'Hẹn lịch':'Lỗi';
+    const hourStr=p.hour?`<span class="tag" style="margin-left:4px">⏰ ${p.hour}</span>`:'';
+    return `<div class="agent-card row-sb"><div><div class="semibold small">${p.title}</div><div class="small muted mt4">${p.group}${hourStr}</div></div><span class="badge ${sc}">${sl}</span></div>`;
+  }).join('');
+  detail.scrollIntoView({behavior:'smooth'});
+}
+
+// ===== STATS =====
+function renderStats(){
+  const chart=document.getElementById('barChart');
+  const days=['T2','T3','T4','T5','T6','T7','CN'];
+  const vals=[8,6,11,4,14,12,7];
+  const max=Math.max(...vals);
+  chart.innerHTML=days.map((d,i)=>`<div class="bar-col"><div class="bar" style="height:${Math.round(vals[i]/max*90)}px" title="${vals[i]} bài"></div><div class="bar-label">${d}</div></div>`).join('');
+  const tbody=document.getElementById('statsTable');
+  const rows=[
+    ['Cộng đồng Làm Đẹp Việt',28,26,2],
+    ['Hội Mẹ Bỉm Sữa HN',22,20,2],
+    ['Nhóm KD Online',18,17,1],
+    ['Hội Yêu Sức Khoẻ',14,14,0],
+    ['Zalo Bán Hàng MN',7,5,2],
+    ['Cộng Đồng Startup',4,4,0],
+  ];
+  tbody.innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td style="color:var(--gn)">${r[2]}</td><td style="color:var(--rd)">${r[3]}</td></tr>`).join('');
+}
+
+// ===== GROUPS =====
+function renderGroupList(){
+  const list=document.getElementById('savedGrpList');
+  document.getElementById('savedGrpsTitle').textContent=`Nhóm đã lưu (${S.groups.length})`;
+  if(!S.groups.length){
+    list.innerHTML='<div class="muted small" style="padding:10px">Chưa có nhóm. Nhấn "Đồng bộ nhóm Zalo" để lấy tự động.</div>';
+    return;
+  }
+  const colors=['linear-gradient(135deg,#0068ff,#00c6ff)','linear-gradient(135deg,#f59e0b,#ef4444)','linear-gradient(135deg,#8b5cf6,#0068ff)','linear-gradient(135deg,#10b981,#0068ff)'];
+  list.innerHTML=S.groups.map((g,i)=>`
+    <div class="grp-item">
+      <input type="checkbox" checked/>
+      <div class="grp-ic" style="background:${colors[i%colors.length]}"></div>
+      <div style="flex:1">
+        <div class="semibold small">${g.name}</div>
+        <div class="small muted">${g.members} TV ${g.id?'· ID: '+g.id:''} · <span class="tag">${g.src}</span></div>
+      </div>
+      <button class="btn red xs" onclick="deleteGroup(${i})">🗑️</button>
+    </div>`).join('');
+}
+function deleteGroup(i){S.groups.splice(i,1);renderGroupList();}
+function addGroupManual(){
+  const name=document.getElementById('addGrpName').value.trim();
+  if(!name){showToast('⚠️ Nhập tên nhóm trước!');return;}
+  const gid=document.getElementById('addGrpId').value.trim();
+  const mem=document.getElementById('addGrpMembers').value||'?';
+  S.groups.push({name,id:gid,members:mem,src:'thủ công'});
+  renderGroupList();
+  closeModal('addGrpModal');
+  document.getElementById('addGrpName').value='';
+  document.getElementById('addGrpId').value='';
+  document.getElementById('addGrpMembers').value='';
+  showToast('✅ Đã thêm nhóm: '+name);
+}
+function handleCSV(input){
+  // Mock Zalo CSV parse
+  const rows=[
+    ['Hội Yêu Làm Đẹp 2024','zl-g-010','2,400'],
+    ['Bán Hàng Zalo Toàn Quốc','zl-g-011','1,800'],
+    ['Nhóm Mẹ Và Bé','zl-g-012','5,200'],
+    ['Cộng Đồng KD Online','zl-g-013','900'],
+  ];
+  const tbody=document.getElementById('csvBody');
+  tbody.innerHTML=rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r[0]}</td><td><span style="color:var(--mut)">${r[1]}</span></td><td>${r[2]} TV</td><td><span class="badge gn">Hợp lệ</span></td></tr>`).join('');
+  document.getElementById('csvPreview').classList.remove('hidden');
+  window._csvRows=rows;
+}
+function importCSV(){
+  (window._csvRows||[]).forEach(r=>S.groups.push({name:r[0],id:r[1],members:r[2],src:'CSV'}));
+  renderGroupList();
+  closeModal('csvModal');
+  showToast(`✅ Đã nhập ${(window._csvRows||[]).length} nhóm từ CSV!`);
+}
+
+// ===== SYNC ZALO GROUPS =====
+function syncZaloGroups(){
+  const statusEl=document.getElementById('syncStatus');
+  statusEl.classList.remove('hidden');
+  statusEl.textContent='⏳ Đang kết nối Zalo và lấy danh sách nhóm từ tài khoản...';
+  setTimeout(()=>{
+    statusEl.textContent='🔍 Đang quét danh sách nhóm bạn đang là thành viên...';
+  },800);
+  setTimeout(()=>{
+    // Mock: add synced groups
+    const synced=[
+      {name:'Nhóm Gia Đình Mình',id:'zl-g-020',members:'12',src:'đồng bộ'},
+      {name:'Hội Đồng Nghiệp Công Ty',id:'zl-g-021',members:'45',src:'đồng bộ'},
+      {name:'Cộng Đồng Zalo Mỹ Phẩm VN',id:'zl-g-022',members:'3,200',src:'đồng bộ'},
+    ];
+    // Deduplicate by name
+    const existNames=new Set(S.groups.map(g=>g.name));
+    let added=0;
+    synced.forEach(g=>{
+      if(!existNames.has(g.name)){S.groups.push(g);added++;}
+    });
+    renderGroupList();
+    statusEl.textContent=`✅ Đồng bộ xong! Tìm thấy ${synced.length} nhóm, thêm mới ${added} nhóm.`;
+    statusEl.style.cssText='background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.25);color:#86efac';
+    setTimeout(()=>{statusEl.classList.add('hidden');statusEl.style.cssText='';},3000);
+    showToast(`💙 Đã đồng bộ ${added} nhóm Zalo mới!`);
+  },2200);
+}
+
+// ===== PILLARS =====
+function renderPillars(){
+  const wrap=document.getElementById('pillarChips');
+  wrap.innerHTML=S.pillars.map((p,i)=>`
+    <div class="chip colored">
+      <span>${p}</span>
+      <button class="chip-rm" onclick="removePillar(${i})" title="Xóa chủ đề">✕</button>
+    </div>`).join('');
+  if(!S.pillars.length){
+    wrap.innerHTML='<div class="muted small">Chưa có chủ đề. Thêm chủ đề bên dưới.</div>';
+  }
+}
+function addPillar(){
+  const input=document.getElementById('newPillarInput');
+  const name=input.value.trim();
+  if(!name){showToast('⚠️ Nhập tên chủ đề!');return;}
+  if(S.pillars.includes(name)){showToast('⚠️ Chủ đề đã tồn tại!');return;}
+  S.pillars.push(name);
+  renderPillars();
+  input.value='';
+  showToast('✅ Đã thêm chủ đề: '+name);
+}
+function removePillar(i){
+  const name=S.pillars[i];
+  S.pillars.splice(i,1);
+  renderPillars();
+  showToast('🗑️ Đã xóa chủ đề: '+name);
+}
+document.getElementById('newPillarInput') && document.getElementById('newPillarInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter') addPillar();
+});
+
+// ===== AGENTS =====
+function renderAgents(){
+  const list=document.getElementById('agentList');
+  list.innerHTML=S.agents.map((a,i)=>`
+    <div class="agent-card">
+      <div class="row-sb mb8">
+        <div class="semibold">${a.name}</div>
+        <div class="row">
+          <span class="badge ${a.on?'gn':'rd'}">${a.on?'🟢 Đang chạy':'🔴 Dừng'}</span>
+          <div class="tgl ${a.on?'on':''}" onclick="toggleAgent(${i})"></div>
+        </div>
+      </div>
+      <div class="small muted" style="line-height:1.8">
+        📚 Nguồn: <strong>${a.source}</strong><br/>
+        👥 Nhóm: <strong>${a.groups}</strong><br/>
+        ⏰ Lịch: <strong>${a.schedule}</strong>
+      </div>
+    </div>`).join('');
+}
+function toggleAgent(i){
+  S.agents[i].on=!S.agents[i].on;
+  renderAgents();
+  showToast(S.agents[i].on?`▶️ Đã bật agent: ${S.agents[i].name}`:`⏸️ Đã dừng agent: ${S.agents[i].name}`);
+}
+
+// ===== MODALS =====
+function openModal(id){document.getElementById(id).classList.remove('hidden');}
+function closeModal(id){document.getElementById(id).classList.add('hidden');}
+setTimeout(()=>{
+  document.querySelectorAll('.modal-bg').forEach(bg=>{
+    bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.add('hidden');});
+  });
+},100);
+
+// ===== M-TABS =====
+function switchMTab(paneId,el){
+  const modal=el.closest('.modal');
+  modal.querySelectorAll('.m-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  ['iFrom','iLib','iAI'].forEach(id=>{
+    const p=document.getElementById(id);
+    if(p) p.classList.add('hidden');
+  });
+  document.getElementById(paneId).classList.remove('hidden');
+  if(paneId==='iLib') renderPickerLib();
+}
+
+// ===== TOAST =====
+function showToast(msg){
+  let t=document.getElementById('_toast');
+  if(!t){
+    t=document.createElement('div');t.id='_toast';
+    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1d2436;border:1px solid #2a3346;color:#e5e9f0;padding:10px 20px;border-radius:12px;font-size:13px;z-index:999;box-shadow:0 8px 32px rgba(0,0,0,.5);transition:opacity .3s;pointer-events:none';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._to);t._to=setTimeout(()=>t.style.opacity='0',2500);
+}
+
+// ===== DRAG DROP CSV =====
+(function setupDrag(){
+  const dz=document.getElementById('csvDrop');
+  if(!dz)return;
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('drag-over');
+    const f=e.dataTransfer.files[0];
+    if(f&&f.name.endsWith('.csv')){handleCSV({files:[f]});}
+  });
+})();
+
+// ===== PICKER DRAG DROP =====
+(function setupPickerDrag(){
+  const dz=document.getElementById('pickerDrop');
+  if(!dz)return;
+  dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+  dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+  dz.addEventListener('drop',e=>{
+    e.preventDefault();dz.classList.remove('drag-over');
+    const files=Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/'));
+    if(files.length){
+      files.forEach(f=>{
+        const idx=S.gallery.length;
+        S.gallery.push({id:idx+1,gradient:'linear-gradient(135deg,#6b7280,#374151)',ai:false,name:f.name});
+        S.pickerSelected.push(idx);
+      });
+      updatePickerCount();
+    }
+  });
+})();
+
+// ===== Pillar input Enter key =====
+setTimeout(()=>{
+  const inp=document.getElementById('newPillarInput');
+  if(inp) inp.addEventListener('keydown',e=>{if(e.key==='Enter')addPillar();});
+},200);
+</script>
+</body>
+</html>

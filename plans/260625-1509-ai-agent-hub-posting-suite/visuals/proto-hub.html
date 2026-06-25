@@ -1,0 +1,1668 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zaplo — AI & Agent Hub</title>
+<style>
+:root{--bg:#0f1420;--panel:#161c2b;--p2:#1d2436;--bd:#2a3346;--tx:#e5e9f0;--mut:#8a93a6;--bl:#3b82f6;--bl2:#2563eb;--gn:#22c55e;--rd:#ef4444;--am:#f59e0b;--pp:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;font-size:14px}
+a{color:var(--bl);text-decoration:none}
+input,textarea,select{font-family:inherit;font-size:13px;background:var(--p2);border:1px solid var(--bd);color:var(--tx);border-radius:8px;padding:8px 10px;outline:none;transition:border .15s}
+input:focus,textarea:focus,select:focus{border-color:var(--bl)}
+select option{background:var(--p2)}
+button{font-family:inherit;cursor:pointer;font-size:13px;border:none;border-radius:8px;padding:7px 14px;transition:all .15s}
+.btn-primary{background:var(--bl);color:#fff}
+.btn-primary:hover{background:var(--bl2)}
+.btn-ghost{background:transparent;color:var(--mut);border:1px solid var(--bd)}
+.btn-ghost:hover{background:var(--p2);color:var(--tx)}
+.btn-danger{background:transparent;color:var(--rd);border:1px solid var(--rd)}
+.btn-danger:hover{background:rgba(239,68,68,.1)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-gn{background:rgba(34,197,94,.15);color:var(--gn)}
+.badge-rd{background:rgba(239,68,68,.15);color:var(--rd)}
+.badge-am{background:rgba(245,158,11,.15);color:var(--am)}
+.badge-bl{background:rgba(59,130,246,.15);color:var(--bl)}
+.badge-pp{background:rgba(139,92,246,.15);color:var(--pp)}
+.badge-fb{background:rgba(59,130,246,.2);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+.badge-zalo{background:rgba(34,197,94,.2);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+/* HEADER */
+.app-header{display:flex;align-items:center;gap:16px;padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--bd);position:sticky;top:0;z-index:100}
+.app-logo{font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--bl),var(--pp));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header-title{font-size:15px;font-weight:600;flex:1}
+.header-sub{font-size:12px;color:var(--mut);margin-top:1px}
+.account-select{background:var(--p2);border:1px solid var(--bd);color:var(--tx);padding:6px 10px;border-radius:8px;font-size:13px;min-width:180px}
+/* TABS */
+.tabs-bar{display:flex;gap:4px;padding:12px 20px 0;background:var(--panel);border-bottom:1px solid var(--bd)}
+.tab-btn{padding:8px 18px;border-radius:8px 8px 0 0;background:transparent;color:var(--mut);border:1px solid transparent;border-bottom:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s;position:relative;bottom:-1px}
+.tab-btn.active{background:var(--bg);color:var(--tx);border-color:var(--bd);border-bottom-color:var(--bg)}
+.tab-btn:hover:not(.active){color:var(--tx)}
+/* TAB CONTENT */
+.tab-content{display:none;padding:20px}
+.tab-content.active{display:block}
+/* CARDS GRID */
+.cards-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.cards-title{font-size:16px;font-weight:600}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.agent-card{background:var(--panel);border:1px solid var(--bd);border-radius:14px;padding:16px;cursor:pointer;transition:all .2s;position:relative}
+.agent-card:hover{border-color:var(--bl);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.card-avatar{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px;flex-shrink:0}
+.card-avatar-pp{background:linear-gradient(135deg,#7c3aed,#4f46e5)}
+.card-avatar-bl{background:linear-gradient(135deg,#2563eb,#0891b2)}
+.card-avatar-gn{background:linear-gradient(135deg,#059669,#10b981)}
+.card-meta{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap}
+.card-title{font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.card-desc{font-size:12px;color:var(--mut);margin-top:3px}
+.card-default{font-size:10px;background:rgba(245,158,11,.15);color:var(--am);padding:2px 6px;border-radius:4px;font-weight:600}
+/* FILTER PILLS */
+.filter-pills{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.pill{padding:5px 14px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--mut);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s}
+.pill.active{background:var(--bl);color:#fff;border-color:var(--bl)}
+.pill:hover:not(.active){border-color:var(--bl);color:var(--tx)}
+/* FULL PAGE EDITOR */
+.editor-page{display:none;height:calc(100vh - 120px)}
+.editor-page.active{display:flex;flex-direction:column}
+.editor-topbar{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--panel);border-bottom:1px solid var(--bd)}
+.editor-back{background:transparent;border:none;color:var(--bl);cursor:pointer;font-size:13px;padding:6px 10px;border-radius:8px;display:flex;align-items:center;gap:6px}
+.editor-back:hover{background:rgba(59,130,246,.1)}
+.editor-name{font-size:16px;font-weight:700}
+.editor-sub{font-size:12px;color:var(--mut);margin-top:1px}
+.editor-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+.editor-body{display:flex;flex:1;overflow:hidden}
+/* EDITOR LEFT */
+.editor-left{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+.editor-left::-webkit-scrollbar{width:4px}
+.editor-left::-webkit-scrollbar-track{background:transparent}
+.editor-left::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px}
+/* EDITOR RIGHT */
+.editor-right{width:320px;border-left:1px solid var(--bd);display:flex;flex-direction:column;background:var(--panel)}
+.chat-panel-title{padding:14px 16px;border-bottom:1px solid var(--bd);font-weight:600;font-size:13px;color:var(--mut)}
+.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.chat-messages::-webkit-scrollbar{width:3px}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--bd)}
+.chat-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--mut);gap:8px}
+.chat-empty-icon{font-size:36px;opacity:.4}
+.chat-empty-text{font-size:12px;text-align:center}
+.chat-input-row{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--bd)}
+.chat-input-row input{flex:1}
+.chat-send-btn{background:var(--bl);color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:16px;transition:background .15s}
+.chat-send-btn:hover{background:var(--bl2)}
+.bubble{max-width:85%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5;word-break:break-word}
+.bubble-user{background:var(--bl);color:#fff;border-radius:12px 12px 3px 12px;align-self:flex-end}
+.bubble-ai{background:var(--p2);color:var(--tx);border-radius:12px 12px 12px 3px;align-self:flex-start;border:1px solid var(--bd)}
+.bubble-time{font-size:10px;opacity:.6;margin-top:3px}
+.bubble-row-user{display:flex;flex-direction:column;align-items:flex-end}
+.bubble-row-ai{display:flex;flex-direction:column;align-items:flex-start}
+/* SECTION CARD */
+.section-card{background:var(--panel);border:1px solid var(--bd);border-radius:14px;padding:18px}
+.section-title{font-weight:600;font-size:13px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.form-row{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.form-row:last-child{margin-bottom:0}
+.form-label{font-size:12px;color:var(--mut);font-weight:500}
+.form-row input,.form-row textarea,.form-row select{width:100%}
+.form-hint{font-size:11px;color:var(--mut);margin-top:4px;line-height:1.4}
+/* TOGGLE */
+.toggle-wrap{display:flex;align-items:center;gap:10px}
+.toggle{position:relative;width:40px;height:22px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--bd);border-radius:20px;transition:.3s}
+.toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked + .toggle-slider{background:var(--gn)}
+.toggle input:checked + .toggle-slider:before{transform:translateX(18px)}
+.toggle-label{font-size:13px}
+/* SLIDER */
+.slider-wrap{display:flex;align-items:center;gap:10px}
+.slider-wrap input[type=range]{flex:1;accent-color:var(--bl);cursor:pointer}
+.slider-val{min-width:32px;text-align:center;font-weight:600;font-size:13px;color:var(--bl)}
+.slider-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--mut);margin-top:3px}
+/* PASSWORD INPUT */
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:38px;width:100%}
+.pw-eye{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;cursor:pointer;color:var(--mut);font-size:16px;padding:0;line-height:1}
+/* PROMPT ACTIONS */
+.prompt-wrap{position:relative}
+.prompt-actions{position:absolute;top:8px;right:8px;display:flex;gap:4px}
+.prompt-actions button{font-size:11px;padding:4px 8px}
+.prompt-wrap textarea{padding-top:36px}
+/* KB FILE LIST */
+.kb-drop{border:2px dashed var(--bd);border-radius:10px;padding:16px;text-align:center;color:var(--mut);font-size:12px;cursor:pointer;transition:border .15s;margin-bottom:10px}
+.kb-drop:hover{border-color:var(--bl);color:var(--bl)}
+.kb-files{display:flex;flex-direction:column;gap:6px}
+.kb-file{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--p2);border-radius:8px;font-size:12px}
+.kb-file-name{display:flex;align-items:center;gap:6px}
+.kb-file-del{background:transparent;border:none;color:var(--mut);cursor:pointer;font-size:14px;padding:0 4px}
+.kb-file-del:hover{color:var(--rd)}
+.kb-info{font-size:11px;color:var(--mut);line-height:1.5;margin-top:8px}
+/* FOOTER */
+.editor-footer{padding:14px 20px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;background:var(--panel)}
+/* AGENT CARD SPECIFIC */
+.agent-card-meta{display:flex;flex-direction:column;gap:3px;margin-top:8px}
+.agent-card-meta .meta-line{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut)}
+/* SCHEDULE PREVIEW */
+.sched-preview{display:flex;flex-direction:column;gap:8px}
+.sched-item{background:var(--p2);border-radius:8px;padding:10px 12px;border:1px solid var(--bd)}
+.sched-item-time{font-weight:600;font-size:12px;color:var(--bl)}
+.sched-item-info{font-size:12px;color:var(--mut);margin-top:2px}
+/* MULTI SELECT */
+.multi-select{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:var(--p2);border:1px solid var(--bd);border-radius:8px;min-height:38px;cursor:pointer}
+.multi-tag{display:flex;align-items:center;gap:4px;background:rgba(59,130,246,.15);color:var(--bl);border:1px solid rgba(59,130,246,.3);border-radius:6px;padding:2px 8px;font-size:12px}
+.multi-tag span{cursor:pointer;color:var(--mut)}
+.multi-tag span:hover{color:var(--rd)}
+.add-group-input{border:none;background:transparent;color:var(--tx);font-size:12px;outline:none;min-width:80px}
+/* IMAGE PICKER */
+.img-picker{border:1px solid var(--bd);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--p2);color:var(--mut);font-size:12px}
+.img-picker:hover{border-color:var(--bl);color:var(--bl)}
+/* PLATFORM MODEL MAPPING */
+.model-badge{display:inline-block;font-size:10px;background:rgba(139,92,246,.12);color:var(--pp);border-radius:4px;padding:1px 6px;margin-left:4px}
+/* LOADING DOT ANIMATION */
+@keyframes dot{0%,80%,100%{transform:scale(.7);opacity:.3}40%{transform:scale(1);opacity:1}}
+.typing-dots{display:flex;gap:4px;padding:4px 0}
+.typing-dots span{width:6px;height:6px;background:var(--mut);border-radius:50%;animation:dot 1.2s infinite}
+.typing-dots span:nth-child(2){animation-delay:.2s}
+.typing-dots span:nth-child(3){animation-delay:.4s}
+/* RESPONSIVE */
+@media(max-width:768px){.editor-right{display:none}.editor-body{flex-direction:column}}
+/* TOASTER */
+.toaster{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--panel);border:1px solid var(--bd);border-radius:10px;padding:10px 16px;font-size:13px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:slideIn .2s ease}
+@keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast.gn{border-left:3px solid var(--gn)}
+.toast.rd{border-left:3px solid var(--rd)}
+.toast.bl{border-left:3px solid var(--bl)}
+/* SPINNER */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .8s linear infinite;display:inline-block}
+/* SELECTED STATE FOR GROUPS */
+.group-option{padding:7px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:12px;transition:background .15s}
+.group-option:hover{background:var(--p2)}
+.group-option.selected{background:rgba(59,130,246,.1);color:var(--bl)}
+.group-option input[type=checkbox]{accent-color:var(--bl)}
+/* PLATFORM ICON ROW */
+.platform-icon{width:18px;height:18px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+/* CHAT SCOPE PILLS */
+.scope-pills{display:flex;gap:6px;flex-wrap:wrap}
+.scope-pill{padding:4px 12px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--mut);cursor:pointer;font-size:12px;transition:all .15s}
+.scope-pill.active{background:rgba(59,130,246,.15);color:var(--bl);border-color:rgba(59,130,246,.4)}
+/* DIVIDER */
+.divider{height:1px;background:var(--bd);margin:4px 0}
+/* ACCOUNT TABLE (multi-account list) */
+.acc-table{display:flex;flex-direction:column;gap:6px}
+.acc-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--p2);border:1px solid var(--bd);border-radius:10px;transition:border .15s}
+.acc-row:hover{border-color:var(--bl)}
+.acc-badge{flex-shrink:0}
+.acc-name{flex:1;font-size:13px;font-weight:500}
+.acc-groups-btn{font-size:12px;padding:4px 10px;background:rgba(59,130,246,.1);color:var(--bl);border:1px solid rgba(59,130,246,.3);border-radius:6px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.acc-groups-btn:hover{background:rgba(59,130,246,.2)}
+.acc-del-btn{background:transparent;border:none;color:var(--mut);cursor:pointer;font-size:16px;padding:0 2px;transition:color .15s}
+.acc-del-btn:hover{color:var(--rd)}
+.add-acc-btn{display:flex;align-items:center;gap:6px;padding:7px 12px;background:transparent;border:1px dashed var(--bd);border-radius:10px;color:var(--mut);cursor:pointer;font-size:12px;transition:all .15s;margin-top:2px}
+.add-acc-btn:hover{border-color:var(--bl);color:var(--bl)}
+/* DROPDOWN POPUP (add account) */
+.dropdown-popup{position:absolute;background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:6px;z-index:200;min-width:220px;box-shadow:0 12px 32px rgba(0,0,0,.5);display:none}
+.dropdown-popup.show{display:block}
+.dropdown-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px;transition:background .1s}
+.dropdown-item:hover{background:var(--p2)}
+.dropdown-section-label{font-size:10px;color:var(--mut);font-weight:600;padding:6px 10px 2px;text-transform:uppercase;letter-spacing:.5px}
+/* GROUPS POPUP */
+.groups-popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:none;align-items:center;justify-content:center}
+.groups-popup-overlay.show{display:flex}
+.groups-popup{background:var(--panel);border:1px solid var(--bd);border-radius:16px;padding:0;width:340px;max-height:480px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.groups-popup-header{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.groups-popup-title{font-weight:600;font-size:14px}
+.groups-popup-close{background:transparent;border:none;color:var(--mut);font-size:18px;cursor:pointer;padding:0 4px}
+.groups-popup-body{flex:1;overflow-y:auto;padding:12px}
+.groups-popup-body::-webkit-scrollbar{width:3px}
+.groups-popup-body::-webkit-scrollbar-thumb{background:var(--bd)}
+.groups-popup-footer{padding:12px 20px;border-top:1px solid var(--bd);display:flex;gap:8px;justify-content:flex-end}
+.ai-shared-hint{font-size:11px;color:var(--mut);padding:6px 10px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.2);border-radius:8px;margin-top:6px;line-height:1.5}
+.ai-usage-line{font-size:11px;color:var(--am);margin-top:4px}
+/* CHAT AGENT SCOPE ROW */
+.chat-acc-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--p2);border:1px solid var(--bd);border-radius:10px;transition:border .15s}
+.chat-acc-row:hover{border-color:var(--bl)}
+.chat-acc-scope{display:flex;gap:4px}
+.scope-mini-pill{padding:3px 8px;border-radius:12px;border:1px solid var(--bd);background:transparent;color:var(--mut);cursor:pointer;font-size:11px;transition:all .15s}
+.scope-mini-pill.active{background:rgba(59,130,246,.15);color:var(--bl);border-color:rgba(59,130,246,.4)}
+/* RANDOM POOL CONFIG */
+.random-cfg{background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.25);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.random-cfg-row{display:flex;flex-direction:column;gap:5px}
+.random-cfg-label{font-size:12px;color:var(--mut);font-weight:500}
+.random-cfg-desc{font-size:11px;color:var(--mut);line-height:1.5;padding:7px 10px;background:rgba(139,92,246,.08);border-radius:8px;border:1px solid rgba(139,92,246,.15)}
+.radio-group{display:flex;gap:12px;flex-wrap:wrap}
+.radio-opt{display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:4px 0}
+.radio-opt input[type=radio]{accent-color:var(--pp);cursor:pointer}
+.random-freq-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.random-freq-field{display:flex;flex-direction:column;gap:4px}
+.run-until-pills{display:flex;gap:6px;flex-wrap:wrap}
+.run-until-pill{padding:5px 14px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--mut);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s}
+.run-until-pill.active{background:var(--pp);color:#fff;border-color:var(--pp)}
+.run-until-pill:hover:not(.active){border-color:var(--pp);color:var(--tx)}
+.random-rounds-input{display:none;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--mut)}
+.random-rounds-input input{width:70px}
+.badge-random{background:rgba(139,92,246,.15);color:var(--pp);border:1px solid rgba(139,92,246,.3)}
+/* RUN STATUS BAR */
+.run-status-bar{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:10px;font-size:12px;color:var(--gn)}
+.run-status-dot{width:8px;height:8px;border-radius:50%;background:var(--gn);flex-shrink:0;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* LARGE RUN BTN */
+.btn-run{background:var(--gn);color:#fff;font-size:14px;font-weight:600;padding:10px 22px;border-radius:10px;border:none;cursor:pointer;transition:all .15s}
+.btn-run:hover{filter:brightness(1.1)}
+.btn-stop{background:var(--rd);color:#fff;font-size:14px;font-weight:600;padding:10px 22px;border-radius:10px;border:none;cursor:pointer;transition:all .15s}
+.btn-stop:hover{filter:brightness(1.1)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="app-logo">⚡ Zaplo</div>
+  <div>
+    <div class="header-title">🤖 AI & Agent — Trung tâm điều khiển</div>
+    <div class="header-sub">Facebook + Zalo automation platform</div>
+  </div>
+  <select class="account-select" id="globalAccount">
+    <option value="all">👥 Tất cả tài khoản</option>
+    <option value="fb1">📘 Luu Andy (FB)</option>
+    <option value="zl1">💬 Zalo Tt</option>
+  </select>
+</header>
+
+<!-- TABS -->
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="switchTab('ai')">🧠 Trợ lý AI</button>
+  <button class="tab-btn" onclick="switchTab('post')">✒️ Agent đăng bài</button>
+  <button class="tab-btn" onclick="switchTab('chat')">💬 Agent chat</button>
+</div>
+
+<!-- ======================== TAB 1: TRỢ LÝ AI ======================== -->
+<div class="tab-content active" id="tab-ai">
+  <!-- LIST VIEW -->
+  <div id="ai-list">
+    <div class="cards-header">
+      <div>
+        <div class="cards-title">🧠 Trợ lý AI</div>
+        <div style="font-size:12px;color:var(--mut);margin-top:2px">Cấu hình bộ não AI cho các Agent</div>
+      </div>
+      <button class="btn-primary" onclick="openAiEditor('new')">+ Tạo trợ lý</button>
+    </div>
+    <div class="cards-grid" id="ai-cards-grid">
+      <!-- cards rendered by JS -->
+    </div>
+  </div>
+
+  <!-- EDITOR VIEW -->
+  <div id="ai-editor" class="editor-page">
+    <div class="editor-topbar">
+      <button class="editor-back" onclick="closeEditor('ai')">← <span id="ai-editor-back-name">Danh sách trợ lý</span></button>
+      <div>
+        <div class="editor-name" id="ai-editor-title">Trợ lý viết content Lmak</div>
+        <div class="editor-sub" id="ai-editor-subtitle">DeepSeek — deepseek-v4-pro</div>
+      </div>
+      <div class="editor-actions">
+        <label class="toggle-wrap">
+          <label class="toggle"><input type="checkbox" id="ai-toggle-active" checked onchange="handleAiToggle(this)"><span class="toggle-slider"></span></label>
+          <span class="toggle-label" id="ai-toggle-label">Đang bật</span>
+        </label>
+        <button class="btn-ghost btn-sm" onclick="scrollChatTest('ai-chat')">💬 Chat thử</button>
+        <button class="btn-ghost btn-sm">📊 Báo cáo</button>
+      </div>
+    </div>
+    <div class="editor-body">
+      <!-- LEFT -->
+      <div class="editor-left">
+        <!-- Thông tin cơ bản -->
+        <div class="section-card">
+          <div class="section-title">📝 Thông tin cơ bản</div>
+          <div class="form-row">
+            <div class="form-label">Tên trợ lý <span style="color:var(--rd)">*</span></div>
+            <input type="text" id="ai-name" value="Trợ lý viết content Lmak">
+          </div>
+          <div class="form-row">
+            <div class="form-label">Nền tảng AI</div>
+            <select id="ai-platform" onchange="onPlatformChange()">
+              <option value="deepseek">🔮 DeepSeek</option>
+              <option value="openai">🤖 OpenAI</option>
+              <option value="gemini">✨ Gemini</option>
+              <option value="claude">🟠 Claude</option>
+              <option value="grok">⚡ Grok</option>
+              <option value="mistral">🌀 Mistral</option>
+              <option value="9router">🔀 9Router</option>
+              <option value="openrouter">🔀 OpenRouter</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-label">Model</div>
+            <select id="ai-model">
+              <option>deepseek-v4-pro</option>
+              <option>deepseek-v4-flash</option>
+              <option>deepseek-r2</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- API Key -->
+        <div class="section-card">
+          <div class="section-title">🔑 API Key</div>
+          <div class="form-row">
+            <div class="pw-wrap">
+              <input type="password" id="ai-apikey" value="sk-deepseek-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" placeholder="Nhập API key...">
+              <button class="pw-eye" onclick="togglePw('ai-apikey', this)">👁</button>
+            </div>
+            <div class="form-hint">Lấy tại: <a href="#" onclick="return false">platform.deepseek.com/api-keys</a></div>
+          </div>
+        </div>
+
+        <!-- System Prompt -->
+        <div class="section-card">
+          <div class="section-title">💬 System Prompt</div>
+          <div class="form-row">
+            <div class="prompt-wrap">
+              <div class="prompt-actions">
+                <button class="btn-ghost btn-sm" onclick="improvePrompt('ai-prompt')">✨ Cải thiện</button>
+                <button class="btn-ghost btn-sm" onclick="suggestPrompt('ai-prompt')">✨ Gợi ý AI</button>
+              </div>
+              <textarea id="ai-prompt" rows="8" style="resize:vertical;min-height:140px">Bạn là trợ lý viết content chuyên nghiệp cho thương hiệu Lmak. Phong cách viết: thân thiện, gần gũi, hấp dẫn. Luôn tối ưu cho Facebook và Zalo. Đảm bảo nội dung đúng thương hiệu và thu hút tương tác.</textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Knowledge Base -->
+        <div class="section-card">
+          <div class="section-title">📚 File kiến thức (KB)</div>
+          <div class="kb-drop" onclick="fakeFileUpload()">
+            📎 Chọn file để tải lên<br>
+            <span style="font-size:11px;margin-top:4px;display:block">hoặc kéo thả vào đây</span>
+          </div>
+          <div class="kb-files" id="kb-files">
+            <div class="kb-file">
+              <div class="kb-file-name">📄 brand-guidelines.txt <span style="color:var(--mut);font-size:10px">18 KB</span></div>
+              <button class="kb-file-del" onclick="removeKbFile(this)">✕</button>
+            </div>
+            <div class="kb-file">
+              <div class="kb-file-name">📄 product-catalog.md <span style="color:var(--mut);font-size:10px">32 KB</span></div>
+              <button class="kb-file-del" onclick="removeKbFile(this)">✕</button>
+            </div>
+          </div>
+          <div class="kb-info">ℹ️ File được trích xuất nội dung text và lưu tại máy. Khi AI trả lời, nội dung text nạp vào system prompt — không gửi file gốc. Hỗ trợ: TXT, MD, CSV, JSON, HTML, XML, YAML, LOG (tối đa ~100KB/file).</div>
+        </div>
+
+        <!-- Advanced Settings -->
+        <div class="section-card">
+          <div class="section-title">⚙️ Cài đặt nâng cao</div>
+          <div class="form-row">
+            <div class="form-label">Temperature <span id="temp-val-label" style="color:var(--bl);font-weight:700">0.7</span></div>
+            <div class="slider-wrap">
+              <input type="range" min="0" max="2" step="0.1" value="0.7" id="temp-slider" oninput="updateTemp(this)">
+            </div>
+            <div class="slider-labels"><span>Chính xác (0)</span><span>Cân bằng (1)</span><span>Sáng tạo (2)</span></div>
+          </div>
+          <div class="form-row" style="margin-top:10px">
+            <div class="form-label">Max tokens</div>
+            <input type="number" value="1000" style="max-width:120px">
+          </div>
+          <div class="form-row">
+            <div class="form-label">Số tin nhắn lịch sử/ngữ cảnh</div>
+            <input type="number" value="30" style="max-width:120px">
+            <div class="form-hint">Số tin nhắn gần nhất được đưa vào ngữ cảnh cho AI. Giá trị cao hơn = nhiều bộ nhớ hơn nhưng tốn token hơn.</div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">Base URL tùy chọn</div>
+            <input type="text" id="ai-baseurl" placeholder="https://api.custom-proxy.com">
+            <div class="form-hint">Hữu ích khi dùng proxy 9Router, OpenRouter hoặc endpoint tùy chỉnh thay vì API gốc.</div>
+          </div>
+          <div class="form-row" style="margin-top:12px">
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="ai-default-toggle" checked onchange="handleDefaultToggle(this)"><span class="toggle-slider"></span></label>
+              <span class="toggle-label">Đặt làm trợ lý mặc định</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: CHAT -->
+      <div class="editor-right" id="ai-chat-panel">
+        <div class="chat-panel-title">💬 Chat thử — Kiểm tra trợ lý trực tiếp</div>
+        <div class="chat-messages" id="ai-chat-messages">
+          <div class="chat-empty" id="ai-chat-empty">
+            <div class="chat-empty-icon">🤖</div>
+            <div class="chat-empty-text">Gửi tin nhắn để test<br>trợ lý AI của bạn</div>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="ai-chat-input" placeholder="Nhập tin nhắn thử…" onkeydown="if(event.key==='Enter')sendChat('ai')">
+          <button class="chat-send-btn" onclick="sendChat('ai')">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="editor-footer">
+      <button class="btn-danger" onclick="confirmDelete('trợ lý này')">🗑 Xóa</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-ghost" onclick="testConnection()">🔍 Test kết nối</button>
+        <button class="btn-primary" onclick="saveItem('Trợ lý')">💾 Cập nhật</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== TAB 2: AGENT ĐĂNG BÀI ======================== -->
+<div class="tab-content" id="tab-post">
+  <!-- LIST -->
+  <div id="post-list">
+    <div class="cards-header">
+      <div>
+        <div class="cards-title">✒️ Agent đăng bài</div>
+        <div style="font-size:12px;color:var(--mut);margin-top:2px">Tự động đăng bài theo lịch lên nhóm FB / Zalo</div>
+      </div>
+      <button class="btn-primary" onclick="openPostEditor('new')">+ Tạo Agent đăng bài</button>
+    </div>
+    <div class="filter-pills" id="post-filter-pills">
+      <button class="pill active" onclick="filterAgentCards(this,'post','all')">Tất cả</button>
+      <button class="pill" onclick="filterAgentCards(this,'post','fb')">📘 Facebook</button>
+      <button class="pill" onclick="filterAgentCards(this,'post','zalo')">💬 Zalo</button>
+    </div>
+    <div class="cards-grid" id="post-cards-grid">
+    </div>
+  </div>
+
+  <!-- EDITOR -->
+  <div id="post-editor" class="editor-page">
+    <div class="editor-topbar">
+      <button class="editor-back" onclick="closeEditor('post')">← Danh sách Agent</button>
+      <div>
+        <div class="editor-name" id="post-editor-title">Agent Tuyển sinh</div>
+        <div class="editor-sub" id="post-editor-sub">2 tài khoản · 5 nhóm · Hàng ngày 08:00–21:00</div>
+      </div>
+      <div class="editor-actions">
+        <label class="toggle-wrap">
+          <label class="toggle"><input type="checkbox" id="post-toggle-active" checked onchange="handlePostToggle(this)"><span class="toggle-slider"></span></label>
+          <span class="toggle-label" id="post-toggle-label">Đang chạy</span>
+        </label>
+        <button class="btn-ghost btn-sm">📊 Báo cáo</button>
+      </div>
+    </div>
+    <div class="editor-body">
+      <!-- LEFT -->
+      <div class="editor-left">
+
+        <!-- 1. Thông tin Agent (chỉ tên) -->
+        <div class="section-card">
+          <div class="section-title">📝 Thông tin Agent</div>
+          <div class="form-row">
+            <div class="form-label">Tên Agent <span style="color:var(--rd)">*</span></div>
+            <input type="text" id="post-name" value="Agent Tuyển sinh">
+          </div>
+        </div>
+
+        <!-- 2. Trợ lý AI dùng chung -->
+        <div class="section-card">
+          <div class="section-title">🧠 Trợ lý AI (bộ não)</div>
+          <div class="form-row">
+            <div class="form-label">Chọn trợ lý dùng chung</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="post-ai-select" style="flex:1">
+                <option>Trợ lý viết content Lmak [MẶC ĐỊNH]</option>
+                <option>Trợ lý tư vấn bán hàng</option>
+              </select>
+              <button class="btn-ghost btn-sm" onclick="openAiEditorFromPost()">⚙️ Sửa trợ lý full-page</button>
+            </div>
+            <div class="ai-shared-hint">Dùng chung cho mọi tài khoản của agent này</div>
+            <div class="ai-usage-line">⚡ Trợ lý này đang dùng bởi 3 agent</div>
+          </div>
+        </div>
+
+        <!-- 3. Tài khoản phụ trách (nhiều kênh) -->
+        <div class="section-card" style="position:relative">
+          <div class="section-title">👥 Tài khoản phụ trách (nhiều kênh)</div>
+          <div class="acc-table" id="post-acc-table">
+            <!-- rows rendered by JS -->
+          </div>
+          <button class="add-acc-btn" onclick="toggleAddAccDropdown('post')" id="post-add-acc-btn">
+            + Thêm tài khoản
+          </button>
+          <!-- Dropdown add account -->
+          <div class="dropdown-popup" id="post-acc-dropdown">
+            <div class="dropdown-section-label">Facebook</div>
+            <div class="dropdown-item" onclick="addAccountRow('post','Luu Andy','fb')">
+              <span class="badge badge-fb">📘 FB</span> Luu Andy
+            </div>
+            <div class="dropdown-section-label" style="margin-top:4px">Zalo</div>
+            <div class="dropdown-item" onclick="addAccountRow('post','Tt','zalo')">
+              <span class="badge badge-zalo">💬 Zalo</span> Tt
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Nguồn nội dung + Lịch (dùng chung) -->
+        <div class="section-card">
+          <div class="section-title">✒️ Nguồn nội dung + Lịch <span style="font-size:11px;color:var(--mut);font-weight:400">(dùng chung mọi tài khoản)</span></div>
+          <div class="form-row">
+            <div class="form-label">Nguồn nội dung</div>
+            <div class="filter-pills" style="margin:0" id="src-pills">
+              <button class="pill active" onclick="onSrcPill(this,'kho')">📚 Kho bài</button>
+              <button class="pill" onclick="onSrcPill(this,'ai')">🤖 AI sinh theo chủ đề</button>
+              <button class="pill" onclick="onSrcPill(this,'random')">🎲 Random từ Kho bài (xoay vòng)</button>
+            </div>
+          </div>
+
+          <!-- RANDOM POOL CONFIG (ẩn mặc định) -->
+          <div class="random-cfg" id="random-cfg-block" style="display:none">
+
+            <!-- Pool bài -->
+            <div class="random-cfg-row">
+              <div class="random-cfg-label">Pool bài</div>
+              <div class="radio-group" id="pool-radio-group">
+                <label class="radio-opt"><input type="radio" name="pool-mode" value="all" onchange="onPoolModeChange(this)" checked> Dùng cả Kho</label>
+                <label class="radio-opt"><input type="radio" name="pool-mode" value="pick" onchange="onPoolModeChange(this)"> Chọn cụ thể</label>
+              </div>
+              <div id="pool-pick-btn-wrap" style="display:none;margin-top:6px">
+                <button class="btn-ghost btn-sm" onclick="showToast('📚 Mở Kho bài để chọn…','pp')">📋 Chọn bài từ Kho <span style="color:var(--pp);font-weight:600">(đã chọn: 100 bài)</span></button>
+              </div>
+            </div>
+
+            <!-- Kiểu xoay vòng -->
+            <div class="random-cfg-row">
+              <div class="random-cfg-label">Kiểu xoay vòng</div>
+              <div class="random-cfg-desc">🔀 Xáo trộn hết pool → đăng lần lượt → hết thì xáo lại (phủ đều, không trùng trong 1 vòng)</div>
+            </div>
+
+            <!-- Tần suất -->
+            <div class="random-cfg-row">
+              <div class="random-cfg-label">Tần suất</div>
+              <div class="random-freq-row">
+                <div class="random-freq-field">
+                  <div class="random-cfg-label">Bài/ngày</div>
+                  <input type="number" value="3" style="width:70px" id="rand-posts-per-day">
+                </div>
+                <div class="random-freq-field">
+                  <div class="random-cfg-label">Giãn cách (phút)</div>
+                  <input type="number" value="120" style="width:80px" id="rand-gap-min">
+                </div>
+                <div class="random-freq-field">
+                  <div class="random-cfg-label">Khung giờ</div>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <input type="time" value="08:00" style="width:90px">
+                    <span style="color:var(--mut)">→</span>
+                    <input type="time" value="21:00" style="width:90px">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Chạy đến khi -->
+            <div class="random-cfg-row">
+              <div class="random-cfg-label">Chạy đến khi</div>
+              <div class="run-until-pills" id="run-until-pills">
+                <button class="run-until-pill active" onclick="onRunUntilPill(this,'infinite')">♾ Vô hạn (đến khi bấm Dừng)</button>
+                <button class="run-until-pill" onclick="onRunUntilPill(this,'rounds')">🔢 Số vòng cụ thể</button>
+              </div>
+              <div class="random-rounds-input" id="rounds-input-wrap">
+                <span>Số vòng:</span>
+                <input type="number" value="5" min="1" id="rand-rounds">
+                <span>vòng</span>
+              </div>
+            </div>
+
+            <!-- Ghi chú ảnh -->
+            <div class="random-cfg-desc" style="font-size:11px">
+              🖼️ Mỗi bài tự gán số ảnh ngẫu nhiên (1–4 ảnh) từ thư viện ảnh đã cài, hoặc dùng ảnh gốc của bài nếu có.
+            </div>
+
+            <!-- Nút chạy / dừng -->
+            <div id="run-ctrl-wrap" style="display:flex;flex-direction:column;gap:8px">
+              <div>
+                <button class="btn-run" id="btn-start-run" onclick="toggleRandomRun()" style="width:100%">▶ Bắt đầu chạy</button>
+              </div>
+              <div id="run-status-bar" class="run-status-bar" style="display:none">
+                <div class="run-status-dot"></div>
+                <span id="run-status-text">Đang chạy · đã đăng 0/100 vòng này · còn 100</span>
+              </div>
+            </div>
+
+          </div>
+          <div class="form-row" style="margin-top:10px">
+            <div class="form-label">Lịch đăng</div>
+            <div class="filter-pills" style="margin-bottom:10px">
+              <button class="pill active" onclick="filterPill(this,'sched')">📅 Hàng ngày</button>
+              <button class="pill" onclick="filterPill(this,'sched')">📆 Theo tuần</button>
+              <button class="pill" onclick="filterPill(this,'sched')">📌 Ngày cụ thể</button>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div class="form-label">Giờ bắt đầu</div>
+                <input type="time" value="08:00" style="width:100px">
+              </div>
+              <span style="color:var(--mut);margin-top:18px">→</span>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div class="form-label">Giờ kết thúc</div>
+                <input type="time" value="21:00" style="width:100px">
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <div class="form-label">Bài/ngày</div>
+                <input type="number" value="2" style="width:70px">
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">Ảnh chỉ định (tuỳ chọn)</div>
+            <div class="img-picker" onclick="showToast('🖼️ Mở thư viện ảnh…','bl')">
+              🖼️ Chọn từ Thư viện ảnh
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: SCHEDULE PREVIEW gộp nhiều tài khoản -->
+      <div class="editor-right">
+        <div class="chat-panel-title">🗓️ Lịch sắp đăng — tất cả tài khoản</div>
+        <div class="chat-messages">
+          <div class="sched-preview" id="post-sched-preview">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--bd)">
+          <button class="btn-ghost btn-sm" style="width:100%" onclick="showToast('🔄 Tính lại lịch thành công','gn')">🔄 Tính lại lịch</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="editor-footer">
+      <button class="btn-danger" onclick="confirmDelete('agent này')">🗑 Xóa</button>
+      <button class="btn-primary" onclick="saveItem('Agent đăng bài')">💾 Lưu Agent</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== TAB 3: AGENT CHAT ======================== -->
+<div class="tab-content" id="tab-chat">
+  <!-- LIST -->
+  <div id="chat-list">
+    <div class="cards-header">
+      <div>
+        <div class="cards-title">💬 Agent chat</div>
+        <div style="font-size:12px;color:var(--mut);margin-top:2px">Tự động trả lời tin nhắn DM / bình luận nhóm</div>
+      </div>
+      <button class="btn-primary" onclick="openChatEditor('new')">+ Tạo Agent chat</button>
+    </div>
+    <div class="filter-pills" id="chat-filter-pills">
+      <button class="pill active" onclick="filterAgentCards(this,'chat','all')">Tất cả</button>
+      <button class="pill" onclick="filterAgentCards(this,'chat','fb')">📘 Facebook</button>
+      <button class="pill" onclick="filterAgentCards(this,'chat','zalo')">💬 Zalo</button>
+    </div>
+    <div class="cards-grid" id="chat-cards-grid">
+    </div>
+  </div>
+
+  <!-- EDITOR -->
+  <div id="chat-editor" class="editor-page">
+    <div class="editor-topbar">
+      <button class="editor-back" onclick="closeEditor('chat')">← Danh sách Agent</button>
+      <div>
+        <div class="editor-name" id="chat-editor-title">CSKH Lmak</div>
+        <div class="editor-sub">2 tài khoản · Auto-reply DM & nhóm</div>
+      </div>
+      <div class="editor-actions">
+        <label class="toggle-wrap">
+          <label class="toggle"><input type="checkbox" id="chat-toggle-active" checked onchange="handleChatToggle(this)"><span class="toggle-slider"></span></label>
+          <span class="toggle-label" id="chat-toggle-label">Đang bật</span>
+        </label>
+        <button class="btn-ghost btn-sm">📊 Báo cáo</button>
+      </div>
+    </div>
+    <div class="editor-body">
+      <!-- LEFT -->
+      <div class="editor-left">
+
+        <!-- 1. Thông tin Agent -->
+        <div class="section-card">
+          <div class="section-title">📝 Thông tin Agent</div>
+          <div class="form-row">
+            <div class="form-label">Tên Agent <span style="color:var(--rd)">*</span></div>
+            <input type="text" id="chat-name" value="CSKH Lmak">
+          </div>
+        </div>
+
+        <!-- 2. Trợ lý AI dùng chung -->
+        <div class="section-card">
+          <div class="section-title">🧠 Trợ lý AI (bộ não)</div>
+          <div class="form-row">
+            <div class="form-label">Chọn trợ lý dùng chung</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select style="flex:1">
+                <option>Trợ lý tư vấn bán hàng</option>
+                <option>Trợ lý viết content Lmak [MẶC ĐỊNH]</option>
+              </select>
+              <button class="btn-ghost btn-sm" onclick="openAiEditorFromChat()">⚙️ Sửa trợ lý full-page</button>
+            </div>
+            <div class="ai-shared-hint">Dùng chung cho mọi tài khoản của agent này</div>
+            <div class="ai-usage-line">⚡ Trợ lý này đang dùng bởi 2 agent</div>
+          </div>
+        </div>
+
+        <!-- 3. Tài khoản phụ trách (nhiều kênh) với phạm vi riêng -->
+        <div class="section-card" style="position:relative">
+          <div class="section-title">👥 Tài khoản phụ trách (nhiều kênh)</div>
+          <div class="acc-table" id="chat-acc-table">
+            <!-- rendered by JS -->
+          </div>
+          <button class="add-acc-btn" onclick="toggleAddAccDropdown('chat')" id="chat-add-acc-btn">
+            + Thêm tài khoản
+          </button>
+          <!-- Dropdown add account -->
+          <div class="dropdown-popup" id="chat-acc-dropdown">
+            <div class="dropdown-section-label">Facebook</div>
+            <div class="dropdown-item" onclick="addChatAccountRow('Luu Andy','fb')">
+              <span class="badge badge-fb">📘 FB</span> Luu Andy
+            </div>
+            <div class="dropdown-section-label" style="margin-top:4px">Zalo</div>
+            <div class="dropdown-item" onclick="addChatAccountRow('Tt','zalo')">
+              <span class="badge badge-zalo">💬 Zalo</span> Tt
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Cấu hình trả lời chung -->
+        <div class="section-card">
+          <div class="section-title">💬 Cấu hình trả lời chung</div>
+          <div class="form-row">
+            <div class="form-label">Hội thoại / Nhãn phụ trách</div>
+            <div class="multi-select" onclick="focusChatLabelInput()">
+              <div class="multi-tag">Tư vấn chung <span onclick="removeGroup(this)">✕</span></div>
+              <div class="multi-tag">CSKH sau mua <span onclick="removeGroup(this)">✕</span></div>
+              <input class="add-group-input" id="chat-label-input" placeholder="+ Thêm nhãn…" onkeydown="addChatLabel(event)">
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:10px">
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="auto-pause-toggle" checked><span class="toggle-slider"></span></label>
+              <span class="toggle-label">Tự tạm dừng khi người thật vào hội thoại</span>
+            </div>
+            <div class="form-hint" style="margin-top:6px">Khi nhân viên tiếp quản, bot ngừng trả lời tự động trong hội thoại đó.</div>
+          </div>
+          <div class="form-row" style="margin-top:12px">
+            <div class="form-label">Chế độ trả lời</div>
+            <div class="filter-pills" style="margin:0">
+              <button class="pill active" onclick="filterPill(this,'reply-mode')">🤖 Tự động (Auto)</button>
+              <button class="pill" onclick="filterPill(this,'reply-mode')">💡 Gợi ý cho nhân viên</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: CHAT TEST -->
+      <div class="editor-right">
+        <div class="chat-panel-title">💬 Chat thử — Kiểm tra phản hồi tự động</div>
+        <div class="chat-messages" id="chat-chat-messages">
+          <div class="chat-empty" id="chat-chat-empty">
+            <div class="chat-empty-icon">💬</div>
+            <div class="chat-empty-text">Gõ tin như khách hàng<br>để test phản hồi của Agent</div>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-chat-input" placeholder="Nhập tin nhắn thử…" onkeydown="if(event.key==='Enter')sendChat('chat')">
+          <button class="chat-send-btn" onclick="sendChat('chat')">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="editor-footer">
+      <button class="btn-danger" onclick="confirmDelete('agent chat này')">🗑 Xóa</button>
+      <button class="btn-primary" onclick="saveItem('Agent chat')">💾 Lưu Agent</button>
+    </div>
+  </div>
+</div>
+
+<!-- GROUPS POPUP OVERLAY -->
+<div class="groups-popup-overlay" id="groups-popup-overlay" onclick="closeGroupsPopup(event)">
+  <div class="groups-popup">
+    <div class="groups-popup-header">
+      <div>
+        <div class="groups-popup-title" id="groups-popup-title">Chọn nhóm — Luu Andy (FB)</div>
+        <div style="font-size:11px;color:var(--mut);margin-top:2px" id="groups-popup-subtitle">Chọn nhóm đích cho tài khoản này</div>
+      </div>
+      <button class="groups-popup-close" onclick="closeGroupsPopupDirect()">✕</button>
+    </div>
+    <div class="groups-popup-body" id="groups-popup-body">
+      <!-- rendered by JS -->
+    </div>
+    <div class="groups-popup-footer">
+      <button class="btn-ghost btn-sm" onclick="closeGroupsPopupDirect()">Hủy</button>
+      <button class="btn-primary btn-sm" onclick="confirmGroupsSelection()">✓ Xác nhận</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOASTER -->
+<div class="toaster" id="toaster"></div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const AI_ASSISTANTS = [
+  {id:'a1', name:'Trợ lý viết content Lmak', platform:'DeepSeek', model:'deepseek-v4-pro', kbCount:2, active:true, isDefault:true, avatar:'card-avatar-pp', icon:'✍️'},
+  {id:'a2', name:'Trợ lý tư vấn bán hàng', platform:'OpenAI', model:'gpt-5.4-mini', kbCount:3, active:true, isDefault:false, avatar:'card-avatar-bl', icon:'🛍️'},
+];
+
+// POST_AGENTS: mỗi agent có mảng accounts = [{name, channel}]
+// srcMode: 'kho' | 'ai' | 'random'
+const POST_AGENTS = [
+  {id:'p1', name:'Agent Tuyển sinh',
+   accounts:[{name:'Luu Andy',channel:'fb',groups:3},{name:'Tt',channel:'zalo',groups:2}],
+   ai:'Trợ lý content Lmak', schedule:'Hàng ngày 08:00–21:00', postsPerDay:2, status:'running', avatar:'card-avatar-bl',
+   srcMode:'random', randomPool:100, randomLoop:'infinite'},
+  {id:'p2', name:'Agent Zalo KM',
+   accounts:[{name:'Tt',channel:'zalo',groups:1}],
+   ai:'Trợ lý tư vấn bán hàng', schedule:'Hàng ngày 09:00–18:00', postsPerDay:1, status:'paused', avatar:'card-avatar-gn',
+   srcMode:'kho'},
+];
+
+const CHAT_AGENTS = [
+  {id:'c1', name:'CSKH Lmak',
+   accounts:[{name:'Luu Andy',channel:'fb',scope:['DM','Nhóm']},{name:'Tt',channel:'zalo',scope:['DM']}],
+   ai:'Trợ lý tư vấn bán hàng', mode:'Auto-reply', active:true, avatar:'card-avatar-pp'},
+];
+
+const PLATFORM_MODELS = {
+  deepseek:['deepseek-v4-pro','deepseek-v4-flash','deepseek-r2','deepseek-coder-v3'],
+  openai:['gpt-5.4-mini','gpt-5.4','gpt-4.1-turbo','gpt-4o-mini','o3-mini'],
+  gemini:['gemini-2.5-flash','gemini-2.5-pro','gemini-2.0-flash','gemini-exp-1206'],
+  claude:['claude-sonnet-4-6','claude-opus-4','claude-haiku-3.5','claude-3-5-sonnet'],
+  grok:['grok-3','grok-3-mini','grok-2-vision','grok-2'],
+  mistral:['mistral-large-2','mistral-small-3','codestral-2025','pixtral-large'],
+  '9router':['auto-best','auto-fast','auto-cheap'],
+  openrouter:['meta/llama-4-scout','google/gemini-pro','anthropic/claude-3.5','mistralai/mistral-large'],
+};
+
+const AI_MOCK_REPLIES = {
+  ai:[
+    'Tôi là trợ lý viết content Lmak. Hãy cho tôi biết bạn cần viết nội dung về chủ đề gì? Tôi sẽ tạo ra nội dung phù hợp với phong cách thương hiệu ngay!',
+    'Được rồi! Tôi có thể viết bài đăng Facebook, caption Instagram, hay nội dung Zalo cho bạn. Cụ thể hơn về sản phẩm/dịch vụ nhé?',
+    'Tuyệt! Đây là draft nội dung cho bạn:\n\n"✨ LMAK — Cùng bạn tỏa sáng mỗi ngày!\n\n🌟 Sản phẩm mới vừa ra mắt với công nghệ tiên tiến, mang lại trải nghiệm vượt trội. Đặt hàng ngay hôm nay để nhận ưu đãi đặc biệt!\n\n👉 Link đặt hàng: [link]\n#Lmak #SảnPhẩmMới"',
+    'Tôi đã phân tích thông tin từ file KB của bạn. Dựa trên brand guidelines, đây là gợi ý tone of voice: thân thiện, gần gũi, tích cực và truyền cảm hứng.',
+  ],
+  chat:[
+    'Xin chào! Tôi là trợ lý CSKH của Lmak. Tôi có thể giúp gì cho bạn hôm nay? 😊',
+    'Cảm ơn bạn đã liên hệ! Sản phẩm của chúng tôi đang có chương trình ưu đãi đặc biệt. Bạn có muốn biết thêm chi tiết không?',
+    'Tôi hiểu vấn đề của bạn rồi. Để xử lý nhanh nhất, bạn có thể cung cấp mã đơn hàng cho tôi không? Chúng tôi sẽ kiểm tra và phản hồi trong vòng 30 phút.',
+    'Dạ, sản phẩm này có bảo hành 12 tháng tại tất cả các cửa hàng chính hãng. Nếu gặp vấn đề, bạn có thể mang sản phẩm đến bất kỳ cửa hàng nào hoặc gửi yêu cầu bảo hành online ạ.',
+  ],
+};
+
+// Mock groups per account
+const ACCOUNT_GROUPS = {
+  'Luu Andy_fb': [
+    {id:'g1',name:'Nhóm Tuyển sinh 2024'},
+    {id:'g2',name:'Hội phụ huynh A7'},
+    {id:'g3',name:'CLB Học sinh giỏi'},
+    {id:'g4',name:'Group Khởi nghiệp HN'},
+    {id:'g5',name:'Cộng đồng Startup VN'},
+  ],
+  'Tt_zalo': [
+    {id:'z1',name:'Nhóm KM Zalo tháng 6'},
+    {id:'z2',name:'Group CSKH Lmak'},
+    {id:'z3',name:'Hội viên thân thiết'},
+  ],
+};
+
+// State for accounts in post editor
+let postAccounts = [
+  {name:'Luu Andy', channel:'fb', selectedGroups:['g1','g2','g3']},
+  {name:'Tt', channel:'zalo', selectedGroups:['z1','z2']},
+];
+
+// State for accounts in chat editor
+let chatAccounts = [
+  {name:'Luu Andy', channel:'fb', scope:['DM','Nhóm']},
+  {name:'Tt', channel:'zalo', scope:['DM']},
+];
+
+// Current groups popup state
+let currentGroupsCtx = null; // {accKey, tableId, tempSelected}
+
+// ============================================================
+// CHANNEL BADGE HTML
+// ============================================================
+function channelBadge(channel){
+  if(channel==='fb') return '<span class="badge badge-fb">📘 FB</span>';
+  if(channel==='zalo') return '<span class="badge badge-zalo">💬 Zalo</span>';
+  return '';
+}
+
+// ============================================================
+// RENDER CARDS
+// ============================================================
+function renderAiCards(){
+  const grid = document.getElementById('ai-cards-grid');
+  grid.innerHTML = AI_ASSISTANTS.map(a=>`
+    <div class="agent-card" onclick="openAiEditor('${a.id}')">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div class="card-avatar ${a.avatar}">${a.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div class="card-title">
+            ${a.name}
+            ${a.isDefault?'<span class="card-default">MẶC ĐỊNH</span>':''}
+          </div>
+          <div class="card-desc">${a.platform} · ${a.model}</div>
+          <div class="card-meta">
+            <span class="badge badge-pp">📚 ${a.kbCount} file KB</span>
+            <span class="badge ${a.active?'badge-gn':'badge-rd'}">${a.active?'● Đang bật':'● Đã tắt'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderPostCards(filterChannel){
+  const grid = document.getElementById('post-cards-grid');
+  let agents = POST_AGENTS;
+  if(filterChannel && filterChannel!=='all'){
+    agents = POST_AGENTS.filter(a=>a.accounts.some(ac=>ac.channel===filterChannel));
+  }
+  grid.innerHTML = agents.map(a=>{
+    const channels = [...new Set(a.accounts.map(ac=>ac.channel))];
+    const badges = channels.map(ch=>channelBadge(ch)).join(' ');
+    const totalGroups = a.accounts.reduce((s,ac)=>s+(ac.groups||0),0);
+    const isRandom = a.srcMode === 'random';
+    const randomBadge = isRandom
+      ? `<span class="badge badge-random">🎲 Random pool ${a.randomPool} bài · lặp vô hạn</span>`
+      : '';
+    const stopBtn = (isRandom && a.status === 'running')
+      ? `<button class="btn-danger btn-sm" style="margin-left:auto;font-size:11px" onclick="event.stopPropagation();quickStopAgent('${a.id}',this)">■ Dừng</button>`
+      : '';
+    return `
+    <div class="agent-card" onclick="openPostEditor('${a.id}')">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div class="card-avatar ${a.avatar}">✒️</div>
+        <div style="flex:1;min-width:0">
+          <div class="card-title" style="justify-content:space-between;align-items:flex-start">${a.name} ${badges} ${stopBtn}</div>
+          <div class="card-desc">${a.accounts.length} tài khoản · ${totalGroups} nhóm</div>
+          <div class="agent-card-meta">
+            <div class="meta-line">🧠 ${a.ai}</div>
+            <div class="meta-line">📅 ${a.schedule}</div>
+            <div class="meta-line">📄 ${a.postsPerDay} bài/ngày</div>
+          </div>
+          <div class="card-meta" style="margin-top:8px">
+            <span class="badge ${a.status==='running'?'badge-gn':'badge-am'}">${a.status==='running'?'● Đang chạy':'⏸ Tạm dừng'}</span>
+            ${randomBadge}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderChatCards(filterChannel){
+  const grid = document.getElementById('chat-cards-grid');
+  let agents = CHAT_AGENTS;
+  if(filterChannel && filterChannel!=='all'){
+    agents = CHAT_AGENTS.filter(a=>a.accounts.some(ac=>ac.channel===filterChannel));
+  }
+  grid.innerHTML = agents.map(a=>{
+    const channels = [...new Set(a.accounts.map(ac=>ac.channel))];
+    const badges = channels.map(ch=>channelBadge(ch)).join(' ');
+    return `
+    <div class="agent-card" onclick="openChatEditor('${a.id}')">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div class="card-avatar ${a.avatar}">💬</div>
+        <div style="flex:1;min-width:0">
+          <div class="card-title">${a.name} ${badges}</div>
+          <div class="card-desc">${a.accounts.length} tài khoản</div>
+          <div class="agent-card-meta">
+            <div class="meta-line">🧠 ${a.ai}</div>
+            <div class="meta-line">💬 ${a.mode}</div>
+          </div>
+          <div class="card-meta" style="margin-top:8px">
+            <span class="badge ${a.active?'badge-gn':'badge-rd'}">${a.active?'● Đang bật':'● Đã tắt'}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// FILTER AGENT CARDS
+// ============================================================
+function filterAgentCards(btn, tabType, channel){
+  btn.closest('.filter-pills').querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  if(tabType==='post') renderPostCards(channel);
+  else if(tabType==='chat') renderChatCards(channel);
+}
+
+// ============================================================
+// POST ACCOUNT TABLE
+// ============================================================
+function renderPostAccTable(){
+  const table = document.getElementById('post-acc-table');
+  if(!table) return;
+  table.innerHTML = postAccounts.map((acc,i)=>{
+    const accKey = acc.name+'_'+acc.channel;
+    const n = acc.selectedGroups ? acc.selectedGroups.length : 0;
+    return `
+    <div class="acc-row" id="post-acc-row-${i}">
+      <div class="acc-badge">${channelBadge(acc.channel)}</div>
+      <div class="acc-name">${acc.name}</div>
+      <button class="acc-groups-btn" onclick="openGroupsPopup('post',${i},'${accKey}')">Chọn nhóm (${n})</button>
+      <button class="acc-del-btn" onclick="removePostAccount(${i})" title="Xóa tài khoản">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function removePostAccount(idx){
+  postAccounts.splice(idx,1);
+  renderPostAccTable();
+  renderPostSchedule();
+  showToast('Đã xóa tài khoản khỏi agent','am');
+}
+
+function addAccountRow(agentType, name, channel){
+  closeDropdown(agentType+'-acc-dropdown');
+  if(agentType==='post'){
+    // Prevent duplicate
+    const exists = postAccounts.find(a=>a.name===name && a.channel===channel);
+    if(exists){ showToast('Tài khoản đã có trong danh sách','am'); return; }
+    postAccounts.push({name, channel, selectedGroups:[]});
+    renderPostAccTable();
+    renderPostSchedule();
+    showToast('Đã thêm: '+name+' ['+channel.toUpperCase()+']','gn');
+  }
+}
+
+// ============================================================
+// CHAT ACCOUNT TABLE
+// ============================================================
+function renderChatAccTable(){
+  const table = document.getElementById('chat-acc-table');
+  if(!table) return;
+  table.innerHTML = chatAccounts.map((acc,i)=>{
+    const scopeOptions = ['DM','Nhóm','Người lạ'];
+    const scopePills = scopeOptions.map(s=>`
+      <button class="scope-mini-pill ${acc.scope.includes(s)?'active':''}"
+        onclick="toggleChatAccScope(${i},'${s}',this)">${s}</button>`).join('');
+    return `
+    <div class="chat-acc-row" id="chat-acc-row-${i}">
+      <div class="acc-badge">${channelBadge(acc.channel)}</div>
+      <div class="acc-name">${acc.name}</div>
+      <div class="chat-acc-scope">${scopePills}</div>
+      <button class="acc-del-btn" onclick="removeChatAccount(${i})" title="Xóa tài khoản">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function toggleChatAccScope(idx, scopeVal, btn){
+  const acc = chatAccounts[idx];
+  const pos = acc.scope.indexOf(scopeVal);
+  if(pos>-1){ acc.scope.splice(pos,1); btn.classList.remove('active'); }
+  else { acc.scope.push(scopeVal); btn.classList.add('active'); }
+}
+
+function removeChatAccount(idx){
+  chatAccounts.splice(idx,1);
+  renderChatAccTable();
+  showToast('Đã xóa tài khoản khỏi agent','am');
+}
+
+function addChatAccountRow(name, channel){
+  closeDropdown('chat-acc-dropdown');
+  const exists = chatAccounts.find(a=>a.name===name && a.channel===channel);
+  if(exists){ showToast('Tài khoản đã có trong danh sách','am'); return; }
+  chatAccounts.push({name, channel, scope:['DM']});
+  renderChatAccTable();
+  showToast('Đã thêm: '+name+' ['+channel.toUpperCase()+']','gn');
+}
+
+// ============================================================
+// ADD ACCOUNT DROPDOWN TOGGLE
+// ============================================================
+function toggleAddAccDropdown(agentType){
+  const dd = document.getElementById(agentType+'-acc-dropdown');
+  const isOpen = dd.classList.contains('show');
+  // close all
+  document.querySelectorAll('.dropdown-popup').forEach(d=>d.classList.remove('show'));
+  if(!isOpen) dd.classList.add('show');
+}
+
+function closeDropdown(id){
+  const dd = document.getElementById(id);
+  if(dd) dd.classList.remove('show');
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.section-card')) {
+    document.querySelectorAll('.dropdown-popup').forEach(d=>d.classList.remove('show'));
+  }
+});
+
+// ============================================================
+// GROUPS POPUP
+// ============================================================
+function openGroupsPopup(agentType, accIdx, accKey){
+  const acc = agentType==='post' ? postAccounts[accIdx] : chatAccounts[accIdx];
+  const groups = ACCOUNT_GROUPS[accKey] || [];
+  const selected = acc.selectedGroups ? [...acc.selectedGroups] : [];
+
+  currentGroupsCtx = {agentType, accIdx, accKey, tempSelected: selected};
+
+  const chName = acc.name + ' (' + (acc.channel==='fb'?'FB':'Zalo') + ')';
+  document.getElementById('groups-popup-title').textContent = 'Chọn nhóm — '+chName;
+  document.getElementById('groups-popup-subtitle').textContent = groups.length + ' nhóm khả dụng';
+
+  const body = document.getElementById('groups-popup-body');
+  if(groups.length===0){
+    body.innerHTML = '<div style="color:var(--mut);font-size:12px;padding:8px">Không có nhóm nào.</div>';
+  } else {
+    body.innerHTML = groups.map(g=>`
+      <div class="group-option ${selected.includes(g.id)?'selected':''}" id="gopt-${g.id}" onclick="toggleGroupOption('${g.id}',this)">
+        <input type="checkbox" ${selected.includes(g.id)?'checked':''} onchange="toggleGroupOption('${g.id}',this.closest('.group-option'))" onclick="event.stopPropagation()">
+        <span>${g.name}</span>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('groups-popup-overlay').classList.add('show');
+}
+
+function toggleGroupOption(groupId, el){
+  if(!currentGroupsCtx) return;
+  const selected = currentGroupsCtx.tempSelected;
+  const pos = selected.indexOf(groupId);
+  const opt = document.getElementById('gopt-'+groupId) || el;
+  const cb = opt.querySelector('input[type=checkbox]');
+  if(pos>-1){
+    selected.splice(pos,1);
+    opt.classList.remove('selected');
+    if(cb) cb.checked=false;
+  } else {
+    selected.push(groupId);
+    opt.classList.add('selected');
+    if(cb) cb.checked=true;
+  }
+}
+
+function confirmGroupsSelection(){
+  if(!currentGroupsCtx) return;
+  const {agentType, accIdx, tempSelected} = currentGroupsCtx;
+  const acc = agentType==='post' ? postAccounts[accIdx] : chatAccounts[accIdx];
+  acc.selectedGroups = [...tempSelected];
+  if(agentType==='post'){
+    renderPostAccTable();
+    renderPostSchedule();
+  } else {
+    renderChatAccTable();
+  }
+  closeGroupsPopupDirect();
+  showToast('Đã lưu '+tempSelected.length+' nhóm','gn');
+}
+
+function closeGroupsPopup(e){
+  if(e.target === document.getElementById('groups-popup-overlay')) closeGroupsPopupDirect();
+}
+function closeGroupsPopupDirect(){
+  document.getElementById('groups-popup-overlay').classList.remove('show');
+  currentGroupsCtx = null;
+}
+
+// ============================================================
+// POST SCHEDULE PREVIEW (multi-account)
+// ============================================================
+function renderPostSchedule(){
+  const preview = document.getElementById('post-sched-preview');
+  if(!preview) return;
+  const times = ['08:12','08:20','14:10','14:35','09:05','20:40'];
+  const days = ['Hôm nay','Hôm nay','Ngày mai','Ngày mai','26/06','26/06'];
+  const items = [];
+  let t=0;
+  postAccounts.forEach(acc=>{
+    const groups = (ACCOUNT_GROUPS[acc.name+'_'+acc.channel]||[])
+      .filter(g=>acc.selectedGroups&&acc.selectedGroups.includes(g.id));
+    if(groups.length===0 && acc.selectedGroups && acc.selectedGroups.length===0){
+      // no groups selected, show placeholder
+      items.push({time:times[t%times.length], day:days[t%days.length], acc, groupName:'(chưa chọn nhóm)'});
+      t++;
+    } else {
+      groups.slice(0,2).forEach(g=>{
+        items.push({time:times[t%times.length], day:days[t%days.length], acc, groupName:g.name});
+        t++;
+      });
+    }
+  });
+  if(items.length===0){
+    preview.innerHTML='<div style="color:var(--mut);font-size:12px;text-align:center;padding:24px">Thêm tài khoản và chọn nhóm để xem lịch dự kiến</div>';
+    return;
+  }
+  preview.innerHTML = items.map(item=>`
+    <div class="sched-item">
+      <div class="sched-item-time">${item.day} ${item.time}</div>
+      <div class="sched-item-info">${channelBadge(item.acc.channel)} ${item.acc.name} → ${item.groupName}</div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('active',['ai','post','chat'][i]===tab);
+  });
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  // Close ALL editors (not just the target tab) so switching always returns to list view
+  ['ai','post','chat'].forEach(t=>closeEditor(t));
+}
+
+// ============================================================
+// EDITOR OPEN/CLOSE
+// ============================================================
+function openAiEditor(id){
+  const isNew = id==='new';
+  const data = isNew ? null : AI_ASSISTANTS.find(a=>a.id===id);
+  if(data){
+    document.getElementById('ai-editor-title').textContent = data.name;
+    document.getElementById('ai-editor-subtitle').textContent = data.platform+' — '+data.model;
+    document.getElementById('ai-name').value = data.name;
+    document.getElementById('ai-toggle-active').checked = data.active;
+    document.getElementById('ai-toggle-label').textContent = data.active?'Đang bật':'Đã tắt';
+    document.getElementById('ai-default-toggle').checked = data.isDefault;
+  } else {
+    document.getElementById('ai-editor-title').textContent = 'Trợ lý mới';
+    document.getElementById('ai-name').value = '';
+    document.getElementById('ai-prompt').value = '';
+    document.getElementById('ai-apikey').value = '';
+  }
+  document.getElementById('ai-list').style.display='none';
+  document.getElementById('ai-editor').classList.add('active');
+}
+
+function openPostEditor(id){
+  document.getElementById('post-list').style.display='none';
+  document.getElementById('post-editor').classList.add('active');
+  if(id==='new'){
+    document.getElementById('post-editor-title').textContent='Agent mới';
+    document.getElementById('post-name').value='';
+    postAccounts = [];
+  } else {
+    const data = POST_AGENTS.find(a=>a.id===id);
+    if(data){
+      document.getElementById('post-editor-title').textContent = data.name;
+      document.getElementById('post-name').value = data.name;
+      // restore accounts from data
+      postAccounts = data.accounts.map(ac=>({
+        name: ac.name,
+        channel: ac.channel,
+        selectedGroups: Object.values(ACCOUNT_GROUPS[ac.name+'_'+ac.channel]||[]).slice(0,ac.groups).map(g=>g.id),
+      }));
+    }
+  }
+  renderPostAccTable();
+  renderPostSchedule();
+}
+
+function openChatEditor(id){
+  document.getElementById('chat-list').style.display='none';
+  document.getElementById('chat-editor').classList.add('active');
+  if(id==='new'){
+    document.getElementById('chat-editor-title').textContent='Agent chat mới';
+    document.getElementById('chat-name').value='';
+    chatAccounts = [];
+  } else {
+    const data = CHAT_AGENTS.find(a=>a.id===id);
+    if(data){
+      document.getElementById('chat-editor-title').textContent = data.name;
+      document.getElementById('chat-name').value = data.name;
+      chatAccounts = data.accounts.map(ac=>({name:ac.name, channel:ac.channel, scope:[...ac.scope], selectedGroups:[]}));
+    }
+  }
+  renderChatAccTable();
+}
+
+function closeEditor(type, silent){
+  const editorMap = {ai:'ai-editor', post:'post-editor', chat:'chat-editor'};
+  const listMap = {ai:'ai-list', post:'post-list', chat:'chat-list'};
+  const ed = document.getElementById(editorMap[type]);
+  if(ed) ed.classList.remove('active');
+  const lst = document.getElementById(listMap[type]);
+  if(lst) lst.style.display='';
+}
+
+function openAiEditorFromPost(){
+  switchTab('ai');
+  setTimeout(()=>openAiEditor('a1'),100);
+  showToast('Đang mở editor trợ lý AI…','bl');
+}
+
+function openAiEditorFromChat(){
+  switchTab('ai');
+  setTimeout(()=>openAiEditor('a2'),100);
+  showToast('Đang mở editor trợ lý AI…','bl');
+}
+
+// ============================================================
+// TOGGLES
+// ============================================================
+function handleAiToggle(el){
+  const lbl = document.getElementById('ai-toggle-label');
+  lbl.textContent = el.checked ? 'Đang bật' : 'Đã tắt';
+  showToast(el.checked ? '✅ Đã bật trợ lý' : '⏸ Đã tắt trợ lý', el.checked?'gn':'am');
+}
+
+function handlePostToggle(el){
+  const lbl = document.getElementById('post-toggle-label');
+  lbl.textContent = el.checked ? 'Đang chạy' : 'Tạm dừng';
+  showToast(el.checked ? '▶️ Agent đã chạy' : '⏸ Agent đã tạm dừng', el.checked?'gn':'am');
+}
+
+function handleChatToggle(el){
+  const lbl = document.getElementById('chat-toggle-label');
+  lbl.textContent = el.checked ? 'Đang bật' : 'Đã tắt';
+  showToast(el.checked ? '✅ Agent chat đang hoạt động' : '⏸ Đã tắt Agent chat', el.checked?'gn':'am');
+}
+
+function handleDefaultToggle(el){
+  showToast(el.checked ? '⭐ Đặt làm trợ lý mặc định' : 'Bỏ mặc định', el.checked?'am':'bl');
+}
+
+// ============================================================
+// PLATFORM → MODEL
+// ============================================================
+function onPlatformChange(){
+  const platform = document.getElementById('ai-platform').value;
+  const models = PLATFORM_MODELS[platform] || ['(chưa có model)'];
+  const sel = document.getElementById('ai-model');
+  sel.innerHTML = models.map(m=>`<option>${m}</option>`).join('');
+  const sub = document.getElementById('ai-editor-subtitle');
+  const platformNames = {deepseek:'DeepSeek',openai:'OpenAI',gemini:'Gemini',claude:'Claude',grok:'Grok',mistral:'Mistral','9router':'9Router',openrouter:'OpenRouter'};
+  sub.textContent = (platformNames[platform]||platform) + ' — ' + models[0];
+  showToast('Đã đổi nền tảng → '+platformNames[platform],'bl');
+}
+
+// ============================================================
+// PASSWORD TOGGLE
+// ============================================================
+function togglePw(inputId, btn){
+  const inp = document.getElementById(inputId);
+  if(inp.type==='password'){inp.type='text'; btn.textContent='🔒';}
+  else{inp.type='password'; btn.textContent='👁';}
+}
+
+// ============================================================
+// PILLS FILTER (generic toggle-group)
+// ============================================================
+function filterPill(btn, group){
+  btn.closest('.filter-pills,.scope-pills')
+    ?.querySelectorAll('.pill,.scope-pill')
+    .forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ============================================================
+// RANDOM POOL — SRC PILL HANDLER
+// ============================================================
+function onSrcPill(btn, mode){
+  // toggle active trong nhóm pill nguồn nội dung
+  document.querySelectorAll('#src-pills .pill').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  const block = document.getElementById('random-cfg-block');
+  if(mode === 'random'){
+    block.style.display = 'flex';
+  } else {
+    block.style.display = 'none';
+    // nếu đang chạy thì dừng mock khi chuyển tab
+    if(randomRunning){ stopRandomMock(); }
+  }
+}
+
+function onPoolModeChange(radio){
+  const wrap = document.getElementById('pool-pick-btn-wrap');
+  wrap.style.display = radio.value === 'pick' ? 'block' : 'none';
+}
+
+function onRunUntilPill(btn, mode){
+  document.querySelectorAll('#run-until-pills .run-until-pill').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  const roundsWrap = document.getElementById('rounds-input-wrap');
+  roundsWrap.style.display = mode === 'rounds' ? 'flex' : 'none';
+}
+
+// ============================================================
+// RANDOM RUN — MOCK COUNTER
+// ============================================================
+let randomRunning = false;
+let randomPosted = 0;
+const RANDOM_POOL_SIZE = 100;
+let randomInterval = null;
+
+function toggleRandomRun(){
+  if(randomRunning){ stopRandomMock(); }
+  else { startRandomMock(); }
+}
+
+function startRandomMock(){
+  randomRunning = true;
+  randomPosted = 0;
+  const btn = document.getElementById('btn-start-run');
+  btn.textContent = '■ Dừng';
+  btn.className = 'btn-stop';
+  btn.onclick = toggleRandomRun;
+  document.getElementById('run-status-bar').style.display = 'flex';
+  updateRunStatus();
+  randomInterval = setInterval(()=>{
+    randomPosted++;
+    if(randomPosted >= RANDOM_POOL_SIZE){ randomPosted = 0; } // xoay vòng
+    updateRunStatus();
+  }, 1000);
+  showToast('▶ Đã bắt đầu Random Pool 100 bài','gn');
+}
+
+function stopRandomMock(){
+  randomRunning = false;
+  clearInterval(randomInterval);
+  randomInterval = null;
+  const btn = document.getElementById('btn-start-run');
+  btn.textContent = '▶ Bắt đầu chạy';
+  btn.className = 'btn-run';
+  btn.onclick = toggleRandomRun;
+  document.getElementById('run-status-bar').style.display = 'none';
+  showToast('■ Đã dừng Agent Random Pool','rd');
+}
+
+function updateRunStatus(){
+  const remaining = RANDOM_POOL_SIZE - randomPosted;
+  document.getElementById('run-status-text').textContent =
+    `Đang chạy · đã đăng ${randomPosted}/${RANDOM_POOL_SIZE} vòng này · còn ${remaining}`;
+}
+
+function toggleScopePill(btn){
+  btn.classList.toggle('active');
+}
+
+// ============================================================
+// SLIDER
+// ============================================================
+function updateTemp(el){
+  document.getElementById('temp-val-label').textContent = parseFloat(el.value).toFixed(1);
+}
+
+// ============================================================
+// PROMPT ACTIONS
+// ============================================================
+const PROMPT_IMPROVEMENTS = [
+  `Bạn là chuyên gia viết content marketing chuyên nghiệp cho thương hiệu Lmak. Phong cách: thân thiện, gần gũi, truyền cảm hứng. Khi viết bài đăng Facebook/Zalo, luôn: (1) mở đầu bắt trend hoặc câu hỏi kích thích tương tác, (2) nêu lợi ích rõ ràng, (3) kết thúc bằng CTA cụ thể. Giữ tone vui vẻ, tích cực, tránh ngôn từ cứng nhắc. Ưu tiên emoji phù hợp.`,
+];
+const PROMPT_SUGGESTIONS = [
+  `Gợi ý cho trợ lý CSKH: Bạn là nhân viên tư vấn nhiệt tình của thương hiệu. Luôn chào hỏi thân thiện, hỏi rõ nhu cầu trước khi tư vấn, cung cấp thông tin chính xác từ catalog sản phẩm, và chốt bằng câu hỏi xác nhận nhu cầu. Không hứa hẹn ngoài khả năng.`,
+];
+
+function improvePrompt(id){
+  const ta = document.getElementById(id);
+  ta.value = '✨ Đang cải thiện prompt…';
+  ta.disabled = true;
+  setTimeout(()=>{ ta.value = PROMPT_IMPROVEMENTS[0]; ta.disabled = false; showToast('✨ Đã cải thiện prompt bằng AI','pp'); }, 1200);
+}
+
+function suggestPrompt(id){
+  const ta = document.getElementById(id);
+  ta.value = '💭 Đang phân tích context và gợi ý…';
+  ta.disabled = true;
+  setTimeout(()=>{ ta.value = PROMPT_SUGGESTIONS[0]; ta.disabled = false; showToast('💡 Đã gợi ý prompt mới','bl'); }, 1000);
+}
+
+// ============================================================
+// KB FILES
+// ============================================================
+function fakeFileUpload(){
+  const names = ['faq-sp.txt','gia-ban-2025.csv','chinh-sach-bao-hanh.md','tongthu-thuong-hieu.json'];
+  const name = names[Math.floor(Math.random()*names.length)];
+  const size = Math.floor(Math.random()*80+5)+' KB';
+  const container = document.getElementById('kb-files');
+  const div = document.createElement('div');
+  div.className = 'kb-file';
+  div.innerHTML = `<div class="kb-file-name">📄 ${name} <span style="color:var(--mut);font-size:10px">${size}</span></div>
+    <button class="kb-file-del" onclick="removeKbFile(this)">✕</button>`;
+  container.appendChild(div);
+  showToast('📎 Đã tải lên: '+name,'gn');
+}
+
+function removeKbFile(btn){
+  const row = btn.closest('.kb-file');
+  row.style.opacity='0';
+  row.style.transition='opacity .2s';
+  setTimeout(()=>row.remove(),200);
+  showToast('🗑 Đã xóa file KB','am');
+}
+
+// ============================================================
+// CHAT TEST
+// ============================================================
+let chatCounters = {ai:0, chat:0};
+
+function sendChat(type){
+  const inputId = type+'-chat-input';
+  const messagesId = type+'-chat-messages';
+  const emptyId = type+'-chat-empty';
+  const inp = document.getElementById(inputId);
+  const msg = inp.value.trim();
+  if(!msg) return;
+  inp.value='';
+  const container = document.getElementById(messagesId);
+  const empty = document.getElementById(emptyId);
+  if(empty) empty.style.display='none';
+  const now = new Date();
+  const timeStr = now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');
+  const userDiv = document.createElement('div');
+  userDiv.className = 'bubble-row-user';
+  userDiv.innerHTML = `<div class="bubble bubble-user">${escHtml(msg)}</div><div class="bubble-time" style="text-align:right">${timeStr}</div>`;
+  container.appendChild(userDiv);
+  container.scrollTop = container.scrollHeight;
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'bubble-row-ai';
+  typingDiv.innerHTML = `<div class="bubble bubble-ai"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  container.appendChild(typingDiv);
+  container.scrollTop = container.scrollHeight;
+  const replies = AI_MOCK_REPLIES[type] || AI_MOCK_REPLIES.ai;
+  const idx = chatCounters[type] % replies.length;
+  chatCounters[type]++;
+  setTimeout(()=>{
+    typingDiv.remove();
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'bubble-row-ai';
+    const replyTime = new Date();
+    const rt = replyTime.getHours().toString().padStart(2,'0')+':'+replyTime.getMinutes().toString().padStart(2,'0');
+    aiDiv.innerHTML = `<div class="bubble bubble-ai" style="white-space:pre-wrap">${escHtml(replies[idx])}</div><div class="bubble-time">${rt}</div>`;
+    container.appendChild(aiDiv);
+    container.scrollTop = container.scrollHeight;
+  }, 800+Math.random()*600);
+}
+
+function escHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ============================================================
+// CHAT LABEL INPUT
+// ============================================================
+function focusChatLabelInput(){document.getElementById('chat-label-input').focus();}
+
+function addChatLabel(e){
+  if(e.key!=='Enter') return;
+  const inp = document.getElementById('chat-label-input');
+  const val = inp.value.trim();
+  if(!val) return;
+  const container = inp.closest('.multi-select');
+  const tag = document.createElement('div');
+  tag.className = 'multi-tag';
+  tag.innerHTML = `${escHtml(val)} <span onclick="removeGroup(this)">✕</span>`;
+  container.insertBefore(tag, inp);
+  inp.value='';
+}
+
+function removeGroup(span){
+  span.closest('.multi-tag').remove();
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+function quickStopAgent(agentId, btn){
+  const agent = POST_AGENTS.find(a=>a.id===agentId);
+  if(!agent) return;
+  agent.status = 'paused';
+  btn.textContent = '⏸ Đã dừng';
+  btn.disabled = true;
+  showToast('■ Đã dừng Agent "'+agent.name+'"','rd');
+  setTimeout(()=>renderPostCards(), 400);
+}
+
+function testConnection(){
+  showToast('🔄 Đang kiểm tra kết nối…','bl');
+  setTimeout(()=>showToast('✅ Kết nối thành công! Latency: 142ms','gn'), 1500);
+}
+
+function saveItem(label){
+  showToast(`💾 Đang lưu ${label}…`,'bl');
+  setTimeout(()=>showToast(`✅ ${label} đã được cập nhật!`,'gn'), 800);
+}
+
+function confirmDelete(label){
+  if(confirm(`Bạn có chắc muốn xóa ${label} không? Hành động này không thể hoàn tác.`)){
+    showToast(`🗑 Đã xóa ${label}`,'rd');
+  }
+}
+
+function scrollChatTest(id){
+  const panel = document.getElementById(id+'-panel') || document.getElementById(id+'-messages');
+  if(panel) panel.scrollIntoView({behavior:'smooth'});
+  const input = document.getElementById(id+'-input') || document.getElementById('ai-chat-input');
+  if(input) setTimeout(()=>input.focus(),400);
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg, type='bl'){
+  const container = document.getElementById('toaster');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(()=>{
+    toast.style.opacity='0';
+    toast.style.transition='opacity .3s';
+    setTimeout(()=>toast.remove(),350);
+  }, 2800);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderAiCards();
+renderPostCards();
+renderChatCards();
+</script>
+</body>
+</html>

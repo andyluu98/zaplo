@@ -315,7 +315,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
         )}
         <NavBtn icon="groupPosting" label="Đăng bài nhóm" active={view === 'groupPosting'} onClick={() => setView('groupPosting')} />
         <NavBtn icon="fbWrite" label="Facebook đăng bài" active={view === 'fbWrite'} onClick={() => setView('fbWrite')} />
-        <NavBtn icon="agentHub" label="Quản lý Agent" active={view === 'agentHub'} onClick={() => setView('agentHub')} />
+        <NavBtn icon="agentHub" label="AI & Agent" active={view === 'agentHub'} onClick={() => setView('agentHub')} />
         {/* ERP — gated by module permission AND ERP RBAC (`erp.access`).
             Inside ERP, fine-grained writes enforced via `useErpPermissions().can(...)` +
             IPC middleware `withErpAuth`. */}

@@ -3,12 +3,14 @@ import { useAccountStore } from '@/store/accountStore';
 import AccountSelectorDropdown, { AccountOption } from '@/components/common/AccountSelectorDropdown';
 import GroupPostingPage from '@/components/posting/group-posting-page';
 import ChatAgentsTab from './chat-agents-tab';
+import AIAssistantPage from '@/components/integration/AIAssistantPage';
 
-type HubTab = 'posting' | 'chat';
+type HubTab = 'assistant' | 'posting' | 'chat';
 
 const TABS: Array<{ id: HubTab; label: string }> = [
-  { id: 'posting', label: '✒️ Agent đăng bài' },
-  { id: 'chat',    label: '💬 Agent chat' },
+  { id: 'assistant', label: '🧠 Trợ lý AI' },
+  { id: 'posting',   label: '✒️ Agent đăng bài' },
+  { id: 'chat',      label: '💬 Agent chat' },
 ];
 
 function NoAccountPrompt() {
@@ -16,7 +18,7 @@ function NoAccountPrompt() {
 }
 
 export default function AgentHubPage() {
-  const [activeTab, setActiveTab] = useState<HubTab>('posting');
+  const [activeTab, setActiveTab] = useState<HubTab>('assistant');
   const { activeAccountId, accounts, setActiveAccount } = useAccountStore();
 
   const accountOptions: AccountOption[] = accounts.map(a => ({ id: a.zalo_id, name: a.full_name, phone: a.phone, avatarUrl: a.avatar_url }));
@@ -24,7 +26,7 @@ export default function AgentHubPage() {
   return (
     <div className="flex flex-col h-full bg-gray-900">
       <div className="flex items-center justify-between px-5 py-3 border-b border-gray-700 flex-shrink-0">
-        <h1 className="text-base font-semibold text-white">🤖 Quản lý Agent</h1>
+        <h1 className="text-base font-semibold text-white">🤖 AI &amp; Agent</h1>
         <AccountSelectorDropdown options={accountOptions} activeId={activeAccountId} onSelect={setActiveAccount} />
       </div>
 
@@ -38,6 +40,8 @@ export default function AgentHubPage() {
       </div>
 
       <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Trợ lý AI (bộ não) — chuyển từ Tích hợp ra, tái dùng nguyên AIAssistantPage */}
+        {activeTab === 'assistant' && <AIAssistantPage />}
         {/* Agent đăng bài tái dùng nguyên GroupPostingPage (có header + tab riêng của nó) */}
         {activeTab === 'posting' && <GroupPostingPage />}
         {activeTab === 'chat' && (!activeAccountId ? <NoAccountPrompt /> : <ChatAgentsTab zaloId={activeAccountId} />)}
