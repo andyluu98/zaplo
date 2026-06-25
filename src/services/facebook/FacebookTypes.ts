@@ -14,6 +14,8 @@ export interface FBSessionData {
   FacebookID: string;
   clientRevision: string;
   cookieFacebook: string;
+  /** LSD token — bắt buộc cho GraphQL GHI (comment/đăng bài) qua /api/graphql/. */
+  lsd?: string;
 }
 
 export interface FBLoginResult {

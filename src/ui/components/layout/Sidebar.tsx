@@ -314,6 +314,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
         <NavBtn icon="analytics"  label="Báo cáo"      active={view === 'analytics'}  onClick={() => setView('analytics')} />
         )}
         <NavBtn icon="groupPosting" label="Đăng bài nhóm" active={view === 'groupPosting'} onClick={() => setView('groupPosting')} />
+        <NavBtn icon="fbWrite" label="Facebook đăng bài" active={view === 'fbWrite'} onClick={() => setView('fbWrite')} />
         <NavBtn icon="agentHub" label="Quản lý Agent" active={view === 'agentHub'} onClick={() => setView('agentHub')} />
         {/* ERP — gated by module permission AND ERP RBAC (`erp.access`).
             Inside ERP, fine-grained writes enforced via `useErpPermissions().can(...)` +
@@ -413,6 +414,11 @@ function NavBtn({ icon, label, active, onClick, dot }: { icon: string; label: st
         <path d="M12 4v4"/><circle cx="12" cy="3" r="1"/>
         <circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/>
         <path d="M9 17h6"/>
+      </svg>
+    ),
+    fbWrite: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
       </svg>
     ),
   };
@@ -618,6 +624,12 @@ function NavIcon({ name }: { name: string }) {
           <path d="M12 4v4"/><circle cx="12" cy="3" r="1"/>
           <circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/>
           <path d="M9 17h6"/>
+        </svg>
+      );
+    case 'fbWrite':
+      return (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
         </svg>
       );
     default:

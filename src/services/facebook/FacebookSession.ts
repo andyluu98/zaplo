@@ -20,6 +20,7 @@ const SESSION_FIELDS: [keyof FBSessionData, string, string][] = [
   ['sessionID',       'sessionId":"',                    '"'],
   ['FacebookID',      '"actorID":"',                     '"'],
   ['clientRevision',  'client_revision":',               ','],
+  ['lsd',             '"LSD",[],{"token":"',             '"'],
 ];
 
 /**

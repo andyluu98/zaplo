@@ -624,6 +624,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => ipcRenderer.invoke('chat-agent:resolveThread', params),
   },
 
+  // ─── Facebook Write (comment / đăng bài / reply) ──────────────────
+  facebookWrite: {
+    getLimits:     () => ipcRenderer.invoke('facebook:write:getLimits'),
+    setLimits:     (params: { config: any }) => ipcRenderer.invoke('facebook:write:setLimits', params),
+    previewBatch:  (params: { accountId: string; items: any[] }) => ipcRenderer.invoke('facebook:write:previewBatch', params),
+    sendApproved:  (params: { accountId: string; items: any[] }) => ipcRenderer.invoke('facebook:write:sendApproved', params),
+    recent:        (params: { accountId: string; limit?: number }) => ipcRenderer.invoke('facebook:write:recent', params),
+    statsToday:    (params: { accountId: string }) => ipcRenderer.invoke('facebook:write:statsToday', params),
+    groupList:     (params: { accountId: string }) => ipcRenderer.invoke('facebook:group:list', params),
+    groupSaveManual: (params: { accountId: string; linkOrId: string; name: string }) => ipcRenderer.invoke('facebook:group:saveManual', params),
+    groupDelete:   (params: { accountId: string; groupId: string }) => ipcRenderer.invoke('facebook:group:delete', params),
+  },
+
   lockScreen: {
     status:           () => ipcRenderer.invoke('lockScreen:status'),
     setup:            (params: { password: string }) => ipcRenderer.invoke('lockScreen:setup', params),
@@ -687,6 +700,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'fb:onDisconnect',
       'fb:onReconnect',
       'fb:onConnectionStatus',
+      'facebook:write:progress',
       // ─── ERP events ──────────────────────────────────────────────────
       'erp:event:taskCreated',
       'erp:event:taskUpdated',

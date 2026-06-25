@@ -353,6 +353,25 @@ class DatabaseService {
         }
     }
 
+    // ─── Facebook Groups (chọn nhóm theo tên khi đăng) ──────────────────────────
+    public saveFbGroup(r: { account_id: string; group_id: string; name: string; source: string }): void {
+        this.run(
+            `INSERT INTO fb_group(account_id, group_id, name, source, created_at) VALUES(?,?,?,?,?)
+             ON CONFLICT(account_id, group_id) DO UPDATE SET name=excluded.name, source=excluded.source`,
+            [r.account_id, r.group_id, r.name, r.source, Date.now()],
+        );
+        this.save();
+    }
+
+    public listFbGroups(accountId: string): Array<{ account_id: string; group_id: string; name: string; source: string; created_at: number }> {
+        return this.query(`SELECT * FROM fb_group WHERE account_id=? ORDER BY name COLLATE NOCASE`, [accountId]);
+    }
+
+    public deleteFbGroup(accountId: string, groupId: string): void {
+        this.run(`DELETE FROM fb_group WHERE account_id=? AND group_id=?`, [accountId, groupId]);
+        this.save();
+    }
+
     /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0 */
     private normalizeVietnamPhone(phone?: string): string {
         if (!phone) return '';
@@ -854,6 +873,37 @@ class DatabaseService {
             );
             CREATE INDEX IF NOT EXISTS idx_chat_agent_thread ON chat_agent_thread(thread_id);
             CREATE INDEX IF NOT EXISTS idx_chat_agent_owner ON chat_agent(owner_zalo_id);
+        `);
+
+        // ─── Facebook Write actions log (comment / đăng bài / reply) ─────────────
+        // Bảng MỚI — an toàn tạo trong createTables (không ALTER cột bảng cũ).
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS fb_action_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL,
+                action_type TEXT NOT NULL,
+                target TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'failed',
+                result_id TEXT,
+                error TEXT,
+                dedupe_key TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_fb_action_dedupe ON fb_action_log(account_id, action_type, dedupe_key);
+            CREATE INDEX IF NOT EXISTS idx_fb_action_day ON fb_action_log(account_id, action_type, created_at);
+        `);
+
+        // ─── Facebook Groups đã lưu (chọn theo tên khi đăng) ────────────────────
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS fb_group (
+                account_id TEXT NOT NULL,
+                group_id TEXT NOT NULL,
+                name TEXT NOT NULL DEFAULT '',
+                source TEXT NOT NULL DEFAULT 'manual',
+                created_at INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (account_id, group_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_fb_group_acc ON fb_group(account_id);
         `);
 
         // ─── Local Labels (custom per-app labels, independent from Zalo) ────────
@@ -1587,6 +1637,37 @@ class DatabaseService {
             Logger.log('[DatabaseService] ✅ Migration: ensured agent-centric tables exist');
         } catch (err: any) {
             Logger.warn(`[DatabaseService] Migration create agent tables: ${err.message}`);
+        }
+
+        // ─── Migration: fb_action_log on EXISTING databases (lưới an toàn) ───────
+        try {
+            db!.exec(`
+                CREATE TABLE IF NOT EXISTS fb_action_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, account_id TEXT NOT NULL, action_type TEXT NOT NULL,
+                    target TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'failed', result_id TEXT, error TEXT,
+                    dedupe_key TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE INDEX IF NOT EXISTS idx_fb_action_dedupe ON fb_action_log(account_id, action_type, dedupe_key);
+                CREATE INDEX IF NOT EXISTS idx_fb_action_day ON fb_action_log(account_id, action_type, created_at);
+            `);
+            this.save();
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration fb_action_log: ${err.message}`);
+        }
+
+        // ─── Migration: fb_group on EXISTING databases (lưới an toàn) ────────────
+        try {
+            db!.exec(`
+                CREATE TABLE IF NOT EXISTS fb_group (
+                    account_id TEXT NOT NULL, group_id TEXT NOT NULL, name TEXT NOT NULL DEFAULT '',
+                    source TEXT NOT NULL DEFAULT 'manual', created_at INTEGER NOT NULL DEFAULT 0,
+                    PRIMARY KEY (account_id, group_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_fb_group_acc ON fb_group(account_id);
+            `);
+            this.save();
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration fb_group: ${err.message}`);
         }
 
         // ─── Migration: agent-centric posting columns (content_draft, post_log) ──

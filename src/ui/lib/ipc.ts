@@ -635,6 +635,17 @@ declare global {
       pin:           (params: { zaloId: string; threadId: string; agentId?: number | null }) => Promise<{ success: boolean; error?: string }>;
       resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => Promise<{ success: boolean; agentId: number | null; error?: string }>;
     };
+    facebookWrite?: {
+      getLimits:    () => Promise<{ success: boolean; config?: any; error?: string }>;
+      setLimits:    (params: { config: any }) => Promise<{ success: boolean; config?: any; error?: string }>;
+      previewBatch: (params: { accountId: string; items: any[] }) => Promise<{ success: boolean; items?: any[]; quota?: any[]; error?: string }>;
+      sendApproved: (params: { accountId: string; items: any[] }) => Promise<{ success: boolean; progress?: any; error?: string }>;
+      recent:       (params: { accountId: string; limit?: number }) => Promise<{ success: boolean; items?: any[]; error?: string }>;
+      statsToday:   (params: { accountId: string }) => Promise<{ success: boolean; stats?: any[]; error?: string }>;
+      groupList:    (params: { accountId: string }) => Promise<{ success: boolean; groups?: any[]; error?: string }>;
+      groupSaveManual: (params: { accountId: string; linkOrId: string; name: string }) => Promise<{ success: boolean; id?: string; error?: string }>;
+      groupDelete:  (params: { accountId: string; groupId: string }) => Promise<{ success: boolean; error?: string }>;
+    };
   };
 }
 }
@@ -720,6 +731,7 @@ export const ipc = {
   lockScreen: window.electronAPI?.lockScreen,
   posting: window.electronAPI?.posting,
   chatAgent: window.electronAPI?.chatAgent,
+  facebookWrite: window.electronAPI?.facebookWrite,
   on: window.electronAPI?.on,
   removeAllListeners: window.electronAPI?.removeAllListeners,
 };

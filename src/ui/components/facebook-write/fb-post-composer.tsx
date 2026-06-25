@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import ipc from '@/lib/ipc';
-import { parseGroupId } from '@/../../src/services/facebook/write/parse-group-id';
+import { expandQueue, type Draft, type Target } from '@/../../src/services/facebook/write/expand-queue';
 
-// Tab "Đăng bài": soạn (tự/AI) → chọn Tường/Nhóm → hàng đợi → duyệt & đăng.
-// Gọi ipc.facebookWrite.previewBatch + sendApproved (engine đã verify chạy thật).
+// Tab "Đăng bài": soạn (tự/AI) → chọn Tường + nhiều nhóm (theo tên) → hàng đợi → duyệt & đăng.
+// 1 bài → nhiều đích nhờ expandQueue. Gọi ipc.facebookWrite.sendApproved (engine đã verify).
 
 interface QueueItem { actionType: 'post_personal' | 'post_group'; target: string; content: string; label: string; }
 interface Progress { total: number; done: number; sent: number; failed: number; skipped: number; stoppedReason?: string; }
+interface SavedGroup { group_id: string; name: string; }
 
 export default function FbPostComposer({ accountId, accountName }: { accountId: string; accountName: string }) {
   const [assistants, setAssistants] = useState<any[]>([]);
   const [assistantId, setAssistantId] = useState('');
   const [content, setContent] = useState('');
-  const [channel, setChannel] = useState<'wall' | 'group'>('wall');
   const [privacy, setPrivacy] = useState<'EVERYONE' | 'FRIENDS' | 'SELF'>('EVERYONE');
-  const [groupInput, setGroupInput] = useState('');
+  const [postToWall, setPostToWall] = useState(true);
+  const [groups, setGroups] = useState<SavedGroup[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
   const [sending, setSending] = useState(false);
@@ -24,6 +26,13 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
   useEffect(() => {
     (async () => { try { const a = await ipc.ai?.listAssistants(); if (a?.success) setAssistants(a.assistants ?? []); } catch {} })();
   }, []);
+
+  // Tải nhóm đã lưu (chọn theo tên)
+  useEffect(() => {
+    (async () => { try { const r = await ipc.facebookWrite?.groupList({ accountId }); if (r?.success) setGroups(r.groups ?? []); } catch {} })();
+  }, [accountId]);
+
+  const toggleGroup = (id: string) => setSelectedGroups(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
 
   // Lắng nghe tiến độ gửi loạt
   useEffect(() => {
@@ -44,16 +53,24 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
     finally { setAiBusy(false); }
   };
 
+  const buildTargets = (): Target[] => {
+    const targets: Target[] = [];
+    if (postToWall) targets.push({ kind: 'wall', id: '', name: `Tường (${privacy})` });
+    for (const id of selectedGroups) {
+      const g = groups.find(x => x.group_id === id);
+      targets.push({ kind: 'group', id, name: g?.name || `Nhóm ${id}` });
+    }
+    return targets;
+  };
+
   const addToQueue = () => {
     const text = content.trim();
     if (!text) { setMsg('Nhập nội dung trước.'); return; }
-    if (channel === 'wall') {
-      setQueue(q => [...q, { actionType: 'post_personal', target: '', content: text, label: `Tường (${privacy})` }]);
-    } else {
-      const gid = parseGroupId(groupInput);
-      if (!gid) { setMsg('Nhập ID nhóm (số) hoặc link facebook.com/groups/<id>.'); return; }
-      setQueue(q => [...q, { actionType: 'post_group', target: gid, content: text, label: `Nhóm ${gid}` }]);
-    }
+    const targets = buildTargets();
+    if (!targets.length) { setMsg('Chọn ít nhất 1 đích (Tường hoặc nhóm).'); return; }
+    const drafts: Draft[] = [{ content: text }];
+    const items = expandQueue(drafts, targets) as QueueItem[];
+    setQueue(q => [...q, ...items]);
     setMsg('');
   };
 
@@ -98,29 +115,37 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
           </div>
 
           <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4">
-            <h3 className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-3">Đăng tới đâu</h3>
-            <div className="flex gap-2 mb-3">
-              <button onClick={() => setChannel('wall')}
-                className={`px-4 py-2 rounded-lg text-sm border ${channel === 'wall' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-gray-900 border-gray-600 text-gray-300'}`}>👤 Tường cá nhân</button>
-              <button onClick={() => setChannel('group')}
-                className={`px-4 py-2 rounded-lg text-sm border ${channel === 'group' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-gray-900 border-gray-600 text-gray-300'}`}>👥 Nhóm</button>
-            </div>
-            {channel === 'wall' ? (
-              <>
-                <label className="block text-xs text-gray-400 mb-1">Quyền riêng tư</label>
+            <h3 className="text-xs uppercase tracking-wide text-gray-400 font-semibold mb-3">Đăng tới đâu (chọn nhiều)</h3>
+            {/* Tường */}
+            <label className="flex items-center gap-2 mb-2 cursor-pointer">
+              <input type="checkbox" checked={postToWall} onChange={e => setPostToWall(e.target.checked)} className="w-4 h-4 accent-blue-500" />
+              <span className="text-sm text-gray-200">👤 Tường cá nhân</span>
+              {postToWall && (
                 <select value={privacy} onChange={e => setPrivacy(e.target.value as any)}
-                  className="w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2">
+                  className="ml-auto bg-gray-900 border border-gray-600 rounded-lg text-white text-xs px-2 py-1">
                   <option value="EVERYONE">Công khai</option>
                   <option value="FRIENDS">Bạn bè</option>
                   <option value="SELF">Chỉ mình tôi</option>
                 </select>
-              </>
+              )}
+            </label>
+            {/* Nhóm */}
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-gray-400">👥 Nhóm ({selectedGroups.length}/{groups.length} chọn)</label>
+            </div>
+            {groups.length === 0 ? (
+              <div className="text-[11px] text-gray-500 border border-dashed border-gray-700 rounded-lg px-3 py-2">
+                Chưa có nhóm. Vào tab <b>👥 Nhóm</b> để lưu nhóm (theo tên) trước.
+              </div>
             ) : (
-              <>
-                <label className="block text-xs text-gray-400 mb-1">ID nhóm hoặc link (facebook.com/groups/...)</label>
-                <input value={groupInput} onChange={e => setGroupInput(e.target.value)} placeholder="vd: 1870942289894981"
-                  className="w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2" />
-              </>
+              <div className="rounded-lg border border-gray-700 bg-gray-900 divide-y divide-gray-700/60 max-h-40 overflow-y-auto">
+                {groups.map(g => (
+                  <label key={g.group_id} className="flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-gray-700/30">
+                    <input type="checkbox" checked={selectedGroups.includes(g.group_id)} onChange={() => toggleGroup(g.group_id)} className="w-4 h-4 accent-blue-500" />
+                    <span className="text-sm text-gray-200 truncate">{g.name}</span>
+                  </label>
+                ))}
+              </div>
             )}
             <button onClick={addToQueue} className="mt-3 w-full px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">➕ Thêm vào hàng đợi</button>
           </div>

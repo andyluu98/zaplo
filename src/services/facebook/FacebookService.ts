@@ -1600,6 +1600,11 @@ export class FacebookService {
     return this.dataFB;
   }
 
+  /** Public: lấy session đã kết nối (fb_dtsg/cookie...) cho các service GHI. Throw nếu chưa connect. */
+  public getSessionData(): FBSessionData {
+    return this.requireSession();
+  }
+
   /**
    * Gửi tin nhắn với E2EE auto-detect.
    * Nếu thread là 1:1 và đã biết là E2EE → gửi qua bridge trực tiếp.

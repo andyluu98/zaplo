@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Zaplo — Facebook Đăng bài & Tương tác (Prototype)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --bg:#0f1420; --panel:#161c2b; --panel2:#1d2436; --border:#2a3346;
+    --text:#e5e9f0; --muted:#8a93a6; --blue:#3b82f6; --blue2:#2563eb;
+    --green:#22c55e; --red:#ef4444; --amber:#f59e0b;
+  }
+  body{ background:var(--bg); color:var(--text); font-family:"Segoe UI",system-ui,Arial,sans-serif; font-size:14px; }
+  .app{ display:flex; height:100vh; }
+  /* sidebar */
+  .side{ width:56px; background:#0b0f18; border-right:1px solid var(--border); display:flex; flex-direction:column; align-items:center; padding-top:14px; gap:6px; }
+  .side .ic{ width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:18px; cursor:pointer; }
+  .side .ic.active{ background:var(--blue); color:#fff; }
+  .side .ic:hover:not(.active){ background:var(--panel2); color:var(--text); }
+  /* main */
+  .main{ flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .top{ display:flex; align-items:center; justify-content:space-between; padding:12px 20px; border-bottom:1px solid var(--border); }
+  .top h1{ font-size:16px; font-weight:600; }
+  .acct{ display:flex; align-items:center; gap:8px; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:5px 12px; cursor:pointer; }
+  .acct .av{ width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,#3b82f6,#8b5cf6); }
+  .acct .dot{ width:8px;height:8px;border-radius:50%;background:var(--green); }
+  /* tabs */
+  .tabs{ display:flex; gap:2px; padding:8px 16px 0; border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .tab{ padding:9px 16px; font-size:13px; font-weight:500; color:var(--muted); border-bottom:2px solid transparent; cursor:pointer; border-radius:8px 8px 0 0; white-space:nowrap; }
+  .tab:hover{ color:var(--text); background:rgba(255,255,255,.03); }
+  .tab.active{ color:var(--blue); border-bottom-color:var(--blue); background:rgba(59,130,246,.06); }
+  /* content */
+  .content{ flex:1; overflow-y:auto; padding:20px; }
+  .pane{ display:none; max-width:1100px; }
+  .pane.active{ display:block; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media(max-width:860px){ .grid2{ grid-template-columns:1fr; } }
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:16px; }
+  .card h3{ font-size:13px; color:var(--muted); font-weight:600; margin-bottom:12px; text-transform:uppercase; letter-spacing:.04em; }
+  label.lab{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
+  textarea,input,select{ width:100%; background:var(--panel2); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:10px 12px; font-size:14px; font-family:inherit; }
+  textarea{ min-height:120px; resize:vertical; }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; }
+  .chip{ padding:8px 14px; border-radius:10px; background:var(--panel2); border:1px solid var(--border); color:var(--text); cursor:pointer; font-size:13px; }
+  .chip.on{ background:var(--blue); border-color:var(--blue); color:#fff; }
+  .btn{ background:var(--blue); color:#fff; border:none; border-radius:10px; padding:10px 18px; font-weight:600; cursor:pointer; font-size:14px; }
+  .btn:hover{ background:var(--blue2); }
+  .btn.ghost{ background:var(--panel2); border:1px solid var(--border); color:var(--text); }
+  .btn.green{ background:var(--green); } .btn.sm{ padding:6px 12px; font-size:12px; }
+  .row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .between{ display:flex; align-items:center; justify-content:space-between; }
+  .glist{ border:1px solid var(--border); border-radius:10px; max-height:180px; overflow:auto; }
+  .gitem{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-bottom:1px solid var(--border); cursor:pointer; }
+  .gitem:last-child{ border-bottom:none; }
+  .gitem:hover{ background:rgba(255,255,255,.03); }
+  .gav{ width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#10b981,#3b82f6); flex:none; }
+  .cb{ width:16px;height:16px; accent-color:var(--blue); }
+  .queue{ border:1px dashed var(--border); border-radius:12px; padding:12px; }
+  .qitem{ display:flex; gap:10px; align-items:flex-start; padding:10px; background:var(--panel2); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; }
+  .qitem .badge{ font-size:11px; padding:2px 8px; border-radius:20px; background:rgba(59,130,246,.15); color:#93c5fd; flex:none; }
+  .badge.grp{ background:rgba(16,185,129,.15); color:#6ee7b7; }
+  .badge.cmt{ background:rgba(245,158,11,.15); color:#fcd34d; }
+  .muted{ color:var(--muted); } .small{ font-size:12px; } .mt{ margin-top:12px; }
+  .meter{ height:8px; background:var(--panel2); border-radius:6px; overflow:hidden; border:1px solid var(--border); }
+  .meter > i{ display:block; height:100%; background:var(--green); }
+  .kpi{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .kpi .b{ background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:14px; }
+  .kpi .b .n{ font-size:22px; font-weight:700; } .kpi .b .l{ font-size:12px; color:var(--muted); }
+  .note{ background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.3); color:#fcd34d; border-radius:10px; padding:10px 12px; font-size:12.5px; }
+  .slider{ width:100%; accent-color:var(--blue); }
+  .toggle{ width:42px;height:24px;border-radius:20px;background:var(--blue);position:relative;cursor:pointer; }
+  .toggle::after{ content:'';position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:#fff; }
+  .toggle.off{ background:#3a445a; } .toggle.off::after{ right:auto; left:2px; }
+  .banner{ background:linear-gradient(90deg,rgba(59,130,246,.12),transparent); border:1px solid var(--border); border-left:3px solid var(--blue); border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:13px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="side">
+    <div class="ic">▦</div>
+    <div class="ic">💬</div>
+    <div class="ic">📊</div>
+    <div class="ic active" title="Facebook">f</div>
+    <div class="ic">📝</div>
+    <div class="ic">🤖</div>
+    <div class="ic">⚙️</div>
+  </div>
+
+  <div class="main">
+    <div class="top">
+      <h1>📘 Facebook — Đăng bài &amp; Tương tác</h1>
+      <div class="acct">
+        <div class="av"></div>
+        <div><div style="font-weight:600">Luu Andy</div><div class="small muted">61591066661953</div></div>
+        <div class="dot" title="Đang kết nối"></div>
+        <span class="muted">▾</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-t="post">📝 Đăng bài</div>
+      <div class="tab" data-t="comment">💬 Auto-Comment</div>
+      <div class="tab" data-t="agent">🤖 Agent tự động</div>
+      <div class="tab" data-t="log">📜 Nhật ký</div>
+      <div class="tab" data-t="limit">⚙️ Giới hạn an toàn</div>
+    </div>
+
+    <div class="content">
+
+      <!-- ===== ĐĂNG BÀI ===== -->
+      <div class="pane active" id="post">
+        <div class="banner">Soạn nội dung (tự viết hoặc nhờ AI) → chọn đăng lên <b>Tường cá nhân</b> hay <b>Nhóm</b> → thêm vào hàng đợi → <b>duyệt &amp; đăng</b>. Mỗi lần đăng cách nhau ngẫu nhiên để an toàn nick.</div>
+        <div class="grid2">
+          <div>
+            <div class="card">
+              <h3>Soạn nội dung</h3>
+              <label class="lab">Trợ lý AI (chủ đề)</label>
+              <select><option>— Không dùng AI (tự viết) —</option><option>Trợ lý Bán hàng</option><option>Trợ lý Tuyển dụng</option><option>Trợ lý Tin tức</option></select>
+              <label class="lab">Nội dung bài</label>
+              <textarea placeholder="Nhập nội dung, hoặc bấm 'AI viết giúp'...">Khai giảng khóa học mới tháng 7 🎓 Ưu đãi 30% cho 20 bạn đăng ký sớm nhất. Inbox ngay!</textarea>
+              <div class="row mt">
+                <button class="btn ghost sm">✨ AI viết giúp</button>
+                <button class="btn ghost sm">🖼️ Đính kèm ảnh (0)</button>
+              </div>
+            </div>
+            <div class="card">
+              <h3>Đăng tới đâu</h3>
+              <div class="chips">
+                <div class="chip on" onclick="pickCh(this,'wall')">👤 Tường cá nhân</div>
+                <div class="chip" onclick="pickCh(this,'group')">👥 Nhóm</div>
+              </div>
+              <div id="wallOpts">
+                <label class="lab">Quyền riêng tư</label>
+                <select><option>Công khai (Everyone)</option><option>Bạn bè</option><option>Chỉ mình tôi</option></select>
+              </div>
+              <div id="groupOpts" style="display:none">
+                <label class="lab">Chọn nhóm (đăng vào nhiều nhóm)</label>
+                <div class="glist">
+                  <label class="gitem"><input type="checkbox" class="cb" checked><div class="gav"></div><div>Cộng đồng Khởi nghiệp Cần Thơ<div class="small muted">1.870.942 thành viên</div></div></label>
+                  <label class="gitem"><input type="checkbox" class="cb"><div class="gav"></div><div>Việc làm Cần Thơ<div class="small muted">98K thành viên</div></div></label>
+                  <label class="gitem"><input type="checkbox" class="cb"><div class="gav"></div><div>Mua bán Cần Thơ</div></label>
+                </div>
+              </div>
+              <button class="btn mt" style="width:100%" onclick="addQueue()">➕ Thêm vào hàng đợi</button>
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <div class="between"><h3 style="margin:0">Hàng đợi chờ duyệt</h3><span class="small muted" id="qcount">2 mục</span></div>
+              <div class="queue mt" id="queue">
+                <div class="qitem"><span class="badge">Tường</span><div><div>Khai giảng khóa học mới tháng 7 🎓 Ưu đãi 30%...</div><div class="small muted">Công khai · kèm 0 ảnh</div></div></div>
+                <div class="qitem"><span class="badge grp">Nhóm</span><div><div>Khai giảng khóa học mới tháng 7 🎓...</div><div class="small muted">→ Cộng đồng Khởi nghiệp Cần Thơ</div></div></div>
+              </div>
+              <div class="note mt">⏱️ Sẽ đăng tuần tự, mỗi bài cách 4–9 giây ngẫu nhiên. Hôm nay còn đăng được: <b>3 bài</b> (giới hạn 3/ngày).</div>
+              <div class="row mt"><button class="btn green" style="flex:1" onclick="alert('(mô phỏng) Đang đăng tuần tự... 1/2 ✅')">✅ Duyệt &amp; Đăng tất cả</button><button class="btn ghost">Xóa</button></div>
+            </div>
+            <div class="card">
+              <h3>Tiến độ gửi gần nhất</h3>
+              <div class="small muted">Đã gửi 2/2 · ✅ 2 thành công · ❌ 0 lỗi</div>
+              <div class="meter mt"><i style="width:100%"></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== AUTO-COMMENT ===== -->
+      <div class="pane" id="comment">
+        <div class="banner">Lấy bài từ <b>tab Quét (Scan)</b> sẵn có → soạn comment (AI theo mẫu) → duyệt → tự comment. Dùng để tiếp cận khách trong nhóm/fanpage.</div>
+        <div class="grid2">
+          <div class="card">
+            <div class="between"><h3 style="margin:0">Bài đã quét (chọn để comment)</h3><span class="small muted">12 bài</span></div>
+            <div class="glist mt" style="max-height:240px">
+              <label class="gitem"><input type="checkbox" class="cb" checked><div class="gav"></div><div>"Cần tìm khóa học marketing..."<div class="small muted">Nhóm Khởi nghiệp · 34 bình luận</div></div></label>
+              <label class="gitem"><input type="checkbox" class="cb" checked><div class="gav"></div><div>"Ai biết chỗ học AI uy tín?"<div class="small muted">Nhóm Việc làm · 8 bình luận</div></div></label>
+              <label class="gitem"><input type="checkbox" class="cb"><div class="gav"></div><div>"Review trung tâm tiếng Anh"<div class="small muted">Fanpage ABC</div></div></label>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Mẫu comment</h3>
+            <label class="lab">Trợ lý AI</label>
+            <select><option>Trợ lý Tư vấn khóa học</option><option>— Tự viết —</option></select>
+            <label class="lab">Nội dung / hướng dẫn AI</label>
+            <textarea>Chào bạn, bên mình có khóa học phù hợp nè, inbox mình gửi thông tin nhé 😊</textarea>
+            <div class="note mt">Mỗi bài 1 comment, tránh trùng (đã comment thì bỏ qua). Còn lại hôm nay: <b>10 comment</b>.</div>
+            <button class="btn green mt" style="width:100%">✅ Duyệt &amp; Comment (2 bài)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== AGENT ===== -->
+      <div class="pane" id="agent">
+        <div class="banner">Giống Agent đăng nhóm Zalo: mỗi Agent tự động đăng bài FB theo <b>lịch</b> (ngày/tuần/tháng) cho các nhóm/tường được giao. <i>(Tận dụng lại module Agent sẵn có.)</i></div>
+        <div class="card">
+          <div class="between">
+            <h3 style="margin:0">Danh sách Agent Facebook</h3>
+            <button class="btn sm">+ Tạo Agent</button>
+          </div>
+          <div class="qitem mt"><div class="toggle"></div><div style="flex:1"><div style="font-weight:600">Agent Tuyển sinh</div><div class="small muted">Trợ lý Bán hàng · 3 nhóm · Hàng ngày 08:00–21:00 · 2 bài/ngày</div></div><span class="badge grp">đang chạy</span></div>
+          <div class="qitem"><div class="toggle off"></div><div style="flex:1"><div style="font-weight:600">Agent Tin tức ngành</div><div class="small muted">Trợ lý Tin tức · Tường cá nhân · Thứ 2,4,6 · 1 bài/ngày</div></div><span class="badge">tạm dừng</span></div>
+        </div>
+        <div class="note">Phần Agent tự động làm sau cùng (Phase 3+) — sau khi đăng tay + comment đã ổn định.</div>
+      </div>
+
+      <!-- ===== LOG ===== -->
+      <div class="pane" id="log">
+        <div class="kpi">
+          <div class="b"><div class="n">14</div><div class="l">Bài đã đăng (hôm nay)</div></div>
+          <div class="b"><div class="n">23</div><div class="l">Comment (hôm nay)</div></div>
+          <div class="b"><div class="n" style="color:var(--green)">96%</div><div class="l">Tỉ lệ thành công</div></div>
+          <div class="b"><div class="n" style="color:var(--red)">2</div><div class="l">Lỗi</div></div>
+        </div>
+        <div class="card mt">
+          <h3>Nhật ký gần đây</h3>
+          <div class="qitem"><span class="badge grp">Nhóm</span><div style="flex:1"><div>Khai giảng khóa học mới...</div><div class="small muted">Cộng đồng Khởi nghiệp · 09:42</div></div><span style="color:var(--green)">✅</span></div>
+          <div class="qitem"><span class="badge cmt">Comment</span><div style="flex:1"><div>Chào bạn, bên mình có khóa...</div><div class="small muted">Nhóm Việc làm · 09:40</div></div><span style="color:var(--green)">✅</span></div>
+          <div class="qitem"><span class="badge">Tường</span><div style="flex:1"><div>Ưu đãi tháng 7...</div><div class="small muted">Tường cá nhân · 09:38</div></div><span style="color:var(--red)">❌ token hết hạn</span></div>
+        </div>
+      </div>
+
+      <!-- ===== LIMIT ===== -->
+      <div class="pane" id="limit">
+        <div class="banner">Giới hạn để <b>tránh FB khóa nick</b>. Khuyến nghị dùng nick phụ. Mức mặc định: Cân bằng.</div>
+        <div class="card" style="max-width:520px">
+          <h3>Giới hạn mỗi ngày / nick</h3>
+          <label class="lab">Comment tối đa / ngày: <b id="vC">10</b></label>
+          <input class="slider" type="range" min="1" max="30" value="10" oninput="document.getElementById('vC').textContent=this.value">
+          <label class="lab">Bài đăng tối đa / ngày: <b id="vP">3</b></label>
+          <input class="slider" type="range" min="1" max="10" value="3" oninput="document.getElementById('vP').textContent=this.value">
+          <label class="lab">Giãn cách giữa 2 lần gửi (giây): <b id="vD">4–9</b></label>
+          <input class="slider" type="range" min="2" max="20" value="6">
+          <div class="row mt"><div class="toggle"></div><span class="small">Bắt buộc duyệt tay trước khi gửi loạt</span></div>
+          <button class="btn mt">Lưu cài đặt</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active'); document.getElementById(t.dataset.t).classList.add('active');
+  });
+  function pickCh(el,kind){
+    document.querySelectorAll('#post .chips .chip').forEach(c=>c.classList.remove('on'));
+    el.classList.add('on');
+    document.getElementById('wallOpts').style.display = kind==='wall'?'block':'none';
+    document.getElementById('groupOpts').style.display = kind==='group'?'block':'none';
+  }
+  function addQueue(){
+    const q=document.getElementById('queue');
+    const d=document.createElement('div'); d.className='qitem';
+    d.innerHTML='<span class="badge">Mới</span><div><div>Bài vừa thêm vào hàng đợi…</div><div class="small muted">chờ duyệt</div></div>';
+    q.appendChild(d);
+    document.getElementById('qcount').textContent=q.children.length+' mục';
+  }
+</script>
+</body>
+</html>
