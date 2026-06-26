@@ -1,0 +1,27 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Zaplo Prototype — AI & Agent + FB Posting</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0b0f18;font-family:"Segoe UI",system-ui,Arial,sans-serif;height:100vh;display:flex}
+.side{width:64px;background:#0b0f18;border-right:1px solid #2a3346;display:flex;flex-direction:column;align-items:center;padding-top:14px;gap:10px}
+.ic{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#8a93a6;font-size:20px;cursor:pointer;border:1px solid transparent}
+.ic.active{background:#3b82f6;color:#fff}.ic:hover:not(.active){background:#1d2436;color:#e5e9f0}
+.ic .t{font-size:8px;position:absolute}
+.lbl{color:#5b657a;font-size:8px;margin-top:-6px}
+.frame{flex:1;border:none;height:100vh;background:#0f1420}
+</style></head>
+<body>
+<div class="side">
+  <div style="color:#3b82f6;font-weight:800;font-size:13px;margin-bottom:6px">Zaplo</div>
+  <div class="ic active" data-f="proto-hub.html" onclick="nav(this)" title="AI & Agent">🤖</div>
+  <div class="lbl">AI/Agent</div>
+  <div class="ic" data-f="proto-fb.html" onclick="nav(this)" title="Facebook đăng bài">f</div>
+  <div class="lbl">FB bài</div>
+  <div class="ic" data-f="proto-zalo.html" onclick="nav(this)" title="Zalo đăng nhóm" style="font-size:13px;font-weight:700">Zalo</div>
+  <div class="lbl">Zalo bài</div>
+</div>
+<iframe id="frame" class="frame" src="proto-hub.html"></iframe>
+<script>
+function nav(el){document.querySelectorAll('.ic').forEach(i=>i.classList.remove('active'));el.classList.add('active');document.getElementById('frame').src=el.dataset.f;}
+</script>
+</body></html>

@@ -340,7 +340,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     uploadFile:      (assistantId: string, filePath: string) => ipcRenderer.invoke('ai:uploadFile', { assistantId, filePath }),
     removeFile:      (fileId: number) => ipcRenderer.invoke('ai:removeFile', { fileId }),
     suggest:         (assistantId: string, chatHistory: any[]) => ipcRenderer.invoke('ai:suggest', { assistantId, chatHistory }),
-    chat:            (assistantId: string, messages: any[], structured?: boolean) => ipcRenderer.invoke('ai:chat', { assistantId, messages, structured }),
+    chat:            (assistantId: string, messages: any[], structured?: boolean, maxTokens?: number) => ipcRenderer.invoke('ai:chat', { assistantId, messages, structured, maxTokens }),
     getAccountAssistant:  (zaloId: string, role: string) => ipcRenderer.invoke('ai:getAccountAssistant', { zaloId, role }),
     setAccountAssistant:  (zaloId: string, role: string, assistantId: string | null) => ipcRenderer.invoke('ai:setAccountAssistant', { zaloId, role, assistantId }),
     getAccountAssistants: (zaloId: string) => ipcRenderer.invoke('ai:getAccountAssistants', { zaloId }),
@@ -591,6 +591,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     logList:        (params: any) => ipcRenderer.invoke('posting:log.list', params),
     botStatus:      (params: any) => ipcRenderer.invoke('posting:bot.status', params),
     botPostNow:     (params: any) => ipcRenderer.invoke('posting:test.postNow', params),
+    manualPost:     (params: any) => ipcRenderer.invoke('posting:manualPost', params),
     // ─── Agents (agent-centric) ───────────────────────────────────────
     agentList:      (params: any) => ipcRenderer.invoke('posting:agent.list', params),
     agentGet:       (params: any) => ipcRenderer.invoke('posting:agent.get', params),
@@ -622,6 +623,35 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setAiState:    (params: { zaloId: string; threadId: string; paused: boolean }) => ipcRenderer.invoke('chat-agent:setAiState', params),
     pin:           (params: { zaloId: string; threadId: string; agentId?: number | null }) => ipcRenderer.invoke('chat-agent:pin', params),
     resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => ipcRenderer.invoke('chat-agent:resolveThread', params),
+  },
+
+  // ─── Lịch nội dung (content_schedule_item) ────────────────────────
+  schedule: {
+    range:      (params: { from: number; to: number }) => ipcRenderer.invoke('schedule:range', params),
+    spread:     (params: any) => ipcRenderer.invoke('schedule:spread', params),
+    delete:     (params: { id: number }) => ipcRenderer.invoke('schedule:delete', params),
+    deleteRange: (params: { from: number; to: number; onlyPending: boolean }) => ipcRenderer.invoke('schedule:deleteRange', params),
+    runDueNow:  () => ipcRenderer.invoke('schedule:runDueNow'),
+  },
+
+  // ─── Kho bài (post_store: dùng chung FB+Zalo) ─────────────────────
+  postStore: {
+    list:       () => ipcRenderer.invoke('poststore:list'),
+    save:       (params: { post: any }) => ipcRenderer.invoke('poststore:save', params),
+    delete:     (params: { id: number }) => ipcRenderer.invoke('poststore:delete', params),
+    deleteMany: (params: { ids: number[] }) => ipcRenderer.invoke('poststore:deleteMany', params),
+    deleteAll:  () => ipcRenderer.invoke('poststore:deleteAll'),
+  },
+
+  // ─── Agent đa-kênh (mc_agent: FB + Zalo) ──────────────────────────
+  agentMc: {
+    listAccounts: () => ipcRenderer.invoke('agent:mc.listAccounts'),
+    groups:       (params: { accountId: string; channel: 'fb' | 'zalo' }) => ipcRenderer.invoke('agent:mc.groups', params),
+    list:         () => ipcRenderer.invoke('agent:mc.list'),
+    get:          (params: { id: number }) => ipcRenderer.invoke('agent:mc.get', params),
+    save:         (params: { agent: any }) => ipcRenderer.invoke('agent:mc.save', params),
+    delete:       (params: { id: number }) => ipcRenderer.invoke('agent:mc.delete', params),
+    setEnabled:   (params: { id: number; enabled: boolean }) => ipcRenderer.invoke('agent:mc.setEnabled', params),
   },
 
   // ─── Facebook Write (comment / đăng bài / reply) ──────────────────

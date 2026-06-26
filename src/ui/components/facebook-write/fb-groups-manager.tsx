@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import ipc from '@/lib/ipc';
+import { parseGroupCsv } from '@/../../src/services/facebook/write/parse-group-csv';
 
-// Tab "Nhóm": lưu nhóm FB theo tên (dán link + đặt tên) để chọn khi đăng. (Auto-fetch ở phase sau.)
+// Tab "Nhóm": lưu nhóm FB theo tên (dán link/đặt tên hoặc nhập CSV hàng loạt). (Cào từ khóa: phase sau.)
 
 export interface SavedGroup { account_id: string; group_id: string; name: string; source: string; }
 
@@ -10,6 +11,9 @@ export default function FbGroupsManager({ accountId }: { accountId: string }) {
   const [link, setLink] = useState('');
   const [name, setName] = useState('');
   const [msg, setMsg] = useState('');
+  const [csvOpen, setCsvOpen] = useState(false);
+  const [csvText, setCsvText] = useState('');
+  const [importing, setImporting] = useState(false);
 
   const load = async () => {
     try { const r = await ipc.facebookWrite?.groupList({ accountId }); if (r?.success) setGroups(r.groups ?? []); }
@@ -30,6 +34,20 @@ export default function FbGroupsManager({ accountId }: { accountId: string }) {
     await load();
   };
 
+  const importCsv = async () => {
+    const rows = parseGroupCsv(csvText);
+    if (!rows.length) { setMsg('CSV không có nhóm hợp lệ (mỗi dòng: id/link, tên).'); return; }
+    setImporting(true); setMsg('');
+    let ok = 0;
+    for (const r of rows) {
+      const res = await ipc.facebookWrite?.groupSaveManual({ accountId, linkOrId: r.id, name: r.name });
+      if (res?.success) ok++;
+    }
+    setImporting(false); setCsvText(''); setCsvOpen(false);
+    setMsg(`Đã nhập ${ok}/${rows.length} nhóm từ CSV.`);
+    await load();
+  };
+
   return (
     <div className="h-full overflow-y-auto p-5">
       <div className="max-w-2xl">
@@ -43,6 +61,23 @@ export default function FbGroupsManager({ accountId }: { accountId: string }) {
             <button onClick={add} className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">➕ Lưu nhóm</button>
             {msg && <span className="ml-3 text-sm text-amber-400">{msg}</span>}
           </div>
+        </div>
+
+        {/* Nhập CSV hàng loạt */}
+        <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 mb-4">
+          <button onClick={() => setCsvOpen(o => !o)} className="text-xs uppercase tracking-wide text-gray-400 font-semibold">📄 Nhập nhóm hàng loạt (CSV) {csvOpen ? '▲' : '▼'}</button>
+          {csvOpen && (
+            <div className="mt-3 space-y-2">
+              <div className="text-[11px] text-gray-500">Mỗi dòng: <code>id_hoặc_link, tên</code> (ngăn bằng dấu phẩy hoặc tab). Tên để trống = dùng id.</div>
+              <textarea value={csvText} onChange={e => setCsvText(e.target.value)} rows={5}
+                placeholder={'1870942289894981, Khởi nghiệp CT\nhttps://facebook.com/groups/123, Cho thuê VP'}
+                className="w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2 font-mono" />
+              <button onClick={importCsv} disabled={importing}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold disabled:opacity-50">
+                {importing ? 'Đang nhập...' : '📥 Nhập vào danh sách'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between mb-2">

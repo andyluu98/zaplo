@@ -372,6 +372,99 @@ class DatabaseService {
         this.save();
     }
 
+    // ─── Agent targets (đa-kênh: account+channel+group cho 1 agent) ─────────────
+    public setAgentTargets(agentId: number, targets: Array<{ channel: string; account_id: string; group_id: string }>): void {
+        this.run(`DELETE FROM agent_target WHERE agent_id=?`, [agentId]);
+        for (const t of targets) {
+            this.run(
+                `INSERT OR IGNORE INTO agent_target(agent_id, channel, account_id, group_id) VALUES(?,?,?,?)`,
+                [agentId, t.channel, t.account_id, t.group_id || ''],
+            );
+        }
+        this.save();
+    }
+
+    public listAgentTargets(agentId: number): Array<{ agent_id: number; channel: string; account_id: string; group_id: string }> {
+        return this.query(`SELECT * FROM agent_target WHERE agent_id=?`, [agentId]);
+    }
+
+    // ─── Multi-channel Agent (mc_agent) — agent đa-kênh FB+Zalo ─────────────────
+    public saveMcAgent(a: { id?: number; name: string; assistant_id: string; type: string; content_source: string; schedule_json: string; enabled: number }): number {
+        const now = Date.now();
+        if (a.id) {
+            this.run(`UPDATE mc_agent SET name=?, assistant_id=?, type=?, content_source=?, schedule_json=?, enabled=?, updated_at=? WHERE id=?`,
+                [a.name, a.assistant_id, a.type, a.content_source, a.schedule_json, a.enabled, now, a.id]);
+            this.save(); return a.id;
+        }
+        const id = this.runInsert(`INSERT INTO mc_agent (name, assistant_id, type, content_source, schedule_json, enabled, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+            [a.name, a.assistant_id, a.type, a.content_source, a.schedule_json, a.enabled, now, now]);
+        this.save(); return id;
+    }
+
+    public listMcAgents(): any[] { return this.query(`SELECT * FROM mc_agent ORDER BY id DESC`); }
+    public getMcAgent(id: number): any { return this.query(`SELECT * FROM mc_agent WHERE id=?`, [id])[0] || null; }
+    public setMcAgentEnabled(id: number, enabled: number): void { this.run(`UPDATE mc_agent SET enabled=?, updated_at=? WHERE id=?`, [enabled, Date.now(), id]); this.save(); }
+    public deleteMcAgent(id: number): void { this.run(`DELETE FROM mc_agent WHERE id=?`, [id]); this.run(`DELETE FROM agent_target WHERE agent_id=?`, [id]); this.save(); }
+
+    // ─── Post store (Kho bài — dùng chung FB+Zalo) ──────────────────────────────
+    public savePost(p: { id?: number; title: string; content: string; image_count: number; source?: string }): number {
+        const now = Date.now();
+        if (p.id) {
+            this.run(`UPDATE post_store SET title=?, content=?, image_count=?, updated_at=? WHERE id=?`,
+                [p.title, p.content, p.image_count, now, p.id]);
+            this.save(); return p.id;
+        }
+        const id = this.runInsert(`INSERT INTO post_store (title, content, image_count, source, created_at, updated_at) VALUES (?,?,?,?,?,?)`,
+            [p.title, p.content, p.image_count, p.source || 'manual', now, now]);
+        this.save(); return id;
+    }
+    public listPosts(): any[] { return this.query(`SELECT * FROM post_store ORDER BY id DESC`); }
+    public countPosts(): number { return this.queryOne<{ c: number }>(`SELECT COUNT(*) AS c FROM post_store`)?.c || 0; }
+    public deletePost(id: number): void { this.run(`DELETE FROM post_store WHERE id=?`, [id]); this.save(); }
+    public deletePosts(ids: number[]): void {
+        if (!ids.length) return;
+        this.run(`DELETE FROM post_store WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
+        this.save();
+    }
+    public deleteAllPosts(): void { this.run(`DELETE FROM post_store`, []); this.save(); }
+
+    // ─── Content schedule (Lịch nội dung — rải bài) ─────────────────────────────
+    public addScheduleItems(items: Array<{ post_id: number; channel: string; account_id: string; group_id: string; scheduled_at: number }>): void {
+        const now = Date.now();
+        for (const it of items) {
+            this.run(`INSERT INTO content_schedule_item (post_id, channel, account_id, group_id, scheduled_at, status, created_at) VALUES (?,?,?,?,?,'scheduled',?)`,
+                [it.post_id, it.channel, it.account_id, it.group_id || '', it.scheduled_at, now]);
+        }
+        this.save();
+    }
+    /** Item trong khoảng [from,to] (epoch) — join nội dung bài cho lịch. */
+    public listScheduleRange(from: number, to: number): any[] {
+        return this.query(
+            `SELECT s.*, p.title, p.content FROM content_schedule_item s LEFT JOIN post_store p ON p.id=s.post_id
+             WHERE s.scheduled_at>=? AND s.scheduled_at<? ORDER BY s.scheduled_at`, [from, to]);
+    }
+    public listDueSchedule(now: number): any[] {
+        return this.query(
+            `SELECT s.*, p.title, p.content, p.image_count FROM content_schedule_item s LEFT JOIN post_store p ON p.id=s.post_id
+             WHERE s.status='scheduled' AND s.scheduled_at<=? ORDER BY s.scheduled_at LIMIT 20`, [now]);
+    }
+    public markScheduleItem(id: number, status: string, error?: string): void {
+        this.run(`UPDATE content_schedule_item SET status=?, error=? WHERE id=?`, [status, error || null, id]); this.save();
+    }
+    public deleteScheduleItem(id: number): void { this.run(`DELETE FROM content_schedule_item WHERE id=?`, [id]); this.save(); }
+
+    /** Xóa hàng loạt item lịch trong khoảng [from,to] (epoch ms). onlyPending=true chỉ xóa status='scheduled'. Trả số dòng đã xóa. */
+    public deleteScheduleRange(from: number, to: number, onlyPending: boolean): number {
+        const whereSuffix = onlyPending ? ` AND status='scheduled'` : ``;
+        const count = (this.query<{ c: number }>(
+            `SELECT COUNT(*) as c FROM content_schedule_item WHERE scheduled_at>=? AND scheduled_at<=?` + whereSuffix,
+            [from, to],
+        )[0]?.c) ?? 0;
+        this.run(`DELETE FROM content_schedule_item WHERE scheduled_at>=? AND scheduled_at<=?` + whereSuffix, [from, to]);
+        this.save();
+        return count;
+    }
+
     /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0 */
     private normalizeVietnamPhone(phone?: string): string {
         if (!phone) return '';
@@ -827,6 +920,46 @@ class DatabaseService {
                 enabled INTEGER NOT NULL DEFAULT 1
             );
             CREATE INDEX IF NOT EXISTS idx_agent_sched ON agent_schedule(agent_id);
+            CREATE TABLE IF NOT EXISTS agent_target (
+                agent_id INTEGER NOT NULL,
+                channel TEXT NOT NULL DEFAULT 'fb',
+                account_id TEXT NOT NULL,
+                group_id TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (agent_id, channel, account_id, group_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_agent_target ON agent_target(agent_id);
+            CREATE TABLE IF NOT EXISTS mc_agent (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                assistant_id TEXT DEFAULT '',
+                type TEXT NOT NULL DEFAULT 'posting',
+                content_source TEXT NOT NULL DEFAULT 'store',
+                schedule_json TEXT DEFAULT '',
+                enabled INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS post_store (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL DEFAULT '',
+                content TEXT NOT NULL DEFAULT '',
+                image_count INTEGER NOT NULL DEFAULT 0,
+                source TEXT NOT NULL DEFAULT 'manual',
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS content_schedule_item (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_id INTEGER NOT NULL,
+                channel TEXT NOT NULL DEFAULT 'fb',
+                account_id TEXT NOT NULL,
+                group_id TEXT NOT NULL DEFAULT '',
+                scheduled_at INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'scheduled',
+                error TEXT,
+                created_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_sched_due ON content_schedule_item(status, scheduled_at);
         `);
 
         // ─── Chat Agents (auto-reply agent-centric module) ──────────────────────
@@ -1632,6 +1765,28 @@ class DatabaseService {
                     window_start TEXT DEFAULT '08:00', window_end TEXT DEFAULT '21:00', posts_per_day INTEGER NOT NULL DEFAULT 1, enabled INTEGER NOT NULL DEFAULT 1
                 );
                 CREATE INDEX IF NOT EXISTS idx_agent_sched ON agent_schedule(agent_id);
+                CREATE TABLE IF NOT EXISTS agent_target (
+                    agent_id INTEGER NOT NULL, channel TEXT NOT NULL DEFAULT 'fb', account_id TEXT NOT NULL,
+                    group_id TEXT NOT NULL DEFAULT '', PRIMARY KEY (agent_id, channel, account_id, group_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_agent_target ON agent_target(agent_id);
+                CREATE TABLE IF NOT EXISTS mc_agent (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, assistant_id TEXT DEFAULT '',
+                    type TEXT NOT NULL DEFAULT 'posting', content_source TEXT NOT NULL DEFAULT 'store',
+                    schedule_json TEXT DEFAULT '', enabled INTEGER NOT NULL DEFAULT 0,
+                    created_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS post_store (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL DEFAULT '', content TEXT NOT NULL DEFAULT '',
+                    image_count INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'manual',
+                    created_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS content_schedule_item (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL, channel TEXT NOT NULL DEFAULT 'fb',
+                    account_id TEXT NOT NULL, group_id TEXT NOT NULL DEFAULT '', scheduled_at INTEGER NOT NULL DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT 'scheduled', error TEXT, created_at INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE INDEX IF NOT EXISTS idx_sched_due ON content_schedule_item(status, scheduled_at);
             `);
             this.save();
             Logger.log('[DatabaseService] ✅ Migration: ensured agent-centric tables exist');
