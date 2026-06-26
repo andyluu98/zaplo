@@ -368,7 +368,7 @@ declare global {
         uploadFile:      (assistantId: string, filePath: string) => Promise<{ success: boolean; id?: number; fileName?: string; error?: string }>;
         removeFile:      (fileId: number) => Promise<{ success: boolean; error?: string }>;
         suggest:         (assistantId: string, chatHistory: any[]) => Promise<{ success: boolean; suggestions: string[]; error?: string }>;
-        chat:            (assistantId: string, messages: any[], structured?: boolean) => Promise<{ success: boolean; result?: string; totalTokens?: number; promptTokens?: number; completionTokens?: number; error?: string }>;
+        chat:            (assistantId: string, messages: any[], structured?: boolean, maxTokens?: number) => Promise<{ success: boolean; result?: string; totalTokens?: number; promptTokens?: number; completionTokens?: number; error?: string }>;
         getAccountAssistant:  (zaloId: string, role: string) => Promise<{ success: boolean; assistant?: any | null; error?: string }>;
         setAccountAssistant:  (zaloId: string, role: string, assistantId: string | null) => Promise<{ success: boolean; error?: string }>;
         getAccountAssistants: (zaloId: string) => Promise<{ success: boolean; suggestion?: string | null; panel?: string | null; error?: string }>;
@@ -605,6 +605,7 @@ declare global {
       logList:        (params: { zaloId: string; limit?: number }) => Promise<{ success: boolean; logs: import('@/../../src/models/automation').PostLog[]; error?: string }>;
       botStatus:      (params: { zaloId: string }) => Promise<{ success: boolean; status: { running: boolean; nextRunAt?: number | null; lastRunAt?: number | null; pendingDrafts?: number }; error?: string }>;
       botPostNow:     (params: { zaloId: string; draftId?: number }) => Promise<{ success: boolean; ok?: boolean; sentCount?: number; total?: number; results?: Array<{ group: string; ok: boolean }>; postedText?: string; error?: string }>;
+      manualPost:     (params: { zaloId: string; text: string; groupIds: string[]; imageAssetIds?: number[] }) => Promise<{ success: boolean; ok?: boolean; sent?: number; failed?: number; total?: number; error?: string }>;
       // Agents (agent-centric)
       agentList:      (params: { zaloId: string }) => Promise<{ success: boolean; agents: any[]; error?: string }>;
       agentGet:       (params: { id: number }) => Promise<{ success: boolean; agent: any | null; error?: string }>;

@@ -11,6 +11,8 @@ import { buildStoryVariables } from '../facebook/write/facebook-write-variables'
 import { uploadPhoto } from '../facebook/write/facebook-photo-upload';
 import { FB_WRITE_DOC_IDS } from '../facebook/write/facebook-write-doc-ids';
 import FileStorageService from '../file/FileStorageService';
+import ConnectionManager from '../../utils/ConnectionManager';
+import { sendDraftToGroup } from '../posting/posting-sender';
 import Logger from '../../utils/Logger';
 
 /** Lấy tối đa n ảnh ngẫu nhiên (rel_path) của 1 account từ thư viện. */
@@ -21,9 +23,25 @@ function randomImages(accountId: string, n: number): string[] {
   return rows.map(r => r.rel_path).filter(Boolean);
 }
 
-/** Đăng 1 item lịch (FB). Trả {ok, error?}. */
+/** Đăng 1 item lịch (Zalo) — tái dùng posting-sender, KHÔNG sửa engine cũ. */
+async function postZaloScheduledItem(item: any): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const conn = ConnectionManager.getConnection(item.account_id);
+    if (!conn?.api) return { ok: false, error: 'Tài khoản Zalo chưa kết nối' };
+    const imgPaths = randomImages(item.account_id, item.image_count || 0)
+      .map(rel => FileStorageService.resolveAbsolutePath(rel));
+    const ok = await sendDraftToGroup(conn.api, {
+      zaloId: item.account_id, agentId: null, draftId: 0,
+      text: item.content || '', groupId: item.group_id, imagePaths: imgPaths,
+    });
+    return ok ? { ok: true } : { ok: false, error: 'Gửi nhóm Zalo thất bại' };
+  } catch (e: any) { return { ok: false, error: e?.message || String(e) }; }
+}
+
+/** Đăng 1 item lịch. Phân nhánh theo kênh. Trả {ok, error?}. */
 export async function postScheduledItem(item: any): Promise<{ ok: boolean; error?: string }> {
-  if (item.channel !== 'fb') return { ok: false, error: 'Kênh Zalo theo lịch sẽ hỗ trợ ở bản sau.' };
+  if (item.channel === 'zalo') return postZaloScheduledItem(item);
+  if (item.channel !== 'fb') return { ok: false, error: 'Kênh không được hỗ trợ.' };
   try {
     const service = await FacebookSendService.getService(item.account_id);
     const base = service.getSessionData();

@@ -3,7 +3,7 @@ import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import { useChatStore } from '@/store/chatStore';
 import { useEmployeeStore } from '@/store/employeeStore';
-import ChannelBadge from '../common/ChannelBadge';
+import ChannelBadge, { ZaloIcon } from '../common/ChannelBadge';
 import { useVisibleAccounts } from '@/hooks/useVisibleAccounts';
 import { hasUnseenSettingsTabs } from '@/utils/settingsSeenTabs';
 import { useErpPermissions } from '@/hooks/erp/useErpContext';
@@ -313,7 +313,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
         {hasPerm('analytics') && (
         <NavBtn icon="analytics"  label="Báo cáo"      active={view === 'analytics'}  onClick={() => setView('analytics')} />
         )}
-        <NavBtn icon="groupPosting" label="Đăng bài nhóm" active={view === 'groupPosting'} onClick={() => setView('groupPosting')} />
+        <NavBtn icon="groupPosting" label="Zalo" active={view === 'groupPosting'} onClick={() => setView('groupPosting')} />
         <NavBtn icon="fbWrite" label="Facebook đăng bài" active={view === 'fbWrite'} onClick={() => setView('fbWrite')} />
         <NavBtn icon="agentHub" label="AI & Agent" active={view === 'agentHub'} onClick={() => setView('agentHub')} />
         {/* ERP — gated by module permission AND ERP RBAC (`erp.access`).
@@ -404,9 +404,7 @@ function NavBtn({ icon, label, active, onClick, dot }: { icon: string; label: st
       </svg>
     ),
     groupPosting: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
-      </svg>
+      <ZaloIcon size={18} />
     ),
     agentHub: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

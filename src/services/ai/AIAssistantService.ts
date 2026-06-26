@@ -525,7 +525,7 @@ YÊU CẦU BẮT BUỘC:
    * Direct chat with AI assistant
    * @param structured - If true, use structured JSON output rules (text/image segments) same as workflow
    */
-  public async chat(assistantId: string, conversationMessages: Array<{ role: string; content: string }>, structured: boolean = false): Promise<{ result: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
+  public async chat(assistantId: string, conversationMessages: Array<{ role: string; content: string }>, structured: boolean = false, maxTokens?: number): Promise<{ result: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
     const assistant = this.getAssistant(assistantId);
     if (!assistant) throw new Error('Trợ lý AI không tồn tại');
     if (!assistant.enabled) throw new Error('Trợ lý AI đã bị tắt');
@@ -539,7 +539,7 @@ YÊU CẦU BẮT BUỘC:
       })),
     ];
 
-    return await this.callLLM(assistant, messages);
+    return await this.callLLM(assistant, messages, maxTokens);
   }
 
   /**

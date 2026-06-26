@@ -45,8 +45,9 @@ export default function AiGenerateModal({ assistants, onDone, onClose }: Props) 
 
     setGenerating(true);
     try {
+      // maxTokens cao + sinh theo lô (trong generateVariations) → bài đủ dài, không bị cắt.
       const chatFn = async (msgs: Array<{ role: string; content: string }>) => {
-        const res = await ipc.ai.chat(assistantId, msgs);
+        const res = await ipc.ai.chat(assistantId, msgs, false, 2000);
         return res?.result || '';
       };
       const texts = await generateVariations(topic.trim(), finalCount, chatFn);

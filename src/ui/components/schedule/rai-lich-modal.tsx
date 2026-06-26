@@ -2,9 +2,10 @@
 // Cho phép chọn bài từ kho, khoảng ngày, giờ đăng, đích (tài khoản + nhóm)
 // rồi gọi ipc.schedule.spread để lên lịch hàng loạt.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
+import { getFavGroups, toggleFavGroup } from '@/lib/favorite-groups';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,8 +47,9 @@ export default function RaiLichModal({ onClose, onSuccess }: RaiLichModalProps) 
   // Khoảng ngày & cài đặt
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [perDay, setPerDay] = useState(1);
-  const [timesRaw, setTimesRaw] = useState('08:00');
+  const [perDay, setPerDay] = useState('1');          // string để gõ tự do
+  const [startTime, setStartTime] = useState('08:00'); // khung giờ rải bài
+  const [endTime, setEndTime] = useState('17:00');
 
   // Tài khoản & nhóm
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -56,6 +58,8 @@ export default function RaiLichModal({ onClose, onSuccess }: RaiLichModalProps) 
   const [groups, setGroups] = useState<Group[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
+  const [groupQuery, setGroupQuery] = useState('');
+  const [favs, setFavs] = useState<Set<string>>(new Set());
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -100,6 +104,8 @@ export default function RaiLichModal({ onClose, onSuccess }: RaiLichModalProps) 
     let cancelled = false;
     setLoadingGroups(true);
     setSelectedGroupIds(new Set());
+    setFavs(getFavGroups(account.id));
+    setGroupQuery('');
     (async () => {
       try {
         const res = await ipc.agentMc.groups({ accountId: account.id, channel: account.channel });
@@ -131,12 +137,27 @@ export default function RaiLichModal({ onClose, onSuccess }: RaiLichModalProps) 
     });
   }
 
-  function parseTimes(raw: string): string[] {
-    return raw
-      .split(',')
-      .map((t) => t.trim())
-      .filter((t) => /^\d{1,2}:\d{2}$/.test(t));
+  function toggleFav(id: string) { setFavs(toggleFavGroup(selectedAccountId, id)); }
+
+  // Chọn nhanh tất cả nhóm yêu thích (có trong danh sách hiện tại).
+  function selectFavs() {
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev);
+      groups.forEach((g) => { if (favs.has(g.id)) next.add(g.id); });
+      return next;
+    });
   }
+
+  // Lọc theo từ khóa + đẩy nhóm yêu thích lên đầu.
+  const visibleGroups = useMemo(() => {
+    const kw = groupQuery.trim().toLowerCase();
+    const list = kw ? groups.filter((g) => (g.name || '').toLowerCase().includes(kw)) : groups;
+    return [...list].sort((a, b) => (favs.has(b.id) ? 1 : 0) - (favs.has(a.id) ? 1 : 0));
+  }, [groups, groupQuery, favs]);
+
+  // Danh sách giờ để sổ ra chọn (mỗi 30 phút).
+  const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) =>
+    `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`);
 
   // ─── Submit ─────────────────────────────────────────────────────────────────
 
@@ -160,9 +181,6 @@ export default function RaiLichModal({ onClose, onSuccess }: RaiLichModalProps) 
     if (!account) { showNotification('Chọn tài khoản', 'error'); return; }
     if (selectedGroupIds.size === 0) { showNotification('Chọn ít nhất 1 nhóm', 'error'); return; }
 
-    const times = parseTimes(timesRaw);
-    if (times.length === 0) { showNotification('Nhập giờ đăng hợp lệ (vd: 08:00, 14:00)', 'error'); return; }
-
     const targets = Array.from(selectedGroupIds).map((groupId) => ({
       channel: account.channel,
       accountId: account.id,
@@ -175,8 +193,9 @@ export default function RaiLichModal({ onClose, onSuccess }: RaiLichModalProps) 
         postIds,
         fromDate,
         toDate,
-        perDay,
-        times,
+        perDay: Math.max(1, parseInt(perDay) || 1),
+        startTime,
+        endTime,
         targets,
       });
       if (res?.success) {
@@ -301,26 +320,39 @@ export default function RaiLichModal({ onClose, onSuccess }: RaiLichModalProps) 
           </section>
 
           {/* ── perDay & giờ ── */}
-          <section className="grid grid-cols-2 gap-3">
+          <section className="grid grid-cols-2 gap-3 items-start">
             <div>
               <label className="text-gray-400 text-xs mb-1 block">Mỗi ngày (bài)</label>
               <input
                 type="number"
                 min={1}
                 value={perDay}
-                onChange={(e) => setPerDay(Math.max(1, Number(e.target.value)))}
+                onChange={(e) => setPerDay(e.target.value)}
+                onBlur={() => setPerDay(String(Math.max(1, parseInt(perDay) || 1)))}
+                placeholder="Nhập số bài/ngày"
                 className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
               />
             </div>
             <div>
-              <label className="text-gray-400 text-xs mb-1 block">Giờ đăng (vd: 08:00, 14:00)</label>
-              <input
-                type="text"
-                value={timesRaw}
-                onChange={(e) => setTimesRaw(e.target.value)}
-                placeholder="08:00, 14:00"
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-              />
+              <label className="text-gray-400 text-xs mb-1 block">Khung giờ đăng (rải ngẫu nhiên trong khung)</label>
+              <div className="flex items-center gap-2">
+                <select
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-2 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                >
+                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <span className="text-gray-400 text-sm">→</span>
+                <select
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-2 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                >
+                  {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1">VD: 08:00 → 11:00, mỗi ngày {Math.max(1, parseInt(perDay) || 1)} bài rải đều giờ khác nhau.</p>
             </div>
           </section>
 
@@ -348,26 +380,49 @@ export default function RaiLichModal({ onClose, onSuccess }: RaiLichModalProps) 
           {/* ── Nhóm ── */}
           {selectedAccountId && (
             <section>
-              <label className="text-gray-400 text-xs mb-1 block">Nhóm đích</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-gray-400 text-xs">Nhóm đích</label>
+                {favs.size > 0 && (
+                  <button onClick={selectFavs} className="text-[11px] text-amber-400 hover:underline">⭐ Chọn nhóm yêu thích</button>
+                )}
+              </div>
+              <input
+                type="text"
+                value={groupQuery}
+                onChange={(e) => setGroupQuery(e.target.value)}
+                placeholder="🔍 Tìm nhóm theo tên…"
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-sm text-white mb-2 focus:outline-none focus:border-blue-500"
+              />
               <div className="bg-gray-800/60 border border-gray-700 rounded-lg max-h-40 overflow-y-auto">
                 {loadingGroups ? (
                   <p className="text-gray-400 text-sm p-3">Đang tải nhóm...</p>
                 ) : groups.length === 0 ? (
                   <p className="text-gray-500 text-sm p-3">Không có nhóm</p>
+                ) : visibleGroups.length === 0 ? (
+                  <p className="text-gray-500 text-sm p-3">Không có nhóm khớp từ khóa</p>
                 ) : (
-                  groups.map((g) => (
-                    <label
+                  visibleGroups.map((g) => (
+                    <div
                       key={g.id}
-                      className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-700/50 cursor-pointer border-b border-gray-700/50 last:border-b-0"
+                      className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-700/50 border-b border-gray-700/50 last:border-b-0"
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedGroupIds.has(g.id)}
-                        onChange={() => toggleGroup(g.id)}
-                        className="accent-blue-500"
-                      />
-                      <span className="text-sm text-gray-200">{g.name}</span>
-                    </label>
+                      <label className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedGroupIds.has(g.id)}
+                          onChange={() => toggleGroup(g.id)}
+                          className="accent-blue-500 shrink-0"
+                        />
+                        <span className="text-sm text-gray-200 truncate">{g.name}</span>
+                      </label>
+                      <button
+                        onClick={() => toggleFav(g.id)}
+                        title={favs.has(g.id) ? 'Bỏ yêu thích' : 'Đánh dấu nhóm hay đăng'}
+                        className={`text-base shrink-0 ${favs.has(g.id) ? 'text-amber-400' : 'text-gray-600 hover:text-amber-300'}`}
+                      >
+                        {favs.has(g.id) ? '★' : '☆'}
+                      </button>
+                    </div>
                   ))
                 )}
               </div>

@@ -340,7 +340,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     uploadFile:      (assistantId: string, filePath: string) => ipcRenderer.invoke('ai:uploadFile', { assistantId, filePath }),
     removeFile:      (fileId: number) => ipcRenderer.invoke('ai:removeFile', { fileId }),
     suggest:         (assistantId: string, chatHistory: any[]) => ipcRenderer.invoke('ai:suggest', { assistantId, chatHistory }),
-    chat:            (assistantId: string, messages: any[], structured?: boolean) => ipcRenderer.invoke('ai:chat', { assistantId, messages, structured }),
+    chat:            (assistantId: string, messages: any[], structured?: boolean, maxTokens?: number) => ipcRenderer.invoke('ai:chat', { assistantId, messages, structured, maxTokens }),
     getAccountAssistant:  (zaloId: string, role: string) => ipcRenderer.invoke('ai:getAccountAssistant', { zaloId, role }),
     setAccountAssistant:  (zaloId: string, role: string, assistantId: string | null) => ipcRenderer.invoke('ai:setAccountAssistant', { zaloId, role, assistantId }),
     getAccountAssistants: (zaloId: string) => ipcRenderer.invoke('ai:getAccountAssistants', { zaloId }),
@@ -591,6 +591,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     logList:        (params: any) => ipcRenderer.invoke('posting:log.list', params),
     botStatus:      (params: any) => ipcRenderer.invoke('posting:bot.status', params),
     botPostNow:     (params: any) => ipcRenderer.invoke('posting:test.postNow', params),
+    manualPost:     (params: any) => ipcRenderer.invoke('posting:manualPost', params),
     // ─── Agents (agent-centric) ───────────────────────────────────────
     agentList:      (params: any) => ipcRenderer.invoke('posting:agent.list', params),
     agentGet:       (params: any) => ipcRenderer.invoke('posting:agent.get', params),
@@ -629,6 +630,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     range:      (params: { from: number; to: number }) => ipcRenderer.invoke('schedule:range', params),
     spread:     (params: any) => ipcRenderer.invoke('schedule:spread', params),
     delete:     (params: { id: number }) => ipcRenderer.invoke('schedule:delete', params),
+    deleteRange: (params: { from: number; to: number; onlyPending: boolean }) => ipcRenderer.invoke('schedule:deleteRange', params),
     runDueNow:  () => ipcRenderer.invoke('schedule:runDueNow'),
   },
 

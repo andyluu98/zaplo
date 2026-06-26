@@ -6,9 +6,11 @@ import FbWriteLimits from './fb-write-limits';
 import FbWriteLog from './fb-write-log';
 import PostStoreTab from '@/components/post-store/post-store-tab';
 import ContentCalendarTab from '@/components/schedule/content-calendar-tab';
+import FbCommentTab from './fb-comment-tab';
+import McAgentManager from '@/components/ai-agent-hub/mc-agent-manager';
 
-// Trang "Facebook — Đăng bài & Tương tác". Tab Đăng bài đã verify chạy thật.
-// Auto-Comment / Agent để placeholder (làm phase sau).
+// Trang "Facebook — Đăng bài & Tương tác". Tab Đăng bài + Auto-Comment đã verify chạy thật.
+// Tab Agent tự động để placeholder (làm phase sau).
 
 type FbTab = 'post' | 'store' | 'calendar' | 'groups' | 'comment' | 'agent' | 'log' | 'limit';
 
@@ -78,22 +80,12 @@ export default function FbWritePage() {
             {activeTab === 'store'   && <PostStoreTab />}
             {activeTab === 'calendar' && <ContentCalendarTab />}
             {activeTab === 'groups'  && <FbGroupsManager accountId={accountId} />}
-            {activeTab === 'comment' && <Placeholder text="Auto-Comment sẽ gắn với tab Quét (Scan) ở phase sau — lấy bài đã quét rồi tự bình luận." />}
-            {activeTab === 'agent'   && <Placeholder text="Agent tự động (đăng theo lịch như Agent Zalo) làm ở phase sau cùng." />}
+            {activeTab === 'comment' && <FbCommentTab accountId={accountId} />}
+            {activeTab === 'agent'   && <div className="h-full overflow-y-auto p-4"><McAgentManager /></div>}
             {activeTab === 'log'     && <FbWriteLog accountId={accountId} />}
             {activeTab === 'limit'   && <FbWriteLimits />}
           </>
         )}
-      </div>
-    </div>
-  );
-}
-
-function Placeholder({ text }: { text: string }) {
-  return (
-    <div className="flex items-center justify-center h-full p-8">
-      <div className="max-w-md text-center text-gray-500 text-sm bg-gray-800/40 border border-gray-700/60 rounded-xl px-6 py-8">
-        🚧 {text}
       </div>
     </div>
   );

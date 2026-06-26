@@ -16,6 +16,7 @@ import AgentSchedulerService from '../../src/services/posting/agent-scheduler-se
 import ContentDraftGenerator from '../../src/services/posting/content-draft-generator';
 import AIAssistantService from '../../src/services/ai/AIAssistantService';
 import { generateImage } from '../../src/services/posting/posting-image-generator';
+import { postManualToGroups } from '../../src/services/posting/manual-post-sender';
 import Logger from '../../src/utils/Logger';
 
 export function registerPostingIpc(): void {
@@ -331,6 +332,17 @@ export function registerPostingIpc(): void {
             return { success: true, ...r };
         } catch (e: any) {
             Logger.error(`[postingIpc] test.postNow: ${e.message}`);
+            return { success: false, ok: false, error: e.message };
+        }
+    });
+
+    // Đăng TAY (Soạn & Đăng): đăng 1 nội dung + ảnh tới nhiều nhóm Zalo ngay.
+    ipcMain.handle('posting:manualPost', async (_e, { zaloId, text, groupIds, imageAssetIds }: { zaloId: string; text: string; groupIds: string[]; imageAssetIds?: number[] }) => {
+        try {
+            const r = await postManualToGroups({ zaloId, text, groupIds, imageAssetIds });
+            return { success: r.ok, ...r };
+        } catch (e: any) {
+            Logger.error(`[postingIpc] manualPost: ${e.message}`);
             return { success: false, ok: false, error: e.message };
         }
     });

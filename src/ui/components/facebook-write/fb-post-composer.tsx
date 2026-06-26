@@ -77,7 +77,7 @@ export default function FbPostComposer({ accountId, accountName }: { accountId: 
     setAiBusy(true); setMsg('');
     try {
       const chatFn = async (messages: any[]) => {
-        const res = await ipc.ai?.chat(assistantId, messages);
+        const res = await ipc.ai?.chat(assistantId, messages, false, 2000);
         return (res?.success && res?.result) ? res.result : '';
       };
       const list = await generateVariations(topic.trim(), count, chatFn);

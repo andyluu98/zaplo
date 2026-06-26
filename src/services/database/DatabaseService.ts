@@ -453,6 +453,18 @@ class DatabaseService {
     }
     public deleteScheduleItem(id: number): void { this.run(`DELETE FROM content_schedule_item WHERE id=?`, [id]); this.save(); }
 
+    /** Xóa hàng loạt item lịch trong khoảng [from,to] (epoch ms). onlyPending=true chỉ xóa status='scheduled'. Trả số dòng đã xóa. */
+    public deleteScheduleRange(from: number, to: number, onlyPending: boolean): number {
+        const whereSuffix = onlyPending ? ` AND status='scheduled'` : ``;
+        const count = (this.query<{ c: number }>(
+            `SELECT COUNT(*) as c FROM content_schedule_item WHERE scheduled_at>=? AND scheduled_at<=?` + whereSuffix,
+            [from, to],
+        )[0]?.c) ?? 0;
+        this.run(`DELETE FROM content_schedule_item WHERE scheduled_at>=? AND scheduled_at<=?` + whereSuffix, [from, to]);
+        this.save();
+        return count;
+    }
+
     /** Chuẩn hóa số điện thoại VN trước khi lưu DB: +84/84 -> 0 */
     private normalizeVietnamPhone(phone?: string): string {
         if (!phone) return '';

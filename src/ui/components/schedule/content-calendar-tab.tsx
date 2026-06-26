@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ipc from '@/lib/ipc';
 import { useAppStore } from '@/store/appStore';
 import RaiLichModal from './rai-lich-modal';
+import BulkDeleteModal from './bulk-delete-modal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,6 +94,9 @@ export default function ContentCalendarTab() {
 
   // Modal rải bài
   const [showRaiModal, setShowRaiModal] = useState(false);
+
+  // Modal xóa hàng loạt
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   // ─── Load dữ liệu ──────────────────────────────────────────────────────────
 
@@ -216,6 +220,12 @@ export default function ContentCalendarTab() {
 
         <div className="flex-1" />
 
+        <button
+          onClick={() => setShowBulkDeleteModal(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+        >
+          <span>🗑</span> Xóa nhiều
+        </button>
         <button
           onClick={() => setShowRaiModal(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-blue-600 hover:bg-blue-700 text-white transition-colors"
@@ -382,6 +392,20 @@ export default function ContentCalendarTab() {
         <RaiLichModal
           onClose={() => setShowRaiModal(false)}
           onSuccess={() => loadRange(year, month)}
+        />
+      )}
+
+      {/* ── Modal xóa hàng loạt ── */}
+      {showBulkDeleteModal && (
+        <BulkDeleteModal
+          year={year}
+          month={month}
+          onClose={() => setShowBulkDeleteModal(false)}
+          onSuccess={(deleted) => {
+            showNotification(`Đã xóa ${deleted} mục lịch`, 'success');
+            loadRange(year, month);
+            setShowBulkDeleteModal(false);
+          }}
         />
       )}
     </div>
