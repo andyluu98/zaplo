@@ -108,6 +108,25 @@ export function getImages(
     ).all(zaloId, folderId) as ImageAsset[];
 }
 
+/** Xóa nhiều ảnh, trả rel_path (để caller xóa file). Scope owner. ids rỗng → no-op. */
+export function deleteImages(
+    db: BetterSqlite3.Database,
+    zaloId: string,
+    ids: number[],
+): { purgedRelPaths: string[] } {
+    if (!ids.length) return { purgedRelPaths: [] };
+    const placeholders = ids.map(() => '?').join(',');
+    return db.transaction(() => {
+        const rows = db.prepare(
+            `SELECT rel_path FROM image_asset WHERE owner_zalo_id=? AND id IN (${placeholders})`,
+        ).all(zaloId, ...ids) as Array<{ rel_path: string }>;
+        db.prepare(
+            `DELETE FROM image_asset WHERE owner_zalo_id=? AND id IN (${placeholders})`,
+        ).run(zaloId, ...ids);
+        return { purgedRelPaths: rows.map(r => r.rel_path) };
+    })();
+}
+
 /** Gán folder_id (hoặc NULL) cho mảng ids, scope theo owner. ids rỗng → no-op. */
 export function moveImages(
     db: BetterSqlite3.Database,

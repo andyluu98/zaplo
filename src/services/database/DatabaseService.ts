@@ -5,7 +5,7 @@ import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
 import type { ContentPillar, ContentDraft, ImageAsset, ImageFolder, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus, PostingAgent, AgentSchedule, ChatAgent, ConversationAiState } from '../../models';
-import { createImageFolderTables, migrateImageAssetFolderColumn, getImageFolders, saveImageFolder, deleteImageFolder, getImages, moveImages } from '../posting/image-folder-store';
+import { createImageFolderTables, migrateImageAssetFolderColumn, getImageFolders, saveImageFolder, deleteImageFolder, getImages, moveImages, deleteImages } from '../posting/image-folder-store';
 
 // better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
 let db: BetterSqlite3.Database | null = null;
@@ -7880,8 +7880,8 @@ class DatabaseService {
         if (!this.initialized) return 0;
         try {
             return this.runInsert(
-                `INSERT INTO image_asset (owner_zalo_id, rel_path, origin, width, height, created_at) VALUES (?,?,?,?,?,?)`,
-                [asset.owner_zalo_id, asset.rel_path, asset.origin || 'upload', asset.width ?? null, asset.height ?? null, Date.now()]
+                `INSERT INTO image_asset (owner_zalo_id, rel_path, origin, width, height, folder_id, created_at) VALUES (?,?,?,?,?,?,?)`,
+                [asset.owner_zalo_id, asset.rel_path, asset.origin || 'upload', asset.width ?? null, asset.height ?? null, asset.folder_id ?? null, Date.now()]
             );
         } catch (err: any) { Logger.error(`[DB] saveImageAsset: ${err.message}`); return 0; }
     }
@@ -7917,6 +7917,11 @@ class DatabaseService {
         if (!this.initialized) return;
         try { moveImages(db!, zaloId, ids, folderId); this.save(); }
         catch (err: any) { Logger.error(`[DB] moveImages: ${err.message}`); }
+    }
+    public deleteImages(zaloId: string, ids: number[]): { purgedRelPaths: string[] } {
+        if (!this.initialized) return { purgedRelPaths: [] };
+        try { const r = deleteImages(db!, zaloId, ids); this.save(); return r; }
+        catch (err: any) { Logger.error(`[DB] deleteImages: ${err.message}`); return { purgedRelPaths: [] }; }
     }
 
     /** Post Schedule */

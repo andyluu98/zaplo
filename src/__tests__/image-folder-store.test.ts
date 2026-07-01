@@ -7,6 +7,7 @@ import {
   deleteImageFolder,
   getImages,
   moveImages,
+  deleteImages,
 } from '../services/posting/image-folder-store';
 
 function makeDb(): BetterSqlite3.Database {
@@ -142,6 +143,25 @@ test('moveImages: gán folder_id cho nhiều ảnh, scope theo owner', () => {
 test('moveImages: ids rỗng → no-op không lỗi', () => {
   const db = makeDb(); seedFolderSchema(db);
   expect(() => moveImages(db, 'z1', [], null)).not.toThrow();
+});
+
+// ─── deleteImages tests ──────────────────────────────────────────────────────
+
+test('deleteImages: xóa nhiều ảnh, trả rel_path để xóa file, scope owner', () => {
+  const db = makeDb(); seedFolderSchema(db);
+  insertAsset(db, 'z1', 'a.jpg', null);
+  insertAsset(db, 'z1', 'b.jpg', null);
+  insertAsset(db, 'z2', 'z.jpg', null); // owner khác — không đụng
+  const ids = (db.prepare(`SELECT id FROM image_asset WHERE owner_zalo_id='z1'`).all() as any[]).map(r => r.id);
+  const res = deleteImages(db, 'z1', ids);
+  expect(res.purgedRelPaths.sort()).toEqual(['a.jpg', 'b.jpg']);
+  expect(getImages(db, 'z1', 'all')).toHaveLength(0);
+  expect(getImages(db, 'z2', 'all')).toHaveLength(1); // owner khác còn nguyên
+});
+
+test('deleteImages: ids rỗng → no-op, trả rỗng', () => {
+  const db = makeDb(); seedFolderSchema(db);
+  expect(deleteImages(db, 'z1', [])).toEqual({ purgedRelPaths: [] });
 });
 
 // ─── Model type tests ────────────────────────────────────────────────────────
