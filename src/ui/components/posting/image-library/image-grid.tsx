@@ -2,7 +2,10 @@ import React, { useState } from 'react';
 import { toLocalMediaUrl } from '@/lib/localMedia';
 import type { ImageAsset } from '@/../../src/models/automation';
 
-function Tile({
+// Memoized so clicking one tile (which rebuilds the selectedIds Set in the parent)
+// only re-renders the tile whose `selected` actually changed — not all N tiles.
+// Custom comparator ignores the `onClick` closure identity (new each parent render).
+const Tile = React.memo(function Tile({
   asset, selMode, selected, onClick,
 }: {
   asset: ImageAsset; selMode: boolean; selected: boolean; onClick: () => void;
@@ -46,7 +49,11 @@ function Tile({
       )}
     </div>
   );
-}
+}, (prev, next) =>
+  prev.asset.id === next.asset.id &&
+  prev.selected === next.selected &&
+  prev.selMode === next.selMode
+);
 
 export interface ImageGridProps {
   assets: ImageAsset[];

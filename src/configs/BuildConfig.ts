@@ -14,8 +14,9 @@ const _buildTarget: string =
 /** true only in development builds — DevTools open */
 export const IS_DEV_BUILD: boolean   = _nodeEnv !== 'production';
 
-/** Allow DevTools to open — only in development */
-export const SHOW_DEV_TOOLS: boolean = _nodeEnv !== 'production';
+/** Allow DevTools to open — opt-in only (set OPEN_DEVTOOLS=1). Off by default even in dev. */
+export const SHOW_DEV_TOOLS: boolean =
+  (typeof process !== 'undefined' ? process.env?.OPEN_DEVTOOLS : undefined) === '1';
 
 /** Build target: 'development' | 'staging' | 'production' */
 export const BUILD_TARGET: string    = _buildTarget;
