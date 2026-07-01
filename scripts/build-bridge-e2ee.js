@@ -26,10 +26,10 @@ const BRIDGE_DIR = path.resolve(__dirname, '..', 'src', 'bridge-e2ee');
 const META_DIR = path.join(BRIDGE_DIR, 'meta');
 const BUILD_DIR = path.join(BRIDGE_DIR, 'build');
 const META_REPO = 'https://github.com/mautrix/meta.git';
-// Pin mautrix/meta to a known-good commit. `main` drifts and newer commits require
-// a newer github.com/imroc/req API (e.g. req.WithTransportOverride), which breaks the
-// build against the pinned dep set. This commit (2026-06-25) matches the last green release.
-const META_COMMIT = 'cb7f9f6a5286bae422a56e220b82650e0d8b6e24';
+// Pin mautrix/meta to a specific commit so the freshly-cloned bridge dep is reproducible
+// (main drifts). This commit (2026-06-29) has the symbols the bridge source uses
+// (e.g. messagix.ErrTokenInvalidated) and pairs with the beeper/req fork replace in go.mod.
+const META_COMMIT = 'ce0f6582e946bf732fc937b5928e9260452bdc7d';
 const BINARY_NAME = process.platform === 'win32'
   ? 'fbchat-bridge-e2ee.exe'
   : 'fbchat-bridge-e2ee';
