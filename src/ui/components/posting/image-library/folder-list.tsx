@@ -1,7 +1,7 @@
 import React from 'react';
 import type { ImageFolder } from '@/../../src/models/automation';
 
-type FolderKey = number | null | 'all';
+export type FolderKey = number | null | 'all';
 
 export interface FolderListProps {
   folders: ImageFolder[];
@@ -74,7 +74,7 @@ export default function FolderList({
           icon="📁"
           name={f.name}
           count={f.image_count ?? 0}
-          onClick={() => onSelect(f.id ?? 'all')}
+          onClick={() => onSelect(f.id ?? null)}
           onRename={() => onRename(f)}
           onDelete={() => onDelete(f)}
         />

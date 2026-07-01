@@ -67,25 +67,29 @@ export interface DeleteFolderModalProps {
   onSubmit: (mode: 'move' | 'purge') => void;
 }
 
-export function DeleteFolderModal({ open, folder, onClose, onSubmit }: DeleteFolderModalProps) {
-  const [mode, setMode] = useState<'move' | 'purge'>('move');
-  useEffect(() => { if (open) setMode('move'); }, [open]);
-  if (!open || !folder) return null;
-
-  const Radio = ({ value, title, hint }: { value: 'move' | 'purge'; title: string; hint: string }) => (
+function DeleteModeRadio({ value, title, hint, checked, onSelect }: {
+  value: 'move' | 'purge'; title: string; hint: string; checked: boolean; onSelect: (v: 'move' | 'purge') => void;
+}) {
+  return (
     <label
-      onClick={() => setMode(value)}
+      onClick={() => onSelect(value)}
       className={`flex gap-2 items-start p-2.5 rounded-lg border mb-2 cursor-pointer ${
-        mode === value ? 'border-blue-600 bg-[#0e1726]' : 'border-gray-700'
+        checked ? 'border-blue-600 bg-[#0e1726]' : 'border-gray-700'
       }`}
     >
-      <input type="radio" name="delmode" checked={mode === value} readOnly className="mt-0.5" />
+      <input type="radio" name="delmode" checked={checked} readOnly className="mt-0.5" />
       <div>
         <b className="text-sm text-gray-100">{title}</b>
         <div className="text-xs text-gray-500">{hint}</div>
       </div>
     </label>
   );
+}
+
+export function DeleteFolderModal({ open, folder, onClose, onSubmit }: DeleteFolderModalProps) {
+  const [mode, setMode] = useState<'move' | 'purge'>('move');
+  useEffect(() => { if (open) setMode('move'); }, [open]);
+  if (!open || !folder) return null;
 
   return (
     <Overlay>
@@ -99,8 +103,8 @@ export function DeleteFolderModal({ open, folder, onClose, onSubmit }: DeleteFol
         <div className="text-xs text-gray-400 mb-2.5">
           Thư mục có <b>{folder.image_count ?? 0}</b> ảnh — xử lý ảnh bên trong:
         </div>
-        <Radio value="move" title='Chuyển ảnh sang "Chưa phân loại"' hint="Giữ ảnh, chỉ xóa thư mục." />
-        <Radio value="purge" title="Xóa luôn cả ảnh" hint="Xóa vĩnh viễn. Không hoàn tác." />
+        <DeleteModeRadio value="move" title='Chuyển ảnh sang "Chưa phân loại"' hint="Giữ ảnh, chỉ xóa thư mục." checked={mode === 'move'} onSelect={setMode} />
+        <DeleteModeRadio value="purge" title="Xóa luôn cả ảnh" hint="Xóa vĩnh viễn. Không hoàn tác." checked={mode === 'purge'} onSelect={setMode} />
       </ModalShell>
     </Overlay>
   );
