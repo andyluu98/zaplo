@@ -112,7 +112,7 @@ export default function AgentEditorModal({ zaloId, agentId, cloneFrom, onClose, 
         image_mode: imageMode, image_count: imageCount,
         pillar_ids: pillarIds, group_ids: groupIds, fixed_image_ids: fixedIds,
         image_folder_id: imageMode === 'folder' ? (folderId === '' ? null : Number(folderId)) : null,
-        image_count_random: folderRandom,
+        image_count_random: imageMode === 'folder' ? folderRandom : false,
         schedules,
       };
       const res = await ipc.posting?.agentSave({ zaloId, agent });

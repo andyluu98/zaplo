@@ -202,7 +202,7 @@ function PostCard({ post, selected, onToggle, onEdit, onDelete }: PostCardProps)
       <div className="flex items-center justify-between pl-6 mt-1">
         <span className="text-gray-500 text-xs">
           🖼️ {post.image_count} ảnh
-          {post.image_folder_id ? (post.image_random ? ' · ngẫu nhiên từ thư mục' : ' · cố định từ thư mục') : ' (ngẫu nhiên)'}
+          {post.image_folder_id ? (post.image_random ? ' · ngẫu nhiên từ thư mục' : ' · cố định từ thư mục') : (post.image_random ? ' (ngẫu nhiên)' : ' (cố định)')}
         </span>
         <div className="flex gap-2">
           <button
