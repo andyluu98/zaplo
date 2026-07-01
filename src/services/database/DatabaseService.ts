@@ -5,7 +5,7 @@ import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
 import type { ContentPillar, ContentDraft, ImageAsset, ImageFolder, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus, PostingAgent, AgentSchedule, ChatAgent, ConversationAiState } from '../../models';
-import { createImageFolderTables, migrateImageAssetFolderColumn, getImageFolders, saveImageFolder, deleteImageFolder } from '../posting/image-folder-store';
+import { createImageFolderTables, migrateImageAssetFolderColumn, getImageFolders, saveImageFolder, deleteImageFolder, getImages, moveImages } from '../posting/image-folder-store';
 
 // better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
 let db: BetterSqlite3.Database | null = null;
@@ -7907,6 +7907,16 @@ class DatabaseService {
         if (!this.initialized) return { purgedRelPaths: [] };
         try { const r = deleteImageFolder(db!, zaloId, id, mode); this.save(); return r; }
         catch (err: any) { Logger.error(`[DB] deleteImageFolder: ${err.message}`); return { purgedRelPaths: [] }; }
+    }
+    public getImages(zaloId: string, folderId?: number | null | 'all'): ImageAsset[] {
+        if (!this.initialized) return [];
+        try { return getImages(db!, zaloId, folderId); }
+        catch (err: any) { Logger.error(`[DB] getImages: ${err.message}`); return []; }
+    }
+    public moveImages(zaloId: string, ids: number[], folderId: number | null): void {
+        if (!this.initialized) return;
+        try { moveImages(db!, zaloId, ids, folderId); this.save(); }
+        catch (err: any) { Logger.error(`[DB] moveImages: ${err.message}`); }
     }
 
     /** Post Schedule */

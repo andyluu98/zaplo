@@ -4,7 +4,7 @@
  * DatabaseService.ts calls these functions so it doesn't have to inline the SQL.
  */
 import type BetterSqlite3 from 'better-sqlite3';
-import type { ImageFolder } from '../../models/automation';
+import type { ImageFolder, ImageAsset } from '../../models/automation';
 
 /** Tạo bảng image_folder + index. Idempotent (IF NOT EXISTS). */
 export function createImageFolderTables(db: BetterSqlite3.Database): void {
@@ -85,4 +85,39 @@ export function deleteImageFolder(
         db.prepare(`DELETE FROM image_folder WHERE id=? AND owner_zalo_id=?`).run(id, zaloId);
         return { purgedRelPaths };
     })();
+}
+
+/** Ảnh theo folder: 'all'/undefined = mọi ảnh; null = chưa phân loại; số = folder cụ thể. Sắp xếp mới nhất trước. */
+export function getImages(
+    db: BetterSqlite3.Database,
+    zaloId: string,
+    folderId?: number | null | 'all',
+): ImageAsset[] {
+    if (folderId === undefined || folderId === 'all') {
+        return db.prepare(
+            `SELECT * FROM image_asset WHERE owner_zalo_id=? ORDER BY created_at DESC`,
+        ).all(zaloId) as ImageAsset[];
+    }
+    if (folderId === null) {
+        return db.prepare(
+            `SELECT * FROM image_asset WHERE owner_zalo_id=? AND folder_id IS NULL ORDER BY created_at DESC`,
+        ).all(zaloId) as ImageAsset[];
+    }
+    return db.prepare(
+        `SELECT * FROM image_asset WHERE owner_zalo_id=? AND folder_id=? ORDER BY created_at DESC`,
+    ).all(zaloId, folderId) as ImageAsset[];
+}
+
+/** Gán folder_id (hoặc NULL) cho mảng ids, scope theo owner. ids rỗng → no-op. */
+export function moveImages(
+    db: BetterSqlite3.Database,
+    zaloId: string,
+    ids: number[],
+    folderId: number | null,
+): void {
+    if (!ids.length) return;
+    const placeholders = ids.map(() => '?').join(',');
+    db.prepare(
+        `UPDATE image_asset SET folder_id=? WHERE owner_zalo_id=? AND id IN (${placeholders})`,
+    ).run(folderId, zaloId, ...ids);
 }

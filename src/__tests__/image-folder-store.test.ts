@@ -5,6 +5,8 @@ import {
   getImageFolders,
   saveImageFolder,
   deleteImageFolder,
+  getImages,
+  moveImages,
 } from '../services/posting/image-folder-store';
 
 function makeDb(): BetterSqlite3.Database {
@@ -107,6 +109,39 @@ test('deleteImageFolder mode=purge: trả rel_path đã xóa + xóa ảnh + xóa
   expect(res.purgedRelPaths.sort()).toEqual(['a.jpg', 'b.jpg']);
   expect(db.prepare(`SELECT COUNT(*) n FROM image_asset WHERE folder_id=?`).get(id)).toMatchObject({ n: 0 });
   expect(getImageFolders(db, 'z1')).toHaveLength(0);
+});
+
+// ─── getImages + moveImages tests ────────────────────────────────────────────
+
+test('getImages: all trả mọi ảnh; null trả chưa phân loại; số trả trong folder', () => {
+  const db = makeDb(); seedFolderSchema(db);
+  const { id } = saveImageFolder(db, { owner_zalo_id: 'z1', name: 'SP A' });
+  insertAsset(db, 'z1', 'a.jpg', id);
+  insertAsset(db, 'z1', 'b.jpg', null);
+  insertAsset(db, 'z1', 'c.jpg', null);
+  insertAsset(db, 'z2', 'z.jpg', null); // owner khác
+
+  expect(getImages(db, 'z1', 'all').map(a => a.rel_path).sort()).toEqual(['a.jpg', 'b.jpg', 'c.jpg']);
+  expect(getImages(db, 'z1').map(a => a.rel_path).sort()).toEqual(['a.jpg', 'b.jpg', 'c.jpg']); // undefined = all
+  expect(getImages(db, 'z1', null).map(a => a.rel_path).sort()).toEqual(['b.jpg', 'c.jpg']);
+  expect(getImages(db, 'z1', id).map(a => a.rel_path)).toEqual(['a.jpg']);
+});
+
+test('moveImages: gán folder_id cho nhiều ảnh, scope theo owner', () => {
+  const db = makeDb(); seedFolderSchema(db);
+  const { id } = saveImageFolder(db, { owner_zalo_id: 'z1', name: 'SP A' });
+  insertAsset(db, 'z1', 'a.jpg', null);
+  insertAsset(db, 'z1', 'b.jpg', null);
+  const ids = (db.prepare(`SELECT id FROM image_asset WHERE owner_zalo_id='z1'`).all() as any[]).map(r => r.id);
+  moveImages(db, 'z1', ids, id);
+  expect(getImages(db, 'z1', id)).toHaveLength(2);
+  moveImages(db, 'z1', ids, null); // về chưa phân loại
+  expect(getImages(db, 'z1', null)).toHaveLength(2);
+});
+
+test('moveImages: ids rỗng → no-op không lỗi', () => {
+  const db = makeDb(); seedFolderSchema(db);
+  expect(() => moveImages(db, 'z1', [], null)).not.toThrow();
 });
 
 // ─── Model type tests ────────────────────────────────────────────────────────
