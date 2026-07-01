@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog } from '@/../../src/models/automation';
+import type { ContentPillar, ContentDraft, ImageAsset, ImageFolder, PostSchedule, PostLog } from '@/../../src/models/automation';
 
 // ─── Zalo Group (from posting:groups.list) ────────────────────────────────────
 
@@ -27,6 +27,8 @@ interface PostingState {
   targetGroups: ZaloGroup[];
   schedule: PostSchedule | null;
   imageLibrary: ImageAsset[];
+  folders: ImageFolder[];
+  currentFolderId: number | null | 'all';
   postLogs: PostLog[];
   botStatus: BotStatus | null;
 
@@ -71,6 +73,10 @@ interface PostingActions {
   removeImage: (id: number) => void;
   setLoadingImages: (v: boolean) => void;
 
+  // Folder actions
+  setFolders: (folders: ImageFolder[]) => void;
+  setCurrentFolderId: (id: number | null | 'all') => void;
+
   // Log actions
   setPostLogs: (logs: PostLog[]) => void;
   setLoadingLogs: (v: boolean) => void;
@@ -87,6 +93,8 @@ const EMPTY_STATE: PostingState = {
   targetGroups: [],
   schedule: null,
   imageLibrary: [],
+  folders: [],
+  currentFolderId: 'all',
   postLogs: [],
   botStatus: null,
   loadingPillars: false,
@@ -151,6 +159,10 @@ export const usePostingStore = create<PostingState & PostingActions>((set, get) 
   }),
   removeImage: (id) => set((s) => ({ imageLibrary: s.imageLibrary.filter(a => a.id !== id) })),
   setLoadingImages: (v) => set({ loadingImages: v }),
+
+  // Folders
+  setFolders: (folders) => set({ folders }),
+  setCurrentFolderId: (id) => set({ currentFolderId: id }),
 
   // Post logs
   setPostLogs: (logs) => set({ postLogs: logs }),
