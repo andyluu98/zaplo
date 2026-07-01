@@ -23,6 +23,8 @@ export interface ContentDraft {
     agent_id?: number | null;     // which posting agent owns this draft
     text: string;
     image_asset_id?: number | null;
+    image_folder_id?: number | null;    // nguồn ảnh theo thư mục
+    image_random?: boolean;             // random 1..image_count
     approval_status: DraftApprovalStatus;
     source: DraftSource;
     scheduled_at?: number | null; // planned post time (epoch ms), null = queue/FIFO
@@ -33,7 +35,7 @@ export interface ContentDraft {
 // ─── Posting Agent (agent-centric module) ────────────────────────────────────
 
 export type AgentApprovalMode = 'auto' | 'manual';
-export type AgentImageMode = 'auto' | 'fixed' | 'none';
+export type AgentImageMode = 'auto' | 'fixed' | 'none' | 'folder';
 
 export interface PostingAgent {
     id?: number;
@@ -44,6 +46,8 @@ export interface PostingAgent {
     approval_mode: AgentApprovalMode;
     image_mode: AgentImageMode;
     image_count: number;          // for image_mode='auto' (e.g. 2-3)
+    image_folder_id?: number | null;   // dùng khi image_mode === 'folder'
+    image_count_random?: boolean;      // true = random 1..image_count
     created_at?: number;
     updated_at?: number;
     // joined (not stored on the row):

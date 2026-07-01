@@ -37,3 +37,16 @@ test('migrateImageAssetFolderColumn: thêm cột folder_id, idempotent (2 lần 
   const cols = db.prepare(`PRAGMA table_info(image_asset)`).all() as any[];
   expect(cols.some(c => c.name === 'folder_id')).toBe(true);
 });
+
+import type { ImageFolder, ImageAsset, PostingAgent, AgentImageMode } from '../models/automation';
+
+test('models: ImageFolder + ImageAsset.folder_id + PostingAgent folder fields tồn tại', () => {
+  const f: ImageFolder = { owner_zalo_id: 'z1', name: 'SP A', description: null, sort_order: 0, image_count: 3 };
+  const a: ImageAsset = { owner_zalo_id: 'z1', rel_path: 'media/x.jpg', origin: 'upload', folder_id: 5 };
+  const mode: AgentImageMode = 'folder';
+  const ag: Partial<PostingAgent> = { image_folder_id: 5, image_count_random: true };
+  expect(f.name).toBe('SP A');
+  expect(a.folder_id).toBe(5);
+  expect(mode).toBe('folder');
+  expect(ag.image_count_random).toBe(true);
+});
