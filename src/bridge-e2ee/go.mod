@@ -47,3 +47,10 @@ require (
 //     git clone https://github.com/mautrix/meta.git ./meta
 // Or change the path below to point at an existing checkout.
 replace go.mau.fi/mautrix-meta => ./meta
+
+// Pin qpack to v0.5.1 — the API github.com/imroc/req/v3 v3.56.0 (transitive HTTP/3
+// client, pulled via mautrix/meta) is written against. A newer transitive dep drifts
+// qpack to v0.6.x which changed NewDecoder's signature and removed DecodeFull, breaking
+// req's internal/http3 build on CI. Paired with the pinned meta commit, this restores
+// the known-good dependency set from the last green release.
+replace github.com/quic-go/qpack => github.com/quic-go/qpack v0.5.1
