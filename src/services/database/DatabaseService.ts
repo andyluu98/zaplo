@@ -4,8 +4,8 @@ import { app, safeStorage } from 'electron';
 import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
-import type { ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus, PostingAgent, AgentSchedule, ChatAgent, ConversationAiState } from '../../models';
-import { createImageFolderTables, migrateImageAssetFolderColumn } from '../posting/image-folder-store';
+import type { ContentPillar, ContentDraft, ImageAsset, ImageFolder, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus, PostingAgent, AgentSchedule, ChatAgent, ConversationAiState } from '../../models';
+import { createImageFolderTables, migrateImageAssetFolderColumn, getImageFolders, saveImageFolder, deleteImageFolder } from '../posting/image-folder-store';
 
 // better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
 let db: BetterSqlite3.Database | null = null;
@@ -7890,6 +7890,23 @@ class DatabaseService {
         if (!this.initialized) return;
         try { this.run(`DELETE FROM image_asset WHERE id=? AND owner_zalo_id=?`, [id, zaloId]); }
         catch (err: any) { Logger.error(`[DB] deleteImageAsset: ${err.message}`); }
+    }
+
+    /** Image Folders (kho ảnh theo thư mục) */
+    public getImageFolders(zaloId: string): ImageFolder[] {
+        if (!this.initialized) return [];
+        try { return getImageFolders(db!, zaloId); }
+        catch (err: any) { Logger.error(`[DB] getImageFolders: ${err.message}`); return []; }
+    }
+    public saveImageFolder(f: ImageFolder): { id: number } {
+        if (!this.initialized) return { id: 0 };
+        try { const r = saveImageFolder(db!, f); this.save(); return r; }
+        catch (err: any) { Logger.error(`[DB] saveImageFolder: ${err.message}`); return { id: 0 }; }
+    }
+    public deleteImageFolder(zaloId: string, id: number, mode: 'move' | 'purge'): { purgedRelPaths: string[] } {
+        if (!this.initialized) return { purgedRelPaths: [] };
+        try { const r = deleteImageFolder(db!, zaloId, id, mode); this.save(); return r; }
+        catch (err: any) { Logger.error(`[DB] deleteImageFolder: ${err.message}`); return { purgedRelPaths: [] }; }
     }
 
     /** Post Schedule */

@@ -2,6 +2,9 @@ import BetterSqlite3 from 'better-sqlite3';
 import {
   createImageFolderTables,
   migrateImageAssetFolderColumn,
+  getImageFolders,
+  saveImageFolder,
+  deleteImageFolder,
 } from '../services/posting/image-folder-store';
 
 function makeDb(): BetterSqlite3.Database {
@@ -37,6 +40,76 @@ test('migrateImageAssetFolderColumn: thêm cột folder_id, idempotent (2 lần 
   const cols = db.prepare(`PRAGMA table_info(image_asset)`).all() as any[];
   expect(cols.some(c => c.name === 'folder_id')).toBe(true);
 });
+
+// ─── Helpers for CRUD tests ──────────────────────────────────────────────────
+
+function seedFolderSchema(db: BetterSqlite3.Database) {
+  createImageFolderTables(db);
+  migrateImageAssetFolderColumn(db);
+}
+
+function insertAsset(db: BetterSqlite3.Database, zaloId: string, relPath: string, folderId: number | null) {
+  db.prepare(`INSERT INTO image_asset (owner_zalo_id, rel_path, origin, folder_id, created_at) VALUES (?,?,?,?,?)`)
+    .run(zaloId, relPath, 'upload', folderId, Date.now());
+}
+
+// ─── CRUD tests ──────────────────────────────────────────────────────────────
+
+test('saveImageFolder: insert trả id > 0, list thấy folder', () => {
+  const db = makeDb(); seedFolderSchema(db);
+  const { id } = saveImageFolder(db, { owner_zalo_id: 'z1', name: 'SP A' });
+  expect(id).toBeGreaterThan(0);
+  const list = getImageFolders(db, 'z1');
+  expect(list).toHaveLength(1);
+  expect(list[0].name).toBe('SP A');
+  expect(list[0].image_count).toBe(0);
+});
+
+test('getImageFolders: image_count đếm đúng ảnh trong folder, scope theo owner', () => {
+  const db = makeDb(); seedFolderSchema(db);
+  const { id } = saveImageFolder(db, { owner_zalo_id: 'z1', name: 'SP A' });
+  insertAsset(db, 'z1', 'a.jpg', id);
+  insertAsset(db, 'z1', 'b.jpg', id);
+  insertAsset(db, 'z1', 'c.jpg', null);      // chưa phân loại — không tính vào folder
+  insertAsset(db, 'z2', 'd.jpg', id);        // owner khác — không thấy
+  const list = getImageFolders(db, 'z1');
+  expect(list).toHaveLength(1);
+  expect(list[0].image_count).toBe(2);
+  expect(getImageFolders(db, 'z2')).toHaveLength(0);
+});
+
+test('saveImageFolder: update chỉ khi owner khớp; owner sai không đổi', () => {
+  const db = makeDb(); seedFolderSchema(db);
+  const { id } = saveImageFolder(db, { owner_zalo_id: 'z1', name: 'Cũ' });
+  saveImageFolder(db, { id, owner_zalo_id: 'z1', name: 'Mới' });
+  expect(getImageFolders(db, 'z1')[0].name).toBe('Mới');
+  saveImageFolder(db, { id, owner_zalo_id: 'zX', name: 'Hack' }); // owner sai → no-op
+  expect(getImageFolders(db, 'z1')[0].name).toBe('Mới');
+});
+
+test('deleteImageFolder mode=move: ảnh về folder_id=NULL, folder biến mất', () => {
+  const db = makeDb(); seedFolderSchema(db);
+  const { id } = saveImageFolder(db, { owner_zalo_id: 'z1', name: 'SP A' });
+  insertAsset(db, 'z1', 'a.jpg', id);
+  const res = deleteImageFolder(db, 'z1', id, 'move');
+  expect(res.purgedRelPaths).toEqual([]);
+  expect(getImageFolders(db, 'z1')).toHaveLength(0);
+  const orphan = db.prepare(`SELECT folder_id FROM image_asset WHERE rel_path='a.jpg'`).get() as any;
+  expect(orphan.folder_id).toBeNull();
+});
+
+test('deleteImageFolder mode=purge: trả rel_path đã xóa + xóa ảnh + xóa folder', () => {
+  const db = makeDb(); seedFolderSchema(db);
+  const { id } = saveImageFolder(db, { owner_zalo_id: 'z1', name: 'SP A' });
+  insertAsset(db, 'z1', 'a.jpg', id);
+  insertAsset(db, 'z1', 'b.jpg', id);
+  const res = deleteImageFolder(db, 'z1', id, 'purge');
+  expect(res.purgedRelPaths.sort()).toEqual(['a.jpg', 'b.jpg']);
+  expect(db.prepare(`SELECT COUNT(*) n FROM image_asset WHERE folder_id=?`).get(id)).toMatchObject({ n: 0 });
+  expect(getImageFolders(db, 'z1')).toHaveLength(0);
+});
+
+// ─── Model type tests ────────────────────────────────────────────────────────
 
 import type { ImageFolder, ImageAsset, PostingAgent, AgentImageMode } from '../models/automation';
 

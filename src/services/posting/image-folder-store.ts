@@ -4,6 +4,7 @@
  * DatabaseService.ts calls these functions so it doesn't have to inline the SQL.
  */
 import type BetterSqlite3 from 'better-sqlite3';
+import type { ImageFolder } from '../../models/automation';
 
 /** Tạo bảng image_folder + index. Idempotent (IF NOT EXISTS). */
 export function createImageFolderTables(db: BetterSqlite3.Database): void {
@@ -28,4 +29,60 @@ export function migrateImageAssetFolderColumn(db: BetterSqlite3.Database): void 
         db.exec(`ALTER TABLE image_asset ADD COLUMN folder_id INTEGER`); // NULL = Chưa phân loại
     }
     db.exec(`CREATE INDEX IF NOT EXISTS idx_image_asset_folder ON image_asset(folder_id)`);
+}
+
+/** List folder theo owner, kèm image_count (COUNT ảnh có folder_id = folder.id). */
+export function getImageFolders(db: BetterSqlite3.Database, zaloId: string): ImageFolder[] {
+    return db.prepare(`
+        SELECT f.*, COUNT(a.id) AS image_count
+        FROM image_folder f
+        LEFT JOIN image_asset a ON a.folder_id = f.id AND a.owner_zalo_id = f.owner_zalo_id
+        WHERE f.owner_zalo_id = ?
+        GROUP BY f.id
+        ORDER BY f.sort_order ASC, f.name COLLATE NOCASE
+    `).all(zaloId) as ImageFolder[];
+}
+
+/** Insert (nếu !id) hoặc update (chỉ WHERE owner khớp). Trả id folder. */
+export function saveImageFolder(db: BetterSqlite3.Database, f: ImageFolder): { id: number } {
+    const now = Date.now();
+    if (!f.id) {
+        const r = db.prepare(`
+            INSERT INTO image_folder (owner_zalo_id, name, description, sort_order, created_at, updated_at)
+            VALUES (?,?,?,?,?,?)
+        `).run(f.owner_zalo_id, f.name, f.description ?? null, f.sort_order ?? 0, now, now);
+        return { id: Number(r.lastInsertRowid) };
+    }
+    db.prepare(`
+        UPDATE image_folder SET name=?, description=?, sort_order=?, updated_at=?
+        WHERE id=? AND owner_zalo_id=?
+    `).run(f.name, f.description ?? null, f.sort_order ?? 0, now, f.id, f.owner_zalo_id);
+    return { id: f.id };
+}
+
+/**
+ * Xóa folder.
+ * - move : ảnh trong folder → folder_id=NULL (Chưa phân loại)
+ * - purge: xóa ảnh trong folder (trả rel_path để caller xóa file), rồi xóa folder
+ * Bọc transaction để nhất quán.
+ */
+export function deleteImageFolder(
+    db: BetterSqlite3.Database,
+    zaloId: string,
+    id: number,
+    mode: 'move' | 'purge',
+): { purgedRelPaths: string[] } {
+    return db.transaction(() => {
+        let purgedRelPaths: string[] = [];
+        if (mode === 'purge') {
+            purgedRelPaths = (db.prepare(
+                `SELECT rel_path FROM image_asset WHERE owner_zalo_id=? AND folder_id=?`,
+            ).all(zaloId, id) as Array<{ rel_path: string }>).map(r => r.rel_path);
+            db.prepare(`DELETE FROM image_asset WHERE owner_zalo_id=? AND folder_id=?`).run(zaloId, id);
+        } else {
+            db.prepare(`UPDATE image_asset SET folder_id=NULL WHERE owner_zalo_id=? AND folder_id=?`).run(zaloId, id);
+        }
+        db.prepare(`DELETE FROM image_folder WHERE id=? AND owner_zalo_id=?`).run(id, zaloId);
+        return { purgedRelPaths };
+    })();
 }
