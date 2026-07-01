@@ -33,9 +33,12 @@ export default function AgentEditorModal({ zaloId, agentId, cloneFrom, onClose, 
   const [once, setOnce]           = useState<OnceEntry[]>([]);
   const [newDate, setNewDate]     = useState('');
   const [newTime, setNewTime]     = useState('09:00');
-  const [imageMode, setImageMode] = useState<'auto'|'fixed'|'none'>('auto');
+  const [imageMode, setImageMode] = useState<'auto'|'fixed'|'folder'|'none'>('auto');
   const [imageCount, setImageCount] = useState(2);
   const [fixedIds, setFixedIds]   = useState<number[]>([]);
+  const [folderId, setFolderId]   = useState<number | ''>('');
+  const [folderRandom, setFolderRandom] = useState(false);
+  const [folders, setFolders]     = useState<Array<{ id?: number; name: string; image_count?: number }>>([]);
   const [approval, setApproval]   = useState<'auto'|'manual'>('manual');
   const [enabled, setEnabled]     = useState(true);
 
@@ -45,6 +48,7 @@ export default function AgentEditorModal({ zaloId, agentId, cloneFrom, onClose, 
     try { const p = await ipc.posting?.pillarList({ zaloId }); if (p?.success) setPillars(p.pillars ?? []); } catch (e) { console.error('[AgentEditor] pillars', e); }
     try { const a = await ipc.ai?.listAssistants(); if (a?.success) setAssistants(a.assistants ?? []); } catch (e) { console.error('[AgentEditor] assistants', e); }
     try { const im = await ipc.posting?.imageList({ zaloId }); if (im?.success) setImages(im.assets ?? []); } catch (e) { console.error('[AgentEditor] images', e); }
+    try { const fl = await ipc.posting?.folderList({ zaloId }); if (fl?.success) setFolders(fl.folders ?? []); } catch (e) { console.error('[AgentEditor] folders', e); }
     // Apply an agent object (from agentGet or a clone source) onto the form state.
     // `isClone` => editor stays in "create" mode but presets values; name gets " (sao chép)".
     const applyAgent = (ag: any, isClone: boolean) => {
@@ -52,7 +56,8 @@ export default function AgentEditorModal({ zaloId, agentId, cloneFrom, onClose, 
       setAssistantId(ag.assistant_id || '');
       setPillarIds(ag.pillar_ids || []); setGroupIds(ag.group_ids || []);
       setImageMode(ag.image_mode || 'auto'); setImageCount(ag.image_count || 2);
-      setFixedIds(ag.fixed_image_ids || []); setApproval(ag.approval_mode || 'manual');
+      setFixedIds(ag.fixed_image_ids || []); setFolderId(ag.image_folder_id ?? ''); setFolderRandom(!!ag.image_count_random);
+      setApproval(ag.approval_mode || 'manual');
       setEnabled(isClone ? false : ag.enabled === 1);
       const rec = (ag.schedules || []).find((s: any) => s.kind !== 'once');
       if (rec) { setKind(rec.kind); setWeekdays((rec.weekdays||'').split(',').filter(Boolean)); setMonthDays(rec.month_days||'1,15'); setWinStart(rec.window_start||'08:00'); setWinEnd(rec.window_end||'11:00'); setPerDay(rec.posts_per_day||2); }
@@ -105,7 +110,10 @@ export default function AgentEditorModal({ zaloId, agentId, cloneFrom, onClose, 
         ...(agentId ? { id: agentId } : {}), owner_zalo_id: zaloId, name: name.trim() || 'Agent',
         assistant_id: assistantId, enabled: (startNow || enabled) ? 1 : 0, approval_mode: approval,
         image_mode: imageMode, image_count: imageCount,
-        pillar_ids: pillarIds, group_ids: groupIds, fixed_image_ids: fixedIds, schedules,
+        pillar_ids: pillarIds, group_ids: groupIds, fixed_image_ids: fixedIds,
+        image_folder_id: imageMode === 'folder' ? (folderId === '' ? null : Number(folderId)) : null,
+        image_count_random: folderRandom,
+        schedules,
       };
       const res = await ipc.posting?.agentSave({ zaloId, agent });
       if (res?.success) { showNotification(startNow ? 'Đã lưu & bật agent' : 'Đã lưu agent', 'success'); onSaved(); onClose(); }
@@ -153,9 +161,37 @@ export default function AgentEditorModal({ zaloId, agentId, cloneFrom, onClose, 
             {once.map((o, i) => <div key={i} className="flex items-center gap-2 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm mb-1.5">📅 {o.date} · {o.time}<span className="ml-auto text-red-400 cursor-pointer" onClick={() => setOnce(once.filter((_, j) => j !== i))}>✕</span></div>)}
             <div className="flex gap-2"><input type="date" className={fld} value={newDate} onChange={e => setNewDate(e.target.value)} /><input type="time" className={fld + ' max-w-[110px]'} value={newTime} onChange={e => setNewTime(e.target.value)} /><span className={chip(false)} onClick={addOnce}>＋ thêm</span></div>
             <label className={lbl}>Ảnh</label>
-            <div className="flex gap-2">{(['auto','fixed','none'] as const).map(m => <span key={m} className={chip(imageMode === m)} onClick={() => setImageMode(m)}>{m === 'auto' ? `Tự lấy ${imageCount}` : m === 'fixed' ? 'Ảnh cố định' : 'Không ảnh'}</span>)}</div>
+            <div className="flex flex-wrap gap-2">
+              {(['auto','fixed','folder','none'] as const).map(m => (
+                <span key={m} className={chip(imageMode === m)} onClick={() => setImageMode(m)}>
+                  {m === 'auto' ? `Tự lấy ${imageCount}` : m === 'fixed' ? 'Ảnh cố định' : m === 'folder' ? 'Lấy từ thư mục' : 'Không ảnh'}
+                </span>
+              ))}
+            </div>
             {imageMode === 'auto' && <div className="flex gap-2 mt-2">{[1,2,3,4].map(n => <span key={n} className={chip(imageCount === n)} onClick={() => setImageCount(n)}>{n}</span>)}</div>}
             {imageMode === 'fixed' && <div className="grid grid-cols-4 gap-2 mt-2 max-h-40 overflow-y-auto">{images.map(im => <img key={im.id} src={toLocalMediaUrl(im.rel_path)} className={`w-full aspect-square object-cover rounded-lg border-2 cursor-pointer ${fixedIds.includes(im.id) ? 'border-blue-500' : 'border-transparent'}`} onClick={() => togNum(fixedIds, im.id, setFixedIds)} />)}</div>}
+            {imageMode === 'folder' && (
+              <div className="mt-2 flex flex-col gap-2">
+                <select
+                  className={fld}
+                  value={folderId}
+                  onChange={e => setFolderId(e.target.value === '' ? '' : Number(e.target.value))}
+                >
+                  <option value="">— Tất cả thư mục —</option>
+                  {folders.filter(f => f.id != null).map(f => (
+                    <option key={f.id} value={f.id}>
+                      {f.name}{f.image_count != null ? ` (${f.image_count})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <div className="flex gap-2 items-center">
+                  <span className={chip(!folderRandom)} onClick={() => setFolderRandom(false)}>Cố định</span>
+                  <span className={chip(folderRandom)} onClick={() => setFolderRandom(true)}>Ngẫu nhiên</span>
+                  <span className="text-gray-500 text-xs ml-1">N ảnh:</span>
+                  <div className="flex gap-1">{[1,2,3,4].map(n => <span key={n} className={chip(imageCount === n)} onClick={() => setImageCount(n)}>{n}</span>)}</div>
+                </div>
+              </div>
+            )}
             <label className={lbl}>Chế độ duyệt</label>
             <div className="flex gap-2">{(['manual','auto'] as const).map(m => <span key={m} className={chip(approval === m)} onClick={() => setApproval(m)}>{m === 'manual' ? 'Cần duyệt tay' : 'Tự đăng'}</span>)}</div>
             <label className={lbl}>Trạng thái</label>
