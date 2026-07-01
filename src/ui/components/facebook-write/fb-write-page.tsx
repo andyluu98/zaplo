@@ -8,16 +8,18 @@ import PostStoreTab from '@/components/post-store/post-store-tab';
 import ContentCalendarTab from '@/components/schedule/content-calendar-tab';
 import FbCommentTab from './fb-comment-tab';
 import McAgentManager from '@/components/ai-agent-hub/mc-agent-manager';
+import ImageLibraryTab from '@/components/posting/image-library-tab';
 
 // Trang "Facebook — Đăng bài & Tương tác". Tab Đăng bài + Auto-Comment đã verify chạy thật.
 // Tab Agent tự động để placeholder (làm phase sau).
 
-type FbTab = 'post' | 'store' | 'calendar' | 'groups' | 'comment' | 'agent' | 'log' | 'limit';
+type FbTab = 'post' | 'store' | 'images' | 'calendar' | 'groups' | 'comment' | 'agent' | 'log' | 'limit';
 
 const TABS: Array<{ id: FbTab; label: string }> = [
   { id: 'log',      label: '📊 Thống kê' },
   { id: 'post',     label: '📝 Đăng bài' },
   { id: 'store',    label: '🗂️ Kho bài' },
+  { id: 'images',   label: '🖼️ Thư viện ảnh' },
   { id: 'calendar', label: '📅 Lịch nội dung' },
   { id: 'groups',   label: '👥 Nhóm' },
   { id: 'comment',  label: '💬 Auto-Comment' },
@@ -78,6 +80,7 @@ export default function FbWritePage() {
           <>
             {activeTab === 'post'    && <FbPostComposer accountId={accountId} accountName={active?.name || accountId} />}
             {activeTab === 'store'   && <PostStoreTab />}
+            {activeTab === 'images'  && <ImageLibraryTab zaloId={accountId} />}
             {activeTab === 'calendar' && <ContentCalendarTab />}
             {activeTab === 'groups'  && <FbGroupsManager accountId={accountId} />}
             {activeTab === 'comment' && <FbCommentTab accountId={accountId} />}
