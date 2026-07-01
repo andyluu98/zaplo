@@ -29,6 +29,9 @@ export default function AiGenerateModal({ assistants, onDone, onClose }: Props) 
   const [imageMin, setImageMin] = useState<number>(1);
   const [imageMax, setImageMax] = useState<number>(3);
   const [generating, setGenerating] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [finished, setFinished] = useState(false);
+  const savedCountRef = React.useRef(0);
 
   async function handleGenerate() {
     if (!topic.trim()) {
@@ -44,13 +47,18 @@ export default function AiGenerateModal({ assistants, onDone, onClose }: Props) 
     const max = Math.max(min, imageMax);
 
     setGenerating(true);
+    setProgress({ done: 0, total: finalCount });
+    setFinished(false);
+    savedCountRef.current = 0;
     try {
-      // maxTokens cao + sinh theo lô (trong generateVariations) → bài đủ dài, không bị cắt.
+      // Không override maxTokens → mỗi bài dùng token mặc định trợ lý (bài đủ dài, không bị cắt)
       const chatFn = async (msgs: Array<{ role: string; content: string }>) => {
-        const res = await ipc.ai.chat(assistantId, msgs, false, 2000);
+        const res = await ipc.ai.chat(assistantId, msgs, false);
         return res?.result || '';
       };
-      const texts = await generateVariations(topic.trim(), finalCount, chatFn);
+      const texts = await generateVariations(topic.trim(), finalCount, chatFn, {
+        onProgress: (done, total) => setProgress({ done, total }),
+      });
       const posts = buildPostsFromVariations(texts, min, max);
 
       let saved = 0;
@@ -58,12 +66,14 @@ export default function AiGenerateModal({ assistants, onDone, onClose }: Props) 
         const res = await ipc.postStore.save({ post: { ...post, source: 'ai' } });
         if (res?.success) saved++;
       }
-      showNotification(`Đã tạo ${saved} bài thành công`, 'success');
+      savedCountRef.current = saved;
+      setFinished(true);
       onDone();
-      onClose();
+      // Không auto-close — user bấm "Lưu vào Kho bài" để đóng
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       showNotification(`Lỗi tạo bài: ${msg}`, 'error');
+      setProgress(null);
     } finally {
       setGenerating(false);
     }
@@ -131,7 +141,7 @@ export default function AiGenerateModal({ assistants, onDone, onClose }: Props) 
 
         {/* Số ảnh */}
         <label className="block text-gray-400 text-xs mb-1">Số ảnh mỗi bài</label>
-        <div className="flex items-center gap-2 mb-5">
+        <div className="flex items-center gap-2 mb-4">
           <span className="text-gray-400 text-sm">Min</span>
           <input
             type="number"
@@ -152,22 +162,65 @@ export default function AiGenerateModal({ assistants, onDone, onClose }: Props) 
           />
         </div>
 
+        {/* Tiến trình per-post */}
+        {progress && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+              <span>Tiến trình (mỗi bài 1 call AI)</span>
+              <span>{progress.done}/{progress.total}</span>
+            </div>
+            <div className="w-full h-2 bg-gray-700 rounded">
+              <div
+                className="h-2 bg-blue-600 rounded transition-all"
+                style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
+              />
+            </div>
+            <div className="mt-2 max-h-40 overflow-y-auto space-y-1">
+              {Array.from({ length: progress.total }).map((_, i) => {
+                const state = i < progress.done ? 'done' : i === progress.done && !finished ? 'run' : 'wait';
+                return (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <span className={
+                      state === 'done' ? 'text-green-400'
+                      : state === 'run' ? 'text-blue-400'
+                      : 'text-gray-500'
+                    }>
+                      {state === 'done' ? '✓ xong' : state === 'run' ? '⏳ đang gọi AI…' : '· chờ'}
+                    </span>
+                    <span className="text-gray-400">Bài {i + 1}/{progress.total}</span>
+                    <span className="ml-auto text-gray-600">call #{i + 1}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Nút hành động */}
         <div className="flex gap-3 justify-end">
           <button
             onClick={onClose}
             disabled={generating}
-            className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-600 transition-colors"
+            className="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Hủy
+            {finished ? 'Đóng' : 'Hủy'}
           </button>
-          <button
-            onClick={handleGenerate}
-            disabled={generating || !topic.trim() || !assistantId}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {generating ? 'Đang sinh...' : 'Sinh bài'}
-          </button>
+          {finished ? (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors"
+            >
+              Lưu vào Kho bài ({savedCountRef.current})
+            </button>
+          ) : (
+            <button
+              onClick={handleGenerate}
+              disabled={generating || !topic.trim() || !assistantId}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {generating ? `Đang sinh ${progress?.done ?? 0}/${progress?.total ?? 0}…` : 'Sinh bài'}
+            </button>
+          )}
         </div>
       </div>
     </div>
