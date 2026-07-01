@@ -606,10 +606,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     logMonth:       (params: any) => ipcRenderer.invoke('posting:log.month', params),
     stats:          (params: any) => ipcRenderer.invoke('posting:stats', params),
     // ─── Image Library ────────────────────────────────────────────────
-    imageUpload:    (params: { zaloId: string; filePath: string }) => ipcRenderer.invoke('posting:image.upload', params),
-    imageList:      (params: { zaloId: string }) => ipcRenderer.invoke('posting:image.list', params),
-    imageDelete:    (params: { zaloId: string; id: number }) => ipcRenderer.invoke('posting:image.delete', params),
-    imageGenerate:  (params: { zaloId: string; prompt: string }) => ipcRenderer.invoke('posting:image.generate', params),
+    imageUpload:    (params) => ipcRenderer.invoke('posting:image.upload', params),
+    imageList:      (params) => ipcRenderer.invoke('posting:image.list', params),
+    imageDelete:    (params) => ipcRenderer.invoke('posting:image.delete', params),
+    imageGenerate:  (params) => ipcRenderer.invoke('posting:image.generate', params),
+    imageMove:      (params) => ipcRenderer.invoke('posting:image.move', params),
+    folderList:     (params) => ipcRenderer.invoke('posting:folder.list', params),
+    folderSave:     (params) => ipcRenderer.invoke('posting:folder.save', params),
+    folderDelete:   (params) => ipcRenderer.invoke('posting:folder.delete', params),
   },
 
   // ─── Chat Agent (auto-reply agent-centric) ────────────────────────

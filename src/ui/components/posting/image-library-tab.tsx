@@ -119,7 +119,7 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
     });
     if (!ok) return;
     try {
-      const res = await ipc.posting?.imageDelete({ zaloId, id: asset.id });
+      const res = await ipc.posting?.imageDelete({ zaloId, ids: [asset.id] });
       if (res?.success) {
         showNotification('Đã xóa ảnh', 'success');
         await fetchImages();

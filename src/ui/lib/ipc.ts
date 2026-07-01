@@ -619,10 +619,14 @@ declare global {
       calendarDelete: (params: { id: number; agentId?: number }) => Promise<{ success: boolean; error?: string }>;
       logMonth:       (params: { zaloId: string; ym: string }) => Promise<{ success: boolean; logs: any[]; error?: string }>;
       stats:          (params: { zaloId: string; agentId?: number; sinceMs?: number }) => Promise<{ success: boolean; stats: Array<{ agent_id: number; name: string; sent: number; failed: number }>; error?: string }>;
-      imageUpload:    (params: { zaloId: string; filePath: string }) => Promise<{ success: boolean; id?: number; rel_path?: string; error?: string }>;
-      imageList:      (params: { zaloId: string }) => Promise<{ success: boolean; assets: import('@/../../src/models/automation').ImageAsset[]; error?: string }>;
-      imageDelete:    (params: { zaloId: string; id: number }) => Promise<{ success: boolean; error?: string }>;
-      imageGenerate:  (params: { zaloId: string; prompt: string }) => Promise<{ success: boolean; id?: number; rel_path?: string; error?: string }>;
+      imageUpload:    (params: { zaloId: string; filePath: string; folderId?: number | null }) => Promise<{ success: boolean; id?: number; rel_path?: string; error?: string }>;
+      imageList:      (params: { zaloId: string; folderId?: number | null | 'all' }) => Promise<{ success: boolean; assets: import('@/../../src/models/automation').ImageAsset[]; error?: string }>;
+      imageDelete:    (params: { zaloId: string; ids: number[] }) => Promise<{ success: boolean; error?: string }>;
+      imageGenerate:  (params: { zaloId: string; prompt: string; folderId?: number | null }) => Promise<{ success: boolean; id?: number; rel_path?: string; error?: string }>;
+      imageMove:      (params: { zaloId: string; ids: number[]; folderId: number | null }) => Promise<{ success: boolean; error?: string }>;
+      folderList:     (params: { zaloId: string }) => Promise<{ success: boolean; folders: import('@/../../src/models/automation').ImageFolder[]; error?: string }>;
+      folderSave:     (params: { zaloId: string; folder: import('@/../../src/models/automation').ImageFolder }) => Promise<{ success: boolean; id?: number; error?: string }>;
+      folderDelete:   (params: { zaloId: string; id: number; mode: 'move' | 'purge' }) => Promise<{ success: boolean; error?: string }>;
     };
     // ─── Chat Agent (auto-reply agent-centric) ──────────────────────────────────
     chatAgent: {
