@@ -5,6 +5,7 @@ import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
 import type { ContentPillar, ContentDraft, ImageAsset, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus, PostingAgent, AgentSchedule, ChatAgent, ConversationAiState } from '../../models';
+import { createImageFolderTables, migrateImageAssetFolderColumn } from '../posting/image-folder-store';
 
 // better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
 let db: BetterSqlite3.Database | null = null;
@@ -846,6 +847,9 @@ class DatabaseService {
                 created_at INTEGER NOT NULL DEFAULT 0
             );
         `);
+
+        // ─── Kho ảnh theo thư mục (image_folder) ───────────────────────────────
+        createImageFolderTables(db!);
 
         this.exec(`
             CREATE TABLE IF NOT EXISTS post_schedule (
@@ -1839,6 +1843,14 @@ class DatabaseService {
             this.save();
         } catch (err: any) {
             Logger.warn(`[DatabaseService] Migration agent columns: ${err.message}`);
+        }
+
+        // image_asset.folder_id (kho ảnh theo thư mục)
+        try {
+            migrateImageAssetFolderColumn(db!);
+            this.save();
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration image_asset.folder_id: ${err.message}`);
         }
 
         // ─── Migration: post_schedule → 1 default posting_agent per account ──────

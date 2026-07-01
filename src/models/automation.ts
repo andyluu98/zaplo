@@ -107,6 +107,17 @@ export interface ConversationAiState {
 
 export type ImageAssetOrigin = 'upload' | 'ai';
 
+export interface ImageFolder {
+    id?: number;
+    owner_zalo_id: string;
+    name: string;
+    description?: string | null;
+    sort_order?: number;
+    created_at?: number;
+    updated_at?: number;
+    image_count?: number; // computed khi list (không lưu DB)
+}
+
 export interface ImageAsset {
     id?: number;
     owner_zalo_id: string;
@@ -114,6 +125,7 @@ export interface ImageAsset {
     origin: ImageAssetOrigin;
     width?: number | null;
     height?: number | null;
+    folder_id?: number | null;
     created_at?: number;
 }
 
