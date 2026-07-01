@@ -13,6 +13,7 @@ import { FB_WRITE_DOC_IDS } from '../facebook/write/facebook-write-doc-ids';
 import FileStorageService from '../file/FileStorageService';
 import ConnectionManager from '../../utils/ConnectionManager';
 import { sendDraftToGroup } from '../posting/posting-sender';
+import { pickFolderImages } from '../posting/resolve-folder-images';
 import Logger from '../../utils/Logger';
 
 /** Lấy tối đa n ảnh ngẫu nhiên (rel_path) của 1 account từ thư viện. */
@@ -23,12 +24,29 @@ function randomImages(accountId: string, n: number): string[] {
   return rows.map(r => r.rel_path).filter(Boolean);
 }
 
+/**
+ * Chọn ảnh (rel_path[]) cho 1 item lịch.
+ * - Nếu item.image_folder_id set → lấy từ thư mục đó qua pickFolderImages (image_count, image_random).
+ * - Else → fallback randomImages cũ.
+ * Exported để unit-test được.
+ */
+export function imagesForItem(accountId: string, item: any): string[] {
+  const count = item.image_count || 0;
+  if (item.image_folder_id != null) {
+    const all = DatabaseService.getInstance().getImages(accountId, item.image_folder_id);
+    return pickFolderImages(all, Math.max(1, count), !!item.image_random)
+      .map(a => a.rel_path)
+      .filter(Boolean) as string[];
+  }
+  return randomImages(accountId, count);
+}
+
 /** Đăng 1 item lịch (Zalo) — tái dùng posting-sender, KHÔNG sửa engine cũ. */
 async function postZaloScheduledItem(item: any): Promise<{ ok: boolean; error?: string }> {
   try {
     const conn = ConnectionManager.getConnection(item.account_id);
     if (!conn?.api) return { ok: false, error: 'Tài khoản Zalo chưa kết nối' };
-    const imgPaths = randomImages(item.account_id, item.image_count || 0)
+    const imgPaths = imagesForItem(item.account_id, item)
       .map(rel => FileStorageService.resolveAbsolutePath(rel));
     const ok = await sendDraftToGroup(conn.api, {
       zaloId: item.account_id, agentId: null, draftId: 0,
@@ -51,7 +69,7 @@ export async function postScheduledItem(item: any): Promise<{ ok: boolean; error
 
     // Upload ảnh ngẫu nhiên (nếu post yêu cầu)
     const photoIds: string[] = [];
-    for (const rel of randomImages(item.account_id, item.image_count || 0)) {
+    for (const rel of imagesForItem(item.account_id, item)) {
       try { photoIds.push(await uploadPhoto(dataFB, FileStorageService.resolveAbsolutePath(rel))); }
       catch (e: any) { Logger.warn(`[schedule-runner] upload ảnh lỗi: ${e?.message}`); }
     }
