@@ -14,37 +14,49 @@ import DatabaseService from '../database/DatabaseService';
 import FileStorageService from '../file/FileStorageService';
 import Logger from '../../utils/Logger';
 import type { PostingAgent, ContentDraft } from '../../models';
+import { pickFolderImages } from './resolve-folder-images';
 
 /**
  * Resolve absolute image paths for a draft under an agent's image policy.
- * - none  → []
- * - fixed → the agent's fixed_image_ids
- * - auto  → draft's linked image, else `image_count` random from library
+ * - none   → []
+ * - folder → images from agent's designated folder (image_count, image_count_random)
+ * - fixed  → the agent's fixed_image_ids
+ * - auto   → draft's linked image, else `image_count` random from library
  */
 export function resolveAgentImagePaths(zaloId: string, agent: PostingAgent, draft: ContentDraft): string[] {
     try {
         const db = DatabaseService.getInstance();
         if (agent.image_mode === 'none') return [];
-        const assets = db.getImageAssets(zaloId);
-        if (!assets.length) return [];
 
-        let chosen: typeof assets = [];
+        let chosen: ReturnType<typeof db.getImageAssets> = [];
 
-        if (agent.image_mode === 'fixed') {
-            const ids = agent.fixed_image_ids || [];
-            chosen = assets.filter(a => a.id != null && ids.includes(a.id));
+        if (agent.image_mode === 'folder') {
+            const inFolder = db.getImages(zaloId, agent.image_folder_id ?? null);
+            chosen = pickFolderImages(
+                inFolder,
+                Math.max(1, agent.image_count || 2),
+                !!agent.image_count_random,
+            );
         } else {
-            // auto
-            if (draft.image_asset_id) {
-                const linked = assets.find(a => a.id === draft.image_asset_id);
-                if (linked) chosen = [linked];
-            }
-            if (!chosen.length) {
-                const want = Math.min(assets.length, Math.max(1, agent.image_count || 2));
-                const pool = [...assets];
-                while (chosen.length < want && pool.length) {
-                    const i = Math.floor(Math.random() * pool.length);
-                    chosen.push(pool.splice(i, 1)[0]);
+            const assets = db.getImageAssets(zaloId);
+            if (!assets.length) return [];
+
+            if (agent.image_mode === 'fixed') {
+                const ids = agent.fixed_image_ids || [];
+                chosen = assets.filter(a => a.id != null && ids.includes(a.id));
+            } else {
+                // auto
+                if (draft.image_asset_id) {
+                    const linked = assets.find(a => a.id === draft.image_asset_id);
+                    if (linked) chosen = [linked];
+                }
+                if (!chosen.length) {
+                    const want = Math.min(assets.length, Math.max(1, agent.image_count || 2));
+                    const pool = [...assets];
+                    while (chosen.length < want && pool.length) {
+                        const i = Math.floor(Math.random() * pool.length);
+                        chosen.push(pool.splice(i, 1)[0]);
+                    }
                 }
             }
         }
