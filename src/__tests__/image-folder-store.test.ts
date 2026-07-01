@@ -2,6 +2,8 @@ import BetterSqlite3 from 'better-sqlite3';
 import {
   createImageFolderTables,
   migrateImageAssetFolderColumn,
+  migratePostingAgentFolderColumns,
+  migratePostStoreFolderColumns,
   getImageFolders,
   saveImageFolder,
   deleteImageFolder,
@@ -162,6 +164,89 @@ test('deleteImages: xóa nhiều ảnh, trả rel_path để xóa file, scope ow
 test('deleteImages: ids rỗng → no-op, trả rỗng', () => {
   const db = makeDb(); seedFolderSchema(db);
   expect(deleteImages(db, 'z1', [])).toEqual({ purgedRelPaths: [] });
+});
+
+// ─── Migration: posting_agent folder columns ─────────────────────────────────
+
+function makePostingAgentDb(): BetterSqlite3.Database {
+  const db = new BetterSqlite3(':memory:');
+  db.exec(`
+    CREATE TABLE posting_agent (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      owner_zalo_id TEXT NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      assistant_id TEXT NOT NULL DEFAULT '',
+      enabled INTEGER NOT NULL DEFAULT 0,
+      approval_mode TEXT NOT NULL DEFAULT 'manual',
+      image_mode TEXT NOT NULL DEFAULT 'auto',
+      image_count INTEGER NOT NULL DEFAULT 2,
+      created_at INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  return db;
+}
+
+test('migratePostingAgentFolderColumns: thêm image_folder_id + image_count_random, idempotent (2 lần OK)', () => {
+  const db = makePostingAgentDb();
+  migratePostingAgentFolderColumns(db);
+  migratePostingAgentFolderColumns(db); // không throw
+  const cols = db.prepare(`PRAGMA table_info(posting_agent)`).all() as any[];
+  const names = cols.map((c: any) => c.name);
+  expect(names).toContain('image_folder_id');
+  expect(names).toContain('image_count_random');
+});
+
+test('migratePostingAgentFolderColumns: cột đã tồn tại trước (như DB mới) → không throw', () => {
+  const db = new BetterSqlite3(':memory:');
+  db.exec(`
+    CREATE TABLE posting_agent (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      image_folder_id INTEGER,
+      image_count_random INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  expect(() => migratePostingAgentFolderColumns(db)).not.toThrow();
+});
+
+// ─── Migration: post_store folder columns ────────────────────────────────────
+
+function makePostStoreDb(): BetterSqlite3.Database {
+  const db = new BetterSqlite3(':memory:');
+  db.exec(`
+    CREATE TABLE post_store (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      image_count INTEGER NOT NULL DEFAULT 0,
+      source TEXT NOT NULL DEFAULT 'manual',
+      created_at INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  return db;
+}
+
+test('migratePostStoreFolderColumns: thêm image_folder_id + image_random, idempotent (2 lần OK)', () => {
+  const db = makePostStoreDb();
+  migratePostStoreFolderColumns(db);
+  migratePostStoreFolderColumns(db); // không throw
+  const cols = db.prepare(`PRAGMA table_info(post_store)`).all() as any[];
+  const names = cols.map((c: any) => c.name);
+  expect(names).toContain('image_folder_id');
+  expect(names).toContain('image_random');
+});
+
+test('migratePostStoreFolderColumns: cột đã tồn tại trước (như DB mới) → không throw', () => {
+  const db = new BetterSqlite3(':memory:');
+  db.exec(`
+    CREATE TABLE post_store (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      image_folder_id INTEGER,
+      image_random INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+  expect(() => migratePostStoreFolderColumns(db)).not.toThrow();
 });
 
 // ─── Model type tests ────────────────────────────────────────────────────────

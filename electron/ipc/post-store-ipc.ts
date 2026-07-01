@@ -12,7 +12,7 @@ export function registerPostStoreIpc(): void {
     catch (e: any) { return { success: false, error: e.message }; }
   });
 
-  ipcMain.handle('poststore:save', async (_e, { post }: { post: { id?: number; title: string; content: string; image_count: number; source?: string } }) => {
+  ipcMain.handle('poststore:save', async (_e, { post }: { post: { id?: number; title: string; content: string; image_count: number; source?: string; image_folder_id?: number | null; image_random?: boolean } }) => {
     try { return { success: true, id: DatabaseService.getInstance().savePost(post) }; }
     catch (e: any) { return { success: false, error: e.message }; }
   });

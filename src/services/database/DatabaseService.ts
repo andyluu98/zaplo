@@ -5,7 +5,7 @@ import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
 import type { ContentPillar, ContentDraft, ImageAsset, ImageFolder, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus, PostingAgent, AgentSchedule, ChatAgent, ConversationAiState } from '../../models';
-import { createImageFolderTables, migrateImageAssetFolderColumn, getImageFolders, saveImageFolder, deleteImageFolder, getImages, moveImages, deleteImages } from '../posting/image-folder-store';
+import { createImageFolderTables, migrateImageAssetFolderColumn, migratePostingAgentFolderColumns, migratePostStoreFolderColumns, getImageFolders, saveImageFolder, deleteImageFolder, getImages, moveImages, deleteImages } from '../posting/image-folder-store';
 
 // better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
 let db: BetterSqlite3.Database | null = null;
@@ -408,15 +408,17 @@ class DatabaseService {
     public deleteMcAgent(id: number): void { this.run(`DELETE FROM mc_agent WHERE id=?`, [id]); this.run(`DELETE FROM agent_target WHERE agent_id=?`, [id]); this.save(); }
 
     // ─── Post store (Kho bài — dùng chung FB+Zalo) ──────────────────────────────
-    public savePost(p: { id?: number; title: string; content: string; image_count: number; source?: string }): number {
+    public savePost(p: { id?: number; title: string; content: string; image_count: number; source?: string; image_folder_id?: number | null; image_random?: boolean }): number {
         const now = Date.now();
+        const folderId = p.image_folder_id ?? null;
+        const imgRandom = p.image_random ? 1 : 0;
         if (p.id) {
-            this.run(`UPDATE post_store SET title=?, content=?, image_count=?, updated_at=? WHERE id=?`,
-                [p.title, p.content, p.image_count, now, p.id]);
+            this.run(`UPDATE post_store SET title=?, content=?, image_count=?, image_folder_id=?, image_random=?, updated_at=? WHERE id=?`,
+                [p.title, p.content, p.image_count, folderId, imgRandom, now, p.id]);
             this.save(); return p.id;
         }
-        const id = this.runInsert(`INSERT INTO post_store (title, content, image_count, source, created_at, updated_at) VALUES (?,?,?,?,?,?)`,
-            [p.title, p.content, p.image_count, p.source || 'manual', now, now]);
+        const id = this.runInsert(`INSERT INTO post_store (title, content, image_count, source, image_folder_id, image_random, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+            [p.title, p.content, p.image_count, p.source || 'manual', folderId, imgRandom, now, now]);
         this.save(); return id;
     }
     public listPosts(): any[] { return this.query(`SELECT * FROM post_store ORDER BY id DESC`); }
@@ -441,12 +443,12 @@ class DatabaseService {
     /** Item trong khoảng [from,to] (epoch) — join nội dung bài cho lịch. */
     public listScheduleRange(from: number, to: number): any[] {
         return this.query(
-            `SELECT s.*, p.title, p.content FROM content_schedule_item s LEFT JOIN post_store p ON p.id=s.post_id
+            `SELECT s.*, p.title, p.content, p.image_folder_id, p.image_random FROM content_schedule_item s LEFT JOIN post_store p ON p.id=s.post_id
              WHERE s.scheduled_at>=? AND s.scheduled_at<? ORDER BY s.scheduled_at`, [from, to]);
     }
     public listDueSchedule(now: number): any[] {
         return this.query(
-            `SELECT s.*, p.title, p.content, p.image_count FROM content_schedule_item s LEFT JOIN post_store p ON p.id=s.post_id
+            `SELECT s.*, p.title, p.content, p.image_count, p.image_folder_id, p.image_random FROM content_schedule_item s LEFT JOIN post_store p ON p.id=s.post_id
              WHERE s.status='scheduled' AND s.scheduled_at<=? ORDER BY s.scheduled_at LIMIT 20`, [now]);
     }
     public markScheduleItem(id: number, status: string, error?: string): void {
@@ -1851,6 +1853,22 @@ class DatabaseService {
             this.save();
         } catch (err: any) {
             Logger.warn(`[DatabaseService] Migration image_asset.folder_id: ${err.message}`);
+        }
+
+        // posting_agent.image_folder_id + image_count_random (folder image mode)
+        try {
+            migratePostingAgentFolderColumns(db!);
+            this.save();
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration posting_agent folder columns: ${err.message}`);
+        }
+
+        // post_store.image_folder_id + image_random (folder image mode)
+        try {
+            migratePostStoreFolderColumns(db!);
+            this.save();
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration post_store folder columns: ${err.message}`);
         }
 
         // ─── Migration: post_schedule → 1 default posting_agent per account ──────
@@ -8061,13 +8079,15 @@ class DatabaseService {
         try {
             const now = Date.now();
             let id = a.id ?? 0;
+            const folderId = a.image_folder_id ?? null;
+            const countRandom = a.image_count_random ? 1 : 0;
             this.transaction(() => {
                 if (a.id) {
-                    this.run(`UPDATE posting_agent SET name=?, assistant_id=?, enabled=?, approval_mode=?, image_mode=?, image_count=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                        [a.name, a.assistant_id ?? '', a.enabled ?? 0, a.approval_mode || 'manual', a.image_mode || 'auto', a.image_count ?? 2, now, a.id, a.owner_zalo_id]);
+                    this.run(`UPDATE posting_agent SET name=?, assistant_id=?, enabled=?, approval_mode=?, image_mode=?, image_count=?, image_folder_id=?, image_count_random=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        [a.name, a.assistant_id ?? '', a.enabled ?? 0, a.approval_mode || 'manual', a.image_mode || 'auto', a.image_count ?? 2, folderId, countRandom, now, a.id, a.owner_zalo_id]);
                 } else {
-                    id = this.runInsert(`INSERT INTO posting_agent (owner_zalo_id, name, assistant_id, enabled, approval_mode, image_mode, image_count, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-                        [a.owner_zalo_id, a.name, a.assistant_id ?? '', a.enabled ?? 0, a.approval_mode || 'manual', a.image_mode || 'auto', a.image_count ?? 2, now, now]);
+                    id = this.runInsert(`INSERT INTO posting_agent (owner_zalo_id, name, assistant_id, enabled, approval_mode, image_mode, image_count, image_folder_id, image_count_random, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+                        [a.owner_zalo_id, a.name, a.assistant_id ?? '', a.enabled ?? 0, a.approval_mode || 'manual', a.image_mode || 'auto', a.image_count ?? 2, folderId, countRandom, now, now]);
                 }
                 // replace links
                 this.run(`DELETE FROM agent_pillar WHERE agent_id=?`, [id]);

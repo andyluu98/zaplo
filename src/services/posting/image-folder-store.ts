@@ -127,6 +127,36 @@ export function deleteImages(
     })();
 }
 
+// ─── Migration helpers for posting_agent + post_store folder fields ──────────
+
+/**
+ * Thêm image_folder_id + image_count_random vào posting_agent nếu chưa có.
+ * Idempotent — PRAGMA guard trước khi ALTER.
+ */
+export function migratePostingAgentFolderColumns(db: BetterSqlite3.Database): void {
+    const cols = db.prepare(`PRAGMA table_info(posting_agent)`).all() as Array<{ name: string }>;
+    if (!cols.some(c => c.name === 'image_folder_id')) {
+        db.exec(`ALTER TABLE posting_agent ADD COLUMN image_folder_id INTEGER`);
+    }
+    if (!cols.some(c => c.name === 'image_count_random')) {
+        db.exec(`ALTER TABLE posting_agent ADD COLUMN image_count_random INTEGER NOT NULL DEFAULT 0`);
+    }
+}
+
+/**
+ * Thêm image_folder_id + image_random vào post_store nếu chưa có.
+ * Idempotent — PRAGMA guard trước khi ALTER.
+ */
+export function migratePostStoreFolderColumns(db: BetterSqlite3.Database): void {
+    const cols = db.prepare(`PRAGMA table_info(post_store)`).all() as Array<{ name: string }>;
+    if (!cols.some(c => c.name === 'image_folder_id')) {
+        db.exec(`ALTER TABLE post_store ADD COLUMN image_folder_id INTEGER`);
+    }
+    if (!cols.some(c => c.name === 'image_random')) {
+        db.exec(`ALTER TABLE post_store ADD COLUMN image_random INTEGER NOT NULL DEFAULT 0`);
+    }
+}
+
 /** Gán folder_id (hoặc NULL) cho mảng ids, scope theo owner. ids rỗng → no-op. */
 export function moveImages(
     db: BetterSqlite3.Database,
