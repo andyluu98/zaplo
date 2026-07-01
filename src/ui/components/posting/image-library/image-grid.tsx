@@ -1,49 +1,129 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { toLocalMediaUrl } from '@/lib/localMedia';
 import type { ImageAsset } from '@/../../src/models/automation';
 
-// Memoized so clicking one tile (which rebuilds the selectedIds Set in the parent)
-// only re-renders the tile whose `selected` actually changed — not all N tiles.
-// Custom comparator ignores the `onClick` closure identity (new each parent render).
-const Tile = React.memo(function Tile({
-  asset, selMode, selected, onClick,
-}: {
-  asset: ImageAsset; selMode: boolean; selected: boolean; onClick: () => void;
-}) {
-  const [errored, setErrored] = useState(false);
-  const src = toLocalMediaUrl(asset.rel_path);
+// ── Context Menu ──────────────────────────────────────────────────────────────
+interface ContextMenuProps {
+  x: number;
+  y: number;
+  onDelete: () => void;
+  onMove: () => void;
+  onClose: () => void;
+}
+
+function ContextMenu({ x, y, onDelete, onMove, onClose }: ContextMenuProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
   return (
     <div
-      onClick={onClick}
-      className={`relative aspect-square rounded-lg overflow-hidden border-2 bg-gray-800 cursor-pointer ${
+      ref={ref}
+      style={{ position: 'fixed', left: x, top: y, zIndex: 9999 }}
+      className="bg-gray-900 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[160px]"
+    >
+      <button
+        onClick={() => { onDelete(); onClose(); }}
+        className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-gray-800 flex items-center gap-2"
+      >
+        🗑 Xóa ảnh
+      </button>
+      <button
+        onClick={() => { onMove(); onClose(); }}
+        className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800 flex items-center gap-2"
+      >
+        ↪ Di chuyển tới thư mục…
+      </button>
+    </div>
+  );
+}
+
+// ── Tile ──────────────────────────────────────────────────────────────────────
+// Memo comparator: only re-render when asset identity or selection changes.
+// onDeleteOne / onCheckbox / onContextMenu closures are intentionally ignored —
+// they're stable per-asset via useCallback in ImageGrid.
+const Tile = React.memo(function Tile({
+  asset,
+  selected,
+  onBodyClick,
+  onCheckbox,
+  onDeleteOne,
+  onContextMenu,
+}: {
+  asset: ImageAsset;
+  selected: boolean;
+  onBodyClick: () => void;
+  onCheckbox: (e: React.MouseEvent) => void;
+  onDeleteOne: (e: React.MouseEvent) => void;
+  onContextMenu: (e: React.MouseEvent) => void;
+}) {
+  const [errored, setErrored] = useState(false);
+  // Thumbnail (240px) for the grid; lightbox uses full-res separately.
+  const src = toLocalMediaUrl(asset.rel_path, 240);
+
+  return (
+    <div
+      onClick={onBodyClick}
+      onContextMenu={onContextMenu}
+      className={`relative aspect-square rounded-lg overflow-hidden border-2 bg-gray-800 cursor-pointer group ${
         selected ? 'border-blue-600' : 'border-transparent'
       }`}
     >
       {errored ? (
         <div className="w-full h-full flex items-center justify-center text-gray-600">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9l4-4 4 4 4-4 4 4"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9l4-4 4 4 4-4 4 4"/>
+          </svg>
         </div>
       ) : (
         <img
-          src={src} alt={asset.rel_path} loading="lazy"
+          src={src}
+          alt={asset.rel_path}
+          loading="lazy"
+          decoding="async"
           onError={() => setErrored(true)}
           className="w-full h-full object-cover"
         />
       )}
-      <span className={`absolute top-1 left-1 text-[9px] px-1.5 py-0.5 rounded font-semibold leading-none ${
+
+      {/* Origin badge (top-left, below checkbox) */}
+      <span className={`absolute top-1 left-7 text-[9px] px-1.5 py-0.5 rounded font-semibold leading-none pointer-events-none ${
         asset.origin === 'ai' ? 'bg-purple-600/80 text-white' : 'bg-black/55 text-gray-200'
       }`}>
         {asset.origin === 'ai' ? 'AI' : 'Upload'}
       </span>
-      {selMode && (
-        <span className={`absolute top-1 right-1 w-[18px] h-[18px] rounded flex items-center justify-center text-[11px] ${
-          selected ? 'bg-blue-600 text-white' : 'bg-black/50 text-transparent'
-        }`}>
-          {selected ? '✓' : ''}
-        </span>
-      )}
+
+      {/* Checkbox — top-left, visible on hover or when selected */}
+      <span
+        onClick={onCheckbox}
+        className={`absolute top-1 left-1 w-[18px] h-[18px] rounded flex items-center justify-center text-[11px] cursor-pointer z-10 transition-opacity ${
+          selected
+            ? 'bg-blue-600 text-white opacity-100'
+            : 'bg-black/50 text-transparent opacity-0 group-hover:opacity-100'
+        }`}
+      >
+        {selected ? '✓' : ''}
+      </span>
+
+      {/* Delete (✕) button — top-right, visible on hover */}
+      <button
+        onClick={onDeleteOne}
+        className="absolute top-1 right-1 w-[18px] h-[18px] rounded flex items-center justify-center text-[10px] bg-black/60 text-gray-300 hover:bg-red-600 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer"
+        title="Xóa ảnh này"
+      >
+        ✕
+      </button>
+
+      {/* Dimensions badge */}
       {asset.width && asset.height && (
-        <span className="absolute bottom-1 right-1 text-[9px] px-1 py-0.5 rounded bg-black/50 text-gray-300 leading-none">
+        <span className="absolute bottom-1 right-1 text-[9px] px-1 py-0.5 rounded bg-black/50 text-gray-300 leading-none pointer-events-none">
           {asset.width}×{asset.height}
         </span>
       )}
@@ -51,41 +131,63 @@ const Tile = React.memo(function Tile({
   );
 }, (prev, next) =>
   prev.asset.id === next.asset.id &&
-  prev.selected === next.selected &&
-  prev.selMode === next.selMode
+  prev.selected === next.selected
 );
 
+// ── Grid props ────────────────────────────────────────────────────────────────
 export interface ImageGridProps {
   assets: ImageAsset[];
   loading: boolean;
   folderLabel: string;
   uploading: boolean;
   generating: boolean;
-  selMode: boolean;
   selectedIds: Set<number>;
   aiPrompt: string;
   onAiPromptChange: (v: string) => void;
   onUpload: () => void;
   onGenerateAI: () => void;
-  onToggleSelMode: () => void;
   onTileClick: (asset: ImageAsset) => void;
+  onDeleteOne: (id: number) => void;
   onBulkMove: () => void;
   onBulkDelete: () => void;
   onClearSel: () => void;
+  onMoveOne: (id: number) => void;
 }
 
+// ── ImageGrid ─────────────────────────────────────────────────────────────────
 export default function ImageGrid({
-  assets, loading, folderLabel, uploading, generating, selMode, selectedIds,
-  aiPrompt, onAiPromptChange, onUpload, onGenerateAI, onToggleSelMode,
-  onTileClick, onBulkMove, onBulkDelete, onClearSel,
+  assets, loading, folderLabel, uploading, generating, selectedIds,
+  aiPrompt, onAiPromptChange, onUpload, onGenerateAI,
+  onTileClick, onDeleteOne, onBulkMove, onBulkDelete, onClearSel, onMoveOne,
 }: ImageGridProps) {
   const [lightbox, setLightbox] = useState<string | null>(null);
-  const showBulk = selMode && selectedIds.size > 0;
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; assetId: number } | null>(null);
 
-  const handleTile = (a: ImageAsset) => {
-    if (!selMode) { setLightbox(toLocalMediaUrl(a.rel_path)); return; }
+  const showBulk = selectedIds.size > 0;
+
+  // Body click → lightbox (full res, no thumbnail)
+  const handleBodyClick = useCallback((a: ImageAsset) => {
+    setLightbox(toLocalMediaUrl(a.rel_path));
+  }, []);
+
+  // Checkbox click → toggle selection
+  const handleCheckbox = useCallback((e: React.MouseEvent, a: ImageAsset) => {
+    e.stopPropagation();
     onTileClick(a);
-  };
+  }, [onTileClick]);
+
+  // ✕ button → delete one
+  const handleDeleteBtn = useCallback((e: React.MouseEvent, id: number) => {
+    e.stopPropagation();
+    onDeleteOne(id);
+  }, [onDeleteOne]);
+
+  // Right-click → context menu
+  const handleContextMenu = useCallback((e: React.MouseEvent, id: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY, assetId: id });
+  }, []);
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -101,14 +203,6 @@ export default function ImageGrid({
           {uploading
             ? <><svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Đang tải...</>
             : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg>Tải ảnh lên</>}
-        </button>
-        <button
-          onClick={onToggleSelMode}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border ${
-            selMode ? 'bg-blue-600 border-blue-600 text-white' : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'
-          }`}
-        >
-          ☑ Chọn nhiều
         </button>
       </div>
 
@@ -134,7 +228,7 @@ export default function ImageGrid({
         </div>
       </div>
 
-      {/* Bulk bar */}
+      {/* Bulk bar — appears whenever selectedIds.size ≥ 1 */}
       {showBulk && (
         <div className="flex items-center gap-2 px-3.5 py-2 bg-[#0e1726] border-b border-gray-700 flex-shrink-0">
           <span className="text-xs text-gray-200">{selectedIds.size} đã chọn</span>
@@ -161,16 +255,18 @@ export default function ImageGrid({
               <Tile
                 key={a.id}
                 asset={a}
-                selMode={selMode}
                 selected={a.id != null && selectedIds.has(a.id)}
-                onClick={() => handleTile(a)}
+                onBodyClick={() => handleBodyClick(a)}
+                onCheckbox={(e) => handleCheckbox(e, a)}
+                onDeleteOne={(e) => handleDeleteBtn(e, a.id!)}
+                onContextMenu={(e) => handleContextMenu(e, a.id!)}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Lightbox */}
+      {/* Lightbox — full resolution (no width param) */}
       {lightbox && (
         <div
           onClick={() => setLightbox(null)}
@@ -178,6 +274,17 @@ export default function ImageGrid({
         >
           <img src={lightbox} alt="" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
         </div>
+      )}
+
+      {/* Context menu */}
+      {ctxMenu && (
+        <ContextMenu
+          x={ctxMenu.x}
+          y={ctxMenu.y}
+          onDelete={() => onDeleteOne(ctxMenu.assetId)}
+          onMove={() => onMoveOne(ctxMenu.assetId)}
+          onClose={() => setCtxMenu(null)}
+        />
       )}
     </div>
   );

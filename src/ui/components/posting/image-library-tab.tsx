@@ -18,7 +18,6 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
   const [uploading, setUploading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
-  const [selMode, setSelMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [uncCount, setUncCount] = useState(0);
 
@@ -78,7 +77,6 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
 
   // ── selection ──
   const clearSel = () => { setSelectedIds(new Set()); };
-  const toggleSelMode = () => { setSelMode((v) => { if (v) clearSel(); return !v; }); };
   const tileClick = (a: ImageAsset) => {
     if (a.id == null) return;
     setSelectedIds((prev) => {
@@ -136,6 +134,28 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
     }
   };
 
+  // ── single delete ──
+  const handleDeleteOne = useCallback(async (id: number) => {
+    const ok = await showConfirm({
+      title: 'Xóa ảnh này?',
+      message: 'Thao tác không thể hoàn tác.',
+      variant: 'danger', confirmText: 'Xóa',
+    });
+    if (!ok) return;
+    try {
+      const res = await ipc.posting?.imageDelete({ zaloId, ids: [id] });
+      if (res?.success) {
+        showNotification('Đã xóa ảnh', 'success');
+        setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
+        await refreshAll();
+      } else {
+        showNotification(res?.error || 'Xóa thất bại', 'error');
+      }
+    } catch (e: any) {
+      showNotification(e?.message || 'Lỗi kết nối', 'error');
+    }
+  }, [zaloId, refreshAll, showNotification]);
+
   // ── bulk delete ──
   const handleBulkDelete = async () => {
     const ids = [...selectedIds];
@@ -150,7 +170,7 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
       const res = await ipc.posting?.imageDelete({ zaloId, ids });
       if (res?.success) {
         showNotification(`Đã xóa ${ids.length} ảnh`, 'success');
-        clearSel(); setSelMode(false);
+        clearSel();
         await refreshAll();
       } else {
         showNotification(res?.error || 'Xóa thất bại', 'error');
@@ -160,7 +180,7 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
     }
   };
 
-  // ── bulk move ──
+  // ── move (bulk or single via context menu) ──
   const handleMove = async (folderId: number | null) => {
     const ids = [...selectedIds];
     setShowMove(false);
@@ -169,7 +189,7 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
       const res = await ipc.posting?.imageMove({ zaloId, ids, folderId });
       if (res?.success) {
         showNotification(`Đã di chuyển ${ids.length} ảnh`, 'success');
-        clearSel(); setSelMode(false);
+        clearSel();
         await refreshAll();
       } else {
         showNotification(res?.error || 'Di chuyển thất bại', 'error');
@@ -178,6 +198,13 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
       showNotification(e?.message || 'Lỗi kết nối', 'error');
     }
   };
+
+  // Context menu "Di chuyển tới…" for a single image:
+  // select just that image then open MoveImagesModal.
+  const handleMoveOne = useCallback((id: number) => {
+    setSelectedIds(new Set([id]));
+    setShowMove(true);
+  }, []);
 
   // ── folder CRUD ──
   const handleAddFolder = async (name: string, description: string) => {
@@ -244,17 +271,17 @@ export default function ImageLibraryTab({ zaloId }: { zaloId: string }) {
         folderLabel={folderLabel}
         uploading={uploading}
         generating={generating}
-        selMode={selMode}
         selectedIds={selectedIds}
         aiPrompt={aiPrompt}
         onAiPromptChange={setAiPrompt}
         onUpload={handleUpload}
         onGenerateAI={handleGenerateAI}
-        onToggleSelMode={toggleSelMode}
         onTileClick={tileClick}
+        onDeleteOne={handleDeleteOne}
         onBulkMove={() => setShowMove(true)}
         onBulkDelete={handleBulkDelete}
         onClearSel={clearSel}
+        onMoveOne={handleMoveOne}
       />
 
       <AddFolderModal open={showAdd} onClose={() => setShowAdd(false)} onSubmit={handleAddFolder} />
