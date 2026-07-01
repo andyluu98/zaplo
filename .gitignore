@@ -13,3 +13,11 @@ agents/
 .DS_Store
 docs/
 .vscode/
+
+# ── Scratch / process artifacts (subagent-driven dev) ──
+.superpowers/
+
+# ── One-off debug probes — may contain real credentials, NEVER commit ──
+plans/reports/*.py
+plans/reports/*.cjs
+plans/reports/fb-login-rootcause-*.md
