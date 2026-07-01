@@ -1,43 +1,52 @@
-import { buildVariationPrompt, parsePosts, generateVariations } from '../services/facebook/write/generate-variations';
+import { generateVariations, buildSinglePostPrompt } from '../services/facebook/write/generate-variations';
 
-test('prompt chứa số lượng + chủ đề + yêu cầu mảng JSON, KHÔNG ép ngắn gọn', () => {
-  const p = buildVariationPrompt('khai giảng khóa học', 3);
-  expect(p).toContain('3');
-  expect(p).toContain('khai giảng khóa học');
-  expect(p.toLowerCase()).toContain('json');
-  expect(p).not.toContain('ngắn gọn');
+test('generateVariations: gọi chatFn ĐÚNG count lần (1 bài/call)', async () => {
+  let calls = 0;
+  const chatFn = async () => { calls++; return `bài số ${calls} nội dung dài đủ ý`; };
+  const out = await generateVariations('chủ đề', 5, chatFn);
+  expect(calls).toBe(5);
+  expect(out).toHaveLength(5);
+  expect(out[0]).toContain('bài số 1');
 });
 
-test('parsePosts: đọc mảng JSON (kể cả khi có code-fence + chữ thừa)', () => {
-  expect(parsePosts('["Bài 1", "Bài 2"]')).toEqual(['Bài 1', 'Bài 2']);
-  expect(parsePosts('```json\n["A", "B"]\n```')).toEqual(['A', 'B']);
-  expect(parsePosts('Đây là kết quả: ["X", "  Y  "] hết.')).toEqual(['X', 'Y']);
-});
-
-test('parsePosts: fallback tách theo --- hoặc dòng trống kép khi không phải JSON', () => {
-  expect(parsePosts('Bài 1\n---\nBài 2')).toEqual(['Bài 1', 'Bài 2']);
-  expect(parsePosts('1. Bài A\n\nBài B')).toEqual(['Bài A', 'Bài B']);
-  expect(parsePosts('')).toEqual([]);
-});
-
-test('generateVariations: gọi nhiều LÔ, gộp đủ count, khử trùng lặp', async () => {
-  const calls: number[] = [];
-  // mỗi lô trả 2 bài; lô 2 lặp 1 bài để kiểm tra khử trùng
+test('generateVariations: trim kết quả + loại bài rỗng, retry nhẹ ≤1', async () => {
+  // call #2 trả rỗng lần đầu → retry 1 lần ra nội dung
   let n = 0;
-  const chatFn = async () => {
-    n++;
-    calls.push(n);
-    if (n === 1) return '["bài 1", "bài 2"]';
-    if (n === 2) return '["bài 2", "bài 3"]'; // "bài 2" trùng → bị bỏ
-    return '["bài 4", "bài 5"]';
-  };
-  const out = await generateVariations('chủ đề', 4, chatFn, { batchSize: 2 });
-  expect(out).toEqual(['bài 1', 'bài 2', 'bài 3', 'bài 4']);
-  expect(calls.length).toBeGreaterThanOrEqual(3); // phải gọi nhiều lô
+  const seq = ['  bài A  ', '', 'bài B (retry)', 'bài C'];
+  const chatFn = async () => seq[n++] ?? 'bù';
+  const out = await generateVariations('t', 3, chatFn);
+  expect(out).toEqual(['bài A', 'bài B (retry)', 'bài C']);
+  expect(n).toBe(4); // 3 bài + 1 retry
 });
 
-test('generateVariations: dừng khi lô liên tục rỗng (không lặp vô hạn)', async () => {
-  const chatFn = async () => '[]';
-  const out = await generateVariations('x', 10, chatFn, { batchSize: 2 });
-  expect(out).toEqual([]);
+test('generateVariations: bài rỗng bền vững (retry vẫn rỗng → bỏ, không kẹt)', async () => {
+  const chatFn = async () => '';
+  const out = await generateVariations('t', 3, chatFn);
+  expect(out).toEqual([]); // rỗng hết → loại hết, không vòng lặp vô hạn
+});
+
+test('generateVariations: onProgress gọi đủ (done tăng 1..total)', async () => {
+  const seen: Array<[number, number]> = [];
+  const chatFn = async () => 'bài ok';
+  await generateVariations('t', 3, chatFn, { onProgress: (d, tot) => seen.push([d, tot]) });
+  expect(seen).toEqual([[1, 3], [2, 3], [3, 3]]);
+});
+
+test('generateVariations: signal.aborted dừng sớm', async () => {
+  const signal = { aborted: false };
+  let calls = 0;
+  const chatFn = async () => { calls++; if (calls === 2) signal.aborted = true; return `bài ${calls}`; };
+  const out = await generateVariations('t', 10, chatFn, { signal });
+  expect(calls).toBe(2);
+  expect(out).toHaveLength(2);
+});
+
+test('buildSinglePostPrompt: chứa chủ đề + số thứ tự, KHÔNG ép JSON/mảng', () => {
+  const p = buildSinglePostPrompt('khai giảng khóa học', 0, 3);
+  expect(p).toContain('khai giảng khóa học');
+  expect(p).toContain('1'); // bài số index+1
+  expect(p).toContain('3'); // trong bộ 3 bài
+  expect(p.toLowerCase()).not.toContain('json');
+  expect(p.toLowerCase()).not.toContain('mảng');
+  expect(p).not.toContain('ngắn gọn');
 });
