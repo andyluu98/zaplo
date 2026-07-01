@@ -738,6 +738,48 @@ app.whenReady().then(async () => {
     };
     const contentType = mimeTypes[ext] || 'application/octet-stream';
 
+    // ── Thumbnail on-the-fly (optional ?w=<px>) ─────────────────────────────
+    // Only for image types; falls back to full file on any error.
+    const parsedUrl = new URL(request.url);
+    const wParam = parsedUrl.searchParams.get('w');
+    const thumbWidth = wParam ? parseInt(wParam, 10) : NaN;
+    const isImageExt = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+
+    if (!isNaN(thumbWidth) && thumbWidth > 0 && isImageExt) {
+      try {
+        const thumbsDir = path.join(app.getPath('userData'), 'media-thumbs');
+        fs.mkdirSync(thumbsDir, { recursive: true });
+
+        // Cache key: relPath + width + source mtime — invalidates if file changes
+        const stat = fs.statSync(absPath);
+        const cacheKey = Buffer.from(`${absPath}:${thumbWidth}:${stat.mtimeMs}`).toString('base64url');
+        const cachePath = path.join(thumbsDir, `${cacheKey}.jpg`);
+
+        let thumbData: Buffer;
+        if (fs.existsSync(cachePath)) {
+          thumbData = fs.readFileSync(cachePath);
+        } else {
+          const img = nativeImage.createFromPath(absPath);
+          if (img.isEmpty()) throw new Error('empty nativeImage');
+          const resized = img.resize({ width: thumbWidth, quality: 'good' });
+          thumbData = resized.toJPEG(80);
+          fs.writeFileSync(cachePath, thumbData);
+        }
+
+        return new Response(new Uint8Array(thumbData), {
+          status: 200,
+          headers: {
+            'Content-Type': 'image/jpeg',
+            'Content-Length': String(thumbData.length),
+            'Cache-Control': 'public, max-age=86400',
+            'Access-Control-Allow-Origin': '*',
+          },
+        });
+      } catch {
+        // Fall through to serve original on any thumbnail error
+      }
+    }
+
     const data = fs.readFileSync(absPath);
     return new Response(data, {
       status: 200,
