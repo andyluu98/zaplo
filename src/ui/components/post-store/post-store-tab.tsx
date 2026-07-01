@@ -15,26 +15,40 @@ interface Post {
   title: string;
   content: string;
   image_count: number;
+  image_folder_id?: number | null;
+  image_random?: boolean;
   source?: string;
   created_at?: number;
 }
 
 interface Assistant { id: string; name: string; }
+interface ImageFolder { id?: number; name: string; image_count?: number; }
 
 // ─── Edit Modal ───────────────────────────────────────────────────────────────
 
 interface EditModalProps {
   post: Partial<Post> | null;
+  zaloId?: string;
   onClose: () => void;
   onSaved: () => void;
 }
 
-function EditModal({ post, onClose, onSaved }: EditModalProps) {
+function EditModal({ post, zaloId, onClose, onSaved }: EditModalProps) {
   const showNotification = useAppStore(s => s.showNotification);
   const [title, setTitle] = useState(post?.title ?? '');
   const [content, setContent] = useState(post?.content ?? '');
   const [imageCount, setImageCount] = useState<number>(post?.image_count ?? 1);
+  const [folderId, setFolderId] = useState<number | ''>(post?.image_folder_id ?? '');
+  const [imgMode, setImgMode] = useState<'fixed' | 'random'>(post?.image_random ? 'random' : 'fixed');
+  const [folders, setFolders] = useState<ImageFolder[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!zaloId) return;
+    ipc.posting?.folderList({ zaloId }).then(res => {
+      if (res?.success) setFolders(res.folders ?? []);
+    }).catch(() => {});
+  }, [zaloId]);
 
   async function handleSave() {
     if (!content.trim()) {
@@ -43,10 +57,15 @@ function EditModal({ post, onClose, onSaved }: EditModalProps) {
     }
     setSaving(true);
     try {
-      const payload: { id?: number; title: string; content: string; image_count: number } = {
+      const payload: {
+        id?: number; title: string; content: string; image_count: number;
+        image_folder_id: number | null; image_random: boolean;
+      } = {
         title: title.trim() || content.trim().slice(0, 57) + (content.trim().length > 57 ? '…' : ''),
         content: content.trim(),
         image_count: Math.max(0, imageCount),
+        image_folder_id: folderId === '' ? null : Number(folderId),
+        image_random: imgMode === 'random',
       };
       if (post?.id) payload.id = post.id;
       const res = await ipc.postStore.save({ post: payload });
@@ -61,6 +80,8 @@ function EditModal({ post, onClose, onSaved }: EditModalProps) {
       setSaving(false);
     }
   }
+
+  const sel = 'w-full bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
@@ -91,15 +112,44 @@ function EditModal({ post, onClose, onSaved }: EditModalProps) {
           disabled={saving}
         />
 
-        <label className="block text-gray-400 text-xs mb-1">Số ảnh ngẫu nhiên</label>
-        <input
-          type="number"
-          min={0}
-          className="w-24 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2 mb-5"
-          value={imageCount}
-          onChange={e => setImageCount(Math.max(0, parseInt(e.target.value) || 0))}
-          disabled={saving}
-        />
+        {/* Nguồn ảnh */}
+        <label className="block text-gray-400 text-xs mb-1">Nguồn ảnh</label>
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          <select
+            className={sel + ' flex-1 min-w-[140px]'}
+            value={folderId}
+            onChange={e => setFolderId(e.target.value === '' ? '' : Number(e.target.value))}
+            disabled={saving}
+          >
+            <option value="">— Tất cả —</option>
+            {folders.filter(f => f.id != null).map(f => (
+              <option key={f.id} value={f.id}>
+                {f.name}{f.image_count != null ? ` (${f.image_count})` : ''}
+              </option>
+            ))}
+          </select>
+          <select
+            className={sel + ' w-32'}
+            value={imgMode}
+            onChange={e => setImgMode(e.target.value as 'fixed' | 'random')}
+            disabled={saving}
+          >
+            <option value="fixed">Cố định</option>
+            <option value="random">Ngẫu nhiên</option>
+          </select>
+          <input
+            type="number"
+            min={0}
+            className="w-16 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm px-3 py-2"
+            value={imageCount}
+            onChange={e => setImageCount(Math.max(0, parseInt(e.target.value) || 0))}
+            disabled={saving}
+          />
+          <span className="text-gray-400 text-xs">ảnh</span>
+        </div>
+        {!zaloId && (
+          <p className="text-gray-500 text-xs mb-3">Chọn tài khoản để xem danh sách thư mục ảnh.</p>
+        )}
 
         <div className="flex gap-3 justify-end">
           <button
@@ -150,7 +200,10 @@ function PostCard({ post, selected, onToggle, onEdit, onDelete }: PostCardProps)
         {post.content}
       </p>
       <div className="flex items-center justify-between pl-6 mt-1">
-        <span className="text-gray-500 text-xs">🖼️ {post.image_count} ảnh (ngẫu nhiên)</span>
+        <span className="text-gray-500 text-xs">
+          🖼️ {post.image_count} ảnh
+          {post.image_folder_id ? (post.image_random ? ' · ngẫu nhiên từ thư mục' : ' · cố định từ thư mục') : ' (ngẫu nhiên)'}
+        </span>
         <div className="flex gap-2">
           <button
             onClick={onEdit}
@@ -172,7 +225,7 @@ function PostCard({ post, selected, onToggle, onEdit, onDelete }: PostCardProps)
 
 // ─── Main Tab ─────────────────────────────────────────────────────────────────
 
-export default function PostStoreTab() {
+export default function PostStoreTab({ zaloId }: { zaloId?: string }) {
   const showNotification = useAppStore(s => s.showNotification);
 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -390,6 +443,7 @@ export default function PostStoreTab() {
       {showEditModal && (
         <EditModal
           post={editPost}
+          zaloId={zaloId}
           onClose={() => setShowEditModal(false)}
           onSaved={loadPosts}
         />

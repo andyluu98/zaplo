@@ -79,7 +79,7 @@ export default function FbWritePage() {
         ) : (
           <>
             {activeTab === 'post'    && <FbPostComposer accountId={accountId} accountName={active?.name || accountId} />}
-            {activeTab === 'store'   && <PostStoreTab />}
+            {activeTab === 'store'   && <PostStoreTab zaloId={accountId} />}
             {activeTab === 'images'  && <ImageLibraryTab zaloId={accountId} />}
             {activeTab === 'calendar' && <ContentCalendarTab />}
             {activeTab === 'groups'  && <FbGroupsManager accountId={accountId} />}

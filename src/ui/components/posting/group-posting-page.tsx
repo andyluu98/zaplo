@@ -67,7 +67,7 @@ export default function GroupPostingPage() {
           <>
             {activeTab === 'stats'    && <StatsTab zaloId={activeAccountId} />}
             {activeTab === 'compose'  && <ZaloComposeTab zaloId={activeAccountId} />}
-            {activeTab === 'store'    && <PostStoreTab />}
+            {activeTab === 'store'    && <PostStoreTab zaloId={activeAccountId} />}
             {activeTab === 'images'   && <ImageLibraryTab zaloId={activeAccountId} />}
             {activeTab === 'calendar' && <ContentCalendarTab />}
             {activeTab === 'groups'   && <ZaloGroupsTab zaloId={activeAccountId} />}
