@@ -48,9 +48,9 @@ require (
 // Or change the path below to point at an existing checkout.
 replace go.mau.fi/mautrix-meta => ./meta
 
-// Pin qpack to v0.5.1 — the API github.com/imroc/req/v3 v3.56.0 (transitive HTTP/3
-// client, pulled via mautrix/meta) is written against. A newer transitive dep drifts
-// qpack to v0.6.x which changed NewDecoder's signature and removed DecodeFull, breaking
-// req's internal/http3 build on CI. Paired with the pinned meta commit, this restores
-// the known-good dependency set from the last green release.
-replace github.com/quic-go/qpack => github.com/quic-go/qpack v0.5.1
+// mautrix/meta redirects imroc/req to Beeper's fork (which adds req.WithTransportOverride,
+// used by meta's HTTP client). Go IGNORES replace directives declared by dependencies, so
+// the main module (this bridge) must mirror it — otherwise req resolves to upstream v3.56.0
+// which lacks WithTransportOverride and fails the build. This version matches the pinned
+// meta commit above (the last green release's dependency set; brings qpack v0.6 API too).
+replace github.com/imroc/req/v3 => github.com/beeper/req/v3 v3.0.0-20260114152409-4c060b237f73
