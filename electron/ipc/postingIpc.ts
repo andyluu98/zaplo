@@ -18,6 +18,9 @@ import AIAssistantService from '../../src/services/ai/AIAssistantService';
 import { generateImage } from '../../src/services/posting/posting-image-generator';
 import { postManualToGroups } from '../../src/services/posting/manual-post-sender';
 import Logger from '../../src/utils/Logger';
+import { folderListLogic, folderSaveLogic, folderDeleteLogic,
+         imageListLogic, imageMoveLogic, normalizeDeleteIds } from '../../src/services/posting/image-ipc-helpers';
+import type { ImageFolder } from '../../src/models/automation';
 
 export function registerPostingIpc(): void {
 
@@ -347,15 +350,44 @@ export function registerPostingIpc(): void {
         }
     });
 
+    // ─── Image Folders ─────────────────────────────────────────────────────────
+
+    /** posting:folder.list -> { success, folders } */
+    ipcMain.handle('posting:folder.list', async (_e, a: { zaloId: string }) => {
+        try { return folderListLogic(DatabaseService.getInstance(), a); }
+        catch (e: any) { Logger.error(`[postingIpc] folder.list: ${e.message}`); return { success: false, error: e.message }; }
+    });
+
+    /** posting:folder.save -> { success, id } */
+    ipcMain.handle('posting:folder.save', async (_e, a: { zaloId: string; folder: ImageFolder }) => {
+        try { return folderSaveLogic(DatabaseService.getInstance(), a); }
+        catch (e: any) { Logger.error(`[postingIpc] folder.save: ${e.message}`); return { success: false, error: e.message }; }
+    });
+
+    /** posting:folder.delete -> { success } (mode: 'move'|'purge'). Purge deletes files from disk. */
+    ipcMain.handle('posting:folder.delete', async (_e, a: { zaloId: string; id: number; mode: 'move' | 'purge' }) => {
+        try {
+            const result = folderDeleteLogic(DatabaseService.getInstance(), a);
+            if (result.success && a.mode === 'purge') {
+                for (const relPath of result.purgedRelPaths) {
+                    const absPath = FileStorageService.resolveAbsolutePath(relPath);
+                    FileStorageService.deleteFile(absPath);
+                }
+            }
+            return result.success ? { success: true } : result;
+        } catch (e: any) { Logger.error(`[postingIpc] folder.delete: ${e.message}`); return { success: false, error: e.message }; }
+    });
+
     // ─── Image Library ────────────────────────────────────────────────────────
 
     /**
      * posting:image.upload — copy a user-picked file into managed media storage
-     * and register it in image_asset.
-     * Args: { zaloId: string; filePath: string }
+     * and register it in image_asset. Accepts optional folderId to assign the
+     * image to a folder immediately on upload.
+     * Args: { zaloId: string; filePath: string; folderId?: number | null }
      * Returns: { success: true; id: number; rel_path: string } | { success: false; error: string }
      */
-    ipcMain.handle('posting:image.upload', async (_e, { zaloId, filePath }: { zaloId: string; filePath: string }) => {
+    ipcMain.handle('posting:image.upload', async (_e, { zaloId, filePath, folderId }: { zaloId: string; filePath: string; folderId?: number | null }) => {
         try {
             if (!zaloId || !filePath) return { success: false, error: 'Missing zaloId or filePath' };
             if (!fs.existsSync(filePath)) return { success: false, error: 'Source file not found' };
@@ -382,7 +414,7 @@ export function registerPostingIpc(): void {
             } catch { /* non-fatal — dimensions are optional */ }
 
             const db = DatabaseService.getInstance();
-            const id = db.saveImageAsset({ owner_zalo_id: zaloId, rel_path, origin: 'upload', width, height });
+            const id = db.saveImageAsset({ owner_zalo_id: zaloId, rel_path, origin: 'upload', width, height, folder_id: folderId ?? null });
             db.save();
 
             return { success: true, id, rel_path };
@@ -394,28 +426,34 @@ export function registerPostingIpc(): void {
 
     /**
      * posting:image.list — return image_asset rows for a zaloId.
+     * Accepts optional folderId: number = specific folder, null = unassigned, 'all' = all images.
      * Renderer calls toLocalMediaUrl(rel_path) to display images.
-     * Args: { zaloId: string }
+     * Args: { zaloId: string; folderId?: number | null | 'all' }
      * Returns: { success: true; assets: ImageAsset[] } | { success: false; error: string }
      */
-    ipcMain.handle('posting:image.list', async (_e, { zaloId }: { zaloId: string }) => {
-        try {
-            if (!zaloId) return { success: false, error: 'Missing zaloId' };
-            const assets = DatabaseService.getInstance().getImageAssets(zaloId);
-            return { success: true, assets };
-        } catch (e: any) {
-            Logger.error(`[postingIpc] image.list: ${e.message}`);
-            return { success: false, error: e.message };
-        }
+    ipcMain.handle('posting:image.list', async (_e, a: { zaloId: string; folderId?: number | null | 'all' }) => {
+        try { return imageListLogic(DatabaseService.getInstance(), a); }
+        catch (e: any) { Logger.error(`[postingIpc] image.list: ${e.message}`); return { success: false, error: e.message }; }
+    });
+
+    /**
+     * posting:image.move — move images to a different folder (or null = unassigned).
+     * Args: { zaloId: string; ids: number[]; folderId: number | null }
+     * Returns: { success: true } | { success: false; error: string }
+     */
+    ipcMain.handle('posting:image.move', async (_e, a: { zaloId: string; ids: number[]; folderId: number | null }) => {
+        try { return imageMoveLogic(DatabaseService.getInstance(), a); }
+        catch (e: any) { Logger.error(`[postingIpc] image.move: ${e.message}`); return { success: false, error: e.message }; }
     });
 
     /**
      * posting:image.generate — generate an AI image via DALL-E 3, save to media storage,
-     * and register it as an image_asset with origin='ai'.
-     * Args: { zaloId: string; prompt: string }
+     * and register it as an image_asset with origin='ai'. Accepts optional folderId to
+     * assign the generated image to a folder immediately.
+     * Args: { zaloId: string; prompt: string; folderId?: number | null }
      * Returns: { success: true; id: number; rel_path: string } | { success: false; error: string }
      */
-    ipcMain.handle('posting:image.generate', async (_e, { zaloId, prompt }: { zaloId: string; prompt: string }) => {
+    ipcMain.handle('posting:image.generate', async (_e, { zaloId, prompt, folderId }: { zaloId: string; prompt: string; folderId?: number | null }) => {
         try {
             if (!zaloId || !prompt?.trim()) return { success: false, error: 'Missing zaloId or prompt' };
 
@@ -451,7 +489,7 @@ export function registerPostingIpc(): void {
             } catch { /* non-fatal */ }
 
             const db = DatabaseService.getInstance();
-            const id = db.saveImageAsset({ owner_zalo_id: zaloId, rel_path, origin: 'ai', width, height });
+            const id = db.saveImageAsset({ owner_zalo_id: zaloId, rel_path, origin: 'ai', width, height, folder_id: folderId ?? null });
             db.save();
 
             Logger.info(`[postingIpc] image.generate: saved id=${id}, rel_path=${rel_path}`);
@@ -463,25 +501,25 @@ export function registerPostingIpc(): void {
     });
 
     /**
-     * posting:image.delete — delete image_asset row and best-effort delete the file.
-     * Args: { zaloId: string; id: number }
+     * posting:image.delete — delete image_asset rows and best-effort delete files from disk.
+     * Accepts { ids: number[] } (new bulk) or legacy { id: number } — both normalized via normalizeDeleteIds.
+     * Args: { zaloId: string; ids?: number[]; id?: number }
      * Returns: { success: true } | { success: false; error: string }
      */
-    ipcMain.handle('posting:image.delete', async (_e, { zaloId, id }: { zaloId: string; id: number }) => {
+    ipcMain.handle('posting:image.delete', async (_e, a: { zaloId: string; ids?: number[]; id?: number }) => {
         try {
-            if (!zaloId || !id) return { success: false, error: 'Missing zaloId or id' };
+            if (!a.zaloId) return { success: false, error: 'Missing zaloId' };
+            const ids = normalizeDeleteIds(a);
+            if (ids.length === 0) return { success: false, error: 'Chưa chọn ảnh nào' };
             const db = DatabaseService.getInstance();
 
-            // Fetch the asset to find the file path before deleting the row
-            const assets = db.getImageAssets(zaloId);
-            const asset = assets.find(a => a.id === id);
-
-            db.deleteImageAsset(zaloId, id);
-            db.save();
+            // Fetch rel_paths before deleting rows (deleteImages returns purgedRelPaths)
+            const result = db.deleteImages(a.zaloId, ids);
+            // db.deleteImages already calls save() internally
 
             // Best-effort file deletion — do not fail if file is missing
-            if (asset?.rel_path) {
-                const absPath = FileStorageService.resolveAbsolutePath(asset.rel_path);
+            for (const relPath of result.purgedRelPaths) {
+                const absPath = FileStorageService.resolveAbsolutePath(relPath);
                 FileStorageService.deleteFile(absPath);
             }
 
