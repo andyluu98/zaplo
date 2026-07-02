@@ -13,7 +13,7 @@
 
 > **Zaplo** là desktop app Electron + React + TypeScript giúp đội nhóm bán hàng, marketing, chăm sóc khách hàng quản lý nhiều tài khoản Zalo & Facebook trong một giao diện duy nhất. Tích hợp CRM, AI & Agent hub tự động, Kho bài & rải lịch, Auto-comment, Workflow kéo-thả, ERP nội bộ, và không giữ dữ liệu trên cloud — mọi thứ lưu cục bộ máy bạn.
 
-[![Version](https://img.shields.io/badge/version-26.7.38-22c55e)](#)
+[![Version](https://img.shields.io/badge/version-26.8.0-22c55e)](#)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-3b82f6)](#-yêu-cầu-hệ-thống)
 [![Electron](https://img.shields.io/badge/Electron-41-47848f?logo=electron&logoColor=white)](#)
 [![React](https://img.shields.io/badge/React-18-61dafb?logo=react&logoColor=white)](#)
@@ -37,47 +37,48 @@
 
 ---
 
-## ⬇️ Tải xuống (v26.7.38)
+## ⬇️ Tải xuống (v26.8.0)
 
 <table>
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-Setup-26.7.38.exe">
-<img src="https://img.shields.io/badge/🪟_Windows_10/11-v26.7.38-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows" />
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-Setup-26.8.0.exe">
+<img src="https://img.shields.io/badge/🪟_Windows_10/11-v26.8.0-0078d4?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows" />
 </a>
 
-<big><strong>Zaplo-Setup-26.7.38.exe</strong></big>
+<big><strong>Zaplo-Setup-26.8.0.exe</strong></big>
 
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.7.38-arm64.dmg">
-<img src="https://img.shields.io/badge/🍎_macOS_M1+-v26.7.38-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Apple Silicon" />
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.8.0-arm64.dmg">
+<img src="https://img.shields.io/badge/🍎_macOS_M1+-v26.8.0-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Apple Silicon" />
 </a>
 
-<big><strong>Zaplo-26.7.38-arm64.dmg</strong></big>
+<big><strong>Zaplo-26.8.0-arm64.dmg</strong></big>
 
 </td>
 </tr>
 <tr>
 <td align="center" width="50%">
 
-<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.7.38.AppImage">
-<img src="https://img.shields.io/badge/🐧_Ubuntu_Linux-v26.7.38-e95420?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Download Ubuntu" />
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.8.0.AppImage">
+<img src="https://img.shields.io/badge/🐧_Ubuntu_Linux-v26.8.0-e95420?style=for-the-badge&logo=ubuntu&logoColor=white" alt="Download Ubuntu" />
 </a>
 
-<big><strong>Zaplo-26.7.38.AppImage</strong></big><br>
+<big><strong>Zaplo-26.8.0.AppImage</strong></big><br>
 <big>chạy mọi distro — <code>chmod +x</code> là dùng được</big>
 
 </td>
 <td align="center" width="50%">
 
-<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.7.38.dmg">
-<img src="https://img.shields.io/badge/🍎_macOS_Intel-v26.7.38-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Intel" />
+<a href="https://github.com/andyluu98/zaplo/releases/latest/download/Zaplo-26.8.0-arm64-mac.zip">
+<img src="https://img.shields.io/badge/🍎_macOS_M1+_(.zip)-v26.8.0-555555?style=for-the-badge&logo=apple&logoColor=white" alt="Download macOS Apple Silicon zip" />
 </a>
 
-<big><strong>Zaplo-26.7.38.dmg</strong></big>
+<big><strong>Zaplo-26.8.0-arm64-mac.zip</strong></big><br>
+<big>bản nén, không cần mở .dmg</big>
 
 </td>
 </tr>
