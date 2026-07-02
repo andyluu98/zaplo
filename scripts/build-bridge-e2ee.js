@@ -27,9 +27,11 @@ const META_DIR = path.join(BRIDGE_DIR, 'meta');
 const BUILD_DIR = path.join(BRIDGE_DIR, 'build');
 const META_REPO = 'https://github.com/mautrix/meta.git';
 // Pin mautrix/meta to a specific commit so the freshly-cloned bridge dep is reproducible
-// (main drifts). This commit (2026-06-29) has the symbols the bridge source uses
-// (e.g. messagix.ErrTokenInvalidated) and pairs with the beeper/req fork replace in go.mod.
-const META_COMMIT = 'ce0f6582e946bf732fc937b5928e9260452bdc7d';
+// (main drifts). This commit (2026-06-23, just BEFORE meta split its http client into a
+// separate package) still exposes the symbols the bridge source imports from `messagix`
+// (ErrTokenInvalidated, MercuryUploadMedia, SendMercuryUploadRequest) and pairs with the
+// beeper/req fork replace in go.mod. Verified building locally with `go build`.
+const META_COMMIT = '6e6818fc91c230fe8c1356a367a364fe51e6af40';
 const BINARY_NAME = process.platform === 'win32'
   ? 'fbchat-bridge-e2ee.exe'
   : 'fbchat-bridge-e2ee';
