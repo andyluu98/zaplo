@@ -1,7 +1,7 @@
 ---
 phase: 7
 title: "Review + kiểm thử tích hợp"
-status: pending
+status: done
 priority: P1
 effort: "1d"
 dependencies: [1, 2, 3, 4, 5, 6]
@@ -91,3 +91,37 @@ Cổng chất lượng cuối: **không hồi quy** ở kênh sản xuất (Zalo
 **Giả định có thể vỡ:** có Page thật để kiểm.
 **Dấu hiệu vỡ:** tới Phase 7 vẫn chưa kết nối được Page test nào.
 **Phản ứng đã định:** dừng, tạo Page test, hoàn tất Phase 2 trước. Không đánh dấu hoàn thành dựa trên mô phỏng.
+
+## Kết quả triển khai (2026-08-24)
+
+**Trạng thái:** **Done** cho cổng tự động + rà tĩnh + code-review. **Kịch bản E2E live vẫn CHỜ kiểm thủ công** — không tự đánh dấu đạt (theo "Phản ứng đã định" ở trên).
+
+### Cổng tự động (đã chạy)
+- **`npx jest` (full, runInBand):** 33 suites / 246 tests, **0 fail**. Gồm mọi suite mới: vision-support, typing-delay, messaging-window, thinking-support, chat-agent-message-aggregator, page-schema-migration, page-webhook-parse/verify.
+- **Typecheck:** `tsc --noEmit` (renderer) + `tsc -p tsconfig.electron.json --noEmit` — cả 2 exit 0.
+
+### Rà bảo mật tĩnh (checklist §"Rà bảo mật")
+- ✅ **C1** — webhook Messenger phục vụ bởi `IntegrationRegistry.startWebhookServer` (port 9888, bind 127.0.0.1), **tách** khỏi `HttpRelayService` (relay sync nhân viên `/api/sync/*`, `/api/auth/login`). `event:channelMessage` không nằm trong `RELAY_CHANNELS`; `TunnelService` là singleton một-tunnel → hai bề mặt public loại trừ nhau. Tunnel chỉ trỏ `getWebhookPort()`.
+- ✅ **H2** — routing khớp trên `pathname` đã parse tách query; HMAC `X-Hub-Signature-256` tính trên **raw Buffer** trước mọi đọc/ghi; body UTF-8 (tiếng Việt + emoji) verify đúng, không re-encode.
+- ✅ **H4** — `ai_reasoning_log` KHÔNG trong `SYNCABLE_TABLES_BY_ZALO`/`_GLOBAL`; `fb_app`/`fb_page` (token mã hoá) cũng không sync → reasoning + secret không rời máy.
+- ✅ **H1** — `encryptStrict` ném `EncryptionUnavailableError`, không lưu plaintext khi máy không mã hoá được.
+- ✅ Không giá trị thô `access_token`/`app_secret`/`verify_token`/token giải mã vào `Logger.*`; nội dung tin khách không log mức info.
+- ✅ Gửi tay `fbpage:sendMessage/sendImage`: cổng 24h **per-PSID** (`getPageThreadLastInboundAt`), `sent_by='human'`, không trả `*_enc` cho renderer.
+- ✅ Chữ ký sai/thiếu header → 403, không ghi DB (unit `page-webhook-verify`).
+
+### Code-review tổng thể (branch `ab2b046..HEAD`, 5 commit, ~90 file)
+- **Kết luận: không blocker.** Mọi ràng buộc cứng 1–4 PASS: không hồi quy Zalo/FB cá nhân ở mọi file dùng chung (dispatcher, aggregator, thinking/AIAssistantService, typing-delay↔WorkflowEngine, channelIpc, DatabaseService migration idempotent); tách webhook/relay; reasoning/token không sync; HMAC raw-body; gửi tay per-PSID; hợp đồng công khai giữ nguyên (param mới optional default `'zalo'`).
+- **Đã sửa (non-blocking #1):** `MessageInput.tsx` — throw ở nhánh **video** (`:1373`) và **text** (`:1416`) trước đây áp cho mọi kênh non-zalo, khiến FB cá nhân lệch (hiện notification lỗi + bỏ `markReplied` khi `success:false`). Đã guard `ch === 'page' &&` cho cả hai, khớp nhánh ảnh (`:1332`) và ý định Phase 6 (FB byte-identical; abort-on-error chỉ áp Page). Không phải abort batch (mỗi item có try/catch riêng) — chỉ là UX per-item; tsc lại sạch sau sửa.
+- **Ghi chú invariant (không sửa, low-impact):**
+  - Echo dedupe dựa `message_id` (Send API) == `mid` (webhook echo) — đúng theo hành vi Messenger hiện tại; self-guard `appId === page.app_id` vẫn chặn nhầm human-handoff dù id lệch.
+  - `storeInboundMessage` set `last_customer_message_at = ev.ts` vô điều kiện → backfill offline có thể lùi giá trị page-wide; **không** ảnh hưởng cổng gửi (dùng per-PSID MAX), chỉ ảnh hưởng typing/seen trong `resolve()`.
+
+### CHỜ kiểm thủ công (cần Page thật + app Meta dev-mode)
+- **13 kịch bản đầu-cuối Page** (bảng §"Kịch bản đầu-cuối Page") — chưa chạy: cần Page test kết nối + webhook live.
+- **Phần runtime của 9 ca không hồi quy** (R1–R9): phần logic thuần đã phủ bởi unit test; phần chạy-thực (Zalo DM/nhóm live, FB MQTT, chuyển workspace) chờ chạy app thật.
+- **curl webhook chữ ký sai/thiếu header**, **OAuth state + redirect match (M5)**, **App Secret không trong `dist-electron/`**: xác minh khi có môi trường build/deploy thật.
+> Theo "Phản ứng đã định": KHÔNG đánh dấu các mục này đạt cho tới khi kiểm trên Page thật.
+
+### Docs
+- `README.md` + `README.en.md`: thêm mục kênh Facebook Page (Messenger + chatbot DeepSeek đọc ảnh, cửa sổ 24h, auto-pause khi người trả lời tay).
+- `plans/260624-1920-facebook-write-features/plan.md`: ghi P4 blocker (lớp trừu tượng kênh) đã gỡ trên nhánh này.

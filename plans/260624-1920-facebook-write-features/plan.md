@@ -49,6 +49,9 @@ Plan mới `plans/260824-0203-facebook-page-channel-deepseek-agent/` đổi ph�
   `ChannelSenderRegistry`, adapter) mà P4 cần được Phase 1 của plan mới giao. Sau đó P4 chỉ còn
   việc đăng ký `FacebookSendService` vào sender registry và viết adapter cho FB cá nhân.
   P4 nay **blockedBy** plan mới.
+  **Cập nhật 2026-08-24 (cuối):** lớp trừu tượng kênh + registry sender đã giao xong trên nhánh
+  `feat/fb-page-channel-phase1-5` (Phase 1-6 done, Phase 7 kiểm thử). Blocker của P4 đã gỡ —
+  P4 giờ chỉ còn đăng ký `FacebookSendService` vào sender registry + viết adapter FB cá nhân.
 
 - **P5 (Fanpage as Page — SPIKE)** — **THAY THẾ, no-go.** P5 đi hướng đóng vai Page qua session
   cá nhân (`av=page_id`, doc_id page-scoped). Brainstorm ngày 2026-08-24 đã loại hướng này:

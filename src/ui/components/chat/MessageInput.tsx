@@ -1370,7 +1370,9 @@ export default function MessageInput() {
                   filePath: videoPath,
                   body: '',
                 });
-                if (!res?.success && res?.error) throw new Error(res.error);
+                // Page aborts the batch on failure; Facebook keeps its prior
+                // best-effort behavior (no throw), same as the image loop above.
+                if (ch === 'page' && !res?.success && res?.error) throw new Error(res.error);
               } else {
                 let thumbUrl = '';
                 if (thumbPath) {
@@ -1413,7 +1415,8 @@ export default function MessageInput() {
                   threadType: threadType as any,
                   body: msgTitle,
                 });
-                if (!res?.success && res?.error) throw new Error(res.error);
+                // Page aborts on failure; Facebook stays best-effort (no throw).
+                if (ch === 'page' && !res?.success && res?.error) throw new Error(res.error);
               } else {
                 await ipc.zalo?.sendMessage({ auth, threadId, type: threadType, message: msgTitle });
               }

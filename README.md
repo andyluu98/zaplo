@@ -413,6 +413,12 @@ Desktop app quản lý **Zalo + Facebook** cho đội nhóm bán hàng & marketi
   - Chatbot trả lời khách 24/7 trên Zalo & Facebook
   - Kết nối workflow tự động hoá
 
+- **📨 Kênh Facebook Page (Messenger)**
+  - Kết nối Page qua Graph API chính thức (Page Token + Webhook + Send API)
+  - Chatbot DeepSeek tự trả lời tin nhắn Messenger của khách, có "suy nghĩ" (reasoning)
+  - Đọc **ảnh** khách gửi để trả lời (mô hình vision), gõ phím + đã xem như người thật
+  - Tôn trọng cửa sổ 24h của Meta; nhân viên trả lời tay thì bot tự tạm dừng
+
 ### 📚 Kho bài & Lịch nội dung
 - **🗂️ Kho bài (Post Store)** — lưu bài viết, ảnh, tạo chủ đề
 - **🖼️ Thư viện ảnh** — quản lý ảnh dùng lại, gắn tag, tìm kiếm
