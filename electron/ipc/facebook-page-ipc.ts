@@ -15,7 +15,17 @@ import Logger from '../../src/utils/Logger';
 import { pageAuthService } from '../../src/services/facebook-page/page-auth-service';
 import { EncryptionUnavailableError } from '../../src/services/secure/SecureSettingsService';
 import { DEFAULT_REDIRECT_URI } from '../../src/services/facebook-page/page-types';
+import { backfillPage, backfillAllPages } from '../../src/services/facebook-page/page-backfill-service';
+import { IntegrationRegistry } from '../../src/services/integrations/IntegrationRegistry';
+import TunnelService from '../../src/services/tunnel/TunnelService';
 import type { FbApp, FbPage } from '../../src/models';
+
+const WEBHOOK_PATH = '/webhook/messenger';
+
+function fullWebhookUrl(publicUrl: string): string {
+    if (!publicUrl) return '';
+    return publicUrl.replace(/\/+$/, '') + WEBHOOK_PATH;
+}
 
 /** Strip secrets from an fb_app row before it reaches the renderer. */
 function publicApp(a: FbApp) {
@@ -144,5 +154,61 @@ export function registerFacebookPageIpc(): void {
             EventBroadcaster.emit('fbpage:changed', { action: 'toggle', pageId });
             return { success: true };
         } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    // ─── Webhook config + tunnel (Phase 3) ───────────────────────────────────
+    ipcMain.handle('fbpage:getWebhookInfo', async (_e, { appId }: { appId?: string }) => {
+        try {
+            const port = IntegrationRegistry.getWebhookPort();
+            const app = appId ? DatabaseService.getInstance().getFbApp(appId) : null;
+            const publicUrl = app?.public_url || '';
+            return {
+                success: true,
+                port,
+                path: WEBHOOK_PATH,
+                localUrl: `http://127.0.0.1:${port}${WEBHOOK_PATH}`,
+                publicUrl,
+                fullUrl: fullWebhookUrl(publicUrl),
+                tunnelUrl: TunnelService.getUrl(),
+                tunnelActive: TunnelService.isActive(),
+            };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('fbpage:setWebhookConfig', async (_e, { appId, publicUrl, webhookMode, webhookPort }: { appId: string; publicUrl?: string; webhookMode?: 'local' | 'tunnel'; webhookPort?: number }) => {
+        try {
+            if (!appId) return { success: false, error: 'Thiếu App ID' };
+            // saveApp keeps existing secret/verify when passed empty strings.
+            pageAuthService.saveApp({ appId, appSecret: '', verifyToken: '', publicUrl, webhookMode, webhookPort });
+            DatabaseService.getInstance().save();
+            return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('fbpage:backfillNow', async (_e, { pageId }: { pageId?: string }) => {
+        try {
+            if (pageId) { const stored = await backfillPage(pageId); return { success: true, stored }; }
+            await backfillAllPages();
+            return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('fbpage:startQuickTunnel', async (_e, { appId }: { appId?: string }) => {
+        try {
+            // NOTE: TunnelService is a single-tunnel singleton — starting this stops
+            // any active relay/integration tunnel (dev-only 'quick' mode).
+            const port = IntegrationRegistry.getWebhookPort();
+            const url = await TunnelService.start(port);
+            if (appId && url) {
+                pageAuthService.saveApp({ appId, appSecret: '', verifyToken: '', publicUrl: url, webhookMode: 'tunnel' });
+                DatabaseService.getInstance().save();
+            }
+            return { success: true, url, fullUrl: fullWebhookUrl(url) };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    ipcMain.handle('fbpage:stopQuickTunnel', async () => {
+        try { await TunnelService.stop(); return { success: true }; }
+        catch (e: any) { return { success: false, error: e.message }; }
     });
 }

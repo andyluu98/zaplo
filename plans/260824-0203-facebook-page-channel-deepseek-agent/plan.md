@@ -51,7 +51,7 @@ Quyết định #3-4 chốt lại **sau khi** xác minh tài liệu DeepSeek (2 
 |---|-------|--------|----------|--------|---------|
 | 1 | [Trừu tượng hoá kênh cho Chat Agent](./phase-01-channel-abstraction.md) | ✅ Done | P1 | 2.5-3d | — |
 | 2 | [Kết nối Page + lược đồ dữ liệu](./phase-02-page-connect.md) | ✅ Done | P1 | 2d | 1 |
-| 3 | [Webhook nhận tin + backfill](./phase-03-webhook-inbound.md) | Pending | P1 | 2-2.5d | 2 |
+| 3 | [Webhook nhận tin + backfill](./phase-03-webhook-inbound.md) | ✅ Done | P1 | 2-2.5d | 2 |
 | 4 | [Send API + hành vi giống người](./phase-04-send-humanlike.md) | Pending | P1 | 1.5d | 2 |
 | 5 | [DeepSeek V4 thinking + vá model chết](./phase-05-deepseek-thinking.md) | ✅ Done | P1 | 1-1.5d | — |
 | 6 | [UI quản lý Page + hội thoại](./phase-06-ui.md) | Pending | P2 | 1.5-2d | 3,4 |
@@ -219,3 +219,27 @@ Không còn câu hỏi chặn nào.
 - **Phép thử rẻ đáng làm trước khi hoàn thiện UX copy:** app live + standard access, nhắn Page từ tài khoản không-vai-trò — nếu webhook nổ thì deployer bỏ được App Review cho Page của chính mình.
 - **Page provider chưa boot-wire vào dispatcher** (đúng thiết kế — Phase 3 webhook cấp event + Phase 4 PageSender mới kích hoạt). Kết nối Page ở Phase 2 lưu dữ liệu + credential, chưa tự trả lời.
 - `access_level='advanced'` không suy ra được từ client → deployer tự đặt sau khi App Review duyệt (nút trong wizard → `setAccessLevel`).
+
+## Kết quả triển khai — Phase 3 (2026-08-24)
+
+**Trạng thái:** **Done**. Cook slice `Phase 3` (webhook nhận tin + backfill). Hai cổng bắt buộc đã qua.
+
+### Đã tạo/sửa
+- **Webhook host:** mở rộng server sẵn có `IntegrationRegistry` (127.0.0.1:9888) thêm route `/webhook/messenger` — **GET** verify (`hub.challenge` khi verify_token khớp app đang bật, so sánh constant-time, chấp query string) + **POST** đọc **raw Buffer** (cap 1MB → 413 + `req.destroy`), verify `X-Hub-Signature-256` HMAC-SHA256 trên buffer thô, `timingSafeEqual`. Nhánh integration/payment cũ (casso/sepay) giữ **byte-identical**. Không đụng `HttpRelayService` (9900).
+- **Service mới (`src/services/facebook-page/`):** `page-webhook-verify.ts` (HMAC raw + timingSafeEqual), `page-webhook-parse.ts` (parser **thuần**, không electron → test được), `page-webhook-handler.ts` (resolve `entry[].id`→`fb_page`→`fb_app`→secret; verify **trước** mọi ghi; 403 nếu Page lạ/tắt hoặc chữ ký sai — **0 dòng DB**; **200 ngay** rồi xử lý async qua `setImmediate`; **guard per-entry** kiểm Page bật cho từng entry — req #4), `page-inbound-store.ts` (ghi unified `messages`/`contacts` `channel='page'`, dedupe qua `runWithChanges` + `INSERT OR IGNORE`), `page-backfill-service.ts` (persist **không emit**).
+- **Adapter:** `chat-agent/adapters/page-channel-adapter.ts` — dựng `ChannelEvent{channel:'page'}` emit `event:channelMessage` qua `fireHooksOnly` (KHÔNG `event:message`, ngoài `RELAY_CHANNELS`). Dispatcher **đang chạy** ở production nhưng an toàn no-reply vì **chưa đăng ký provider `'page'`** (`pick('page')→undefined→return`) — Phase 4 mới đăng ký để bật trả lời.
+- **Echo → auto-pause:** `storeEcho` phân biệt AI-echo (mid đã có row `sent_by='ai'` từ Phase 4 → `INSERT OR IGNORE` changes=0 → bỏ qua) vs người thật (mid mới → pause thread nếu agent Page có `autopause_on_human`). Phase 3 chưa gửi AI nên mọi echo = người → pause.
+- **DB:** `runWithChanges(sql,params): number` (trả `.changes` — phân biệt row mới vs trùng, red-team M3).
+- **Graph client:** thêm `getRecentConversations` cho backfill.
+- **IPC/preload/types:** `getWebhookInfo`/`setWebhookConfig`/`backfillNow`/`startQuickTunnel`/`stopQuickTunnel` (`TunnelService` singleton — quick mode loại trừ tunnel khác). `main.ts` chạy `backfillAllPages` lúc khởi động (deferred, không block).
+- **Test:** `page-webhook-verify.test.ts` (7 — gồm ca UTF-8 đa-byte vắt qua ranh chunk verify **thành công**, path naive per-chunk **fail**), `page-webhook-parse.test.ts` (6).
+
+### Cổng kiểm chứng
+- **Code review:** 4 ràng buộc cứng **CLEAN** (không bypass chữ ký; không ghi trước verify; không double-fire Zalo — Page emit `event:channelMessage`, ngoài `RELAY_CHANNELS`, provider `'page'` chưa đăng ký; backfill không replay lúc restart). Đã vá: M1 (sửa comment adapter cho đúng — dispatcher **có** chạy, an toàn nhờ provider chưa đăng ký), M2 (guard per-entry kiểm Page bật — req #4), L1 (`req.destroy` khi quá 1MB), L3 (backfill guard recency preview). L2/L4 chấp nhận có ghi chú.
+- **Tester:** 31 suites / 266 tests pass, 0 fail; `tsc` cả 2 config exit 0. Re-run 4 page suite sau vá đều xanh. Báo cáo: `plans/reports/tester-260824-1045-fb-page-phase3-report.md`.
+
+### Lưu ý trước khi deploy
+- **Endpoint public:** deployer phải tunnel **chỉ** cổng 9888 (VPS: cloudflared named tunnel ngoài app trỏ 9888; dev: `startQuickTunnel`). **Không** tunnel 9900 (relay). Success-criteria: `GET /api/sync/full` qua tunnel phải không tồn tại.
+- **Dispatcher đã chạy production** (`main.ts:934`) và xử lý Zalo qua chat_agent — Page **chưa** trả lời vì provider `'page'` chưa đăng ký. Phase 4 đăng ký `PageContextProvider` + `PageSender` để bật (không cần start lại dispatcher, không đụng Zalo).
+- Replay tin mới nhất khi backfill (nếu trong 24h) **hoãn sang Phase 4** (cần Send path). Phase 3 chỉ persist lịch sử.
+- `getRecentConversations` giới hạn ~20 tin gần nhất/hội thoại (giới hạn Meta) — VPS 24/7 giảm hẳn mất tin.

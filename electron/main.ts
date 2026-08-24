@@ -958,6 +958,13 @@ app.whenReady().then(async () => {
       WorkflowEngineService.getInstance()['triggerWorkflows']('trigger.payment', data);
     });
   }, 2500);
+  // Backfill Facebook Page messages missed while offline (persist only, no emit
+  // → never replies to old messages on restart). Runs after the webhook server + DB.
+  setTimeout(() => {
+    import('../src/services/facebook-page/page-backfill-service')
+      .then(m => m.backfillAllPages())
+      .catch(err => console.warn('[main] Page backfill failed:', err?.message || err));
+  }, 6000);
 
   // Initialize Tracking Service (chỉ chạy trong production build)
   setTimeout(() => {

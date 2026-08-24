@@ -330,6 +330,17 @@ class DatabaseService {
     }
 
     /**
+     * Run a statement and return the number of rows actually changed.
+     * Unlike runInsert (which returns a rowid even when `INSERT OR IGNORE`
+     * ignores a duplicate), this returns 0 on an ignored/no-op write — so
+     * callers can tell a genuinely new row from a duplicate (webhook dedupe).
+     */
+    public runWithChanges(sql: string, params: any[] = []): number {
+        const result = db!.prepare(sql).run(...params);
+        return result.changes || 0;
+    }
+
+    /**
      * Run `fn` inside a SQLite transaction. Returns whatever `fn` returns.
      * Uses better-sqlite3 native transaction → automatic ROLLBACK on throw.
      */

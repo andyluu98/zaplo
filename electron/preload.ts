@@ -685,6 +685,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     verifyToken:        (params: { pageId: string }) => ipcRenderer.invoke('fbpage:verifyToken', params),
     listPages:          () => ipcRenderer.invoke('fbpage:listPages'),
     setPageEnabled:     (params: { pageId: string; enabled: boolean }) => ipcRenderer.invoke('fbpage:setPageEnabled', params),
+    getWebhookInfo:     (params: { appId?: string }) => ipcRenderer.invoke('fbpage:getWebhookInfo', params),
+    setWebhookConfig:   (params: { appId: string; publicUrl?: string; webhookMode?: 'local' | 'tunnel'; webhookPort?: number }) => ipcRenderer.invoke('fbpage:setWebhookConfig', params),
+    backfillNow:        (params: { pageId?: string }) => ipcRenderer.invoke('fbpage:backfillNow', params),
+    startQuickTunnel:   (params: { appId?: string }) => ipcRenderer.invoke('fbpage:startQuickTunnel', params),
+    stopQuickTunnel:    () => ipcRenderer.invoke('fbpage:stopQuickTunnel'),
   },
 
   lockScreen: {

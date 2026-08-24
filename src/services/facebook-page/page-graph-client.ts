@@ -131,6 +131,45 @@ export class PageGraphClient {
         }
     }
 
+    /**
+     * Recent Messenger conversations for a Page (for startup backfill of missed
+     * messages). Returns each thread's PSID + its recent messages, oldest→newest.
+     */
+    async getRecentConversations(p: { pageId: string; pageToken: string; convLimit?: number; msgLimit?: number }): Promise<Array<{
+        psid: string;
+        messages: Array<{ mid: string; text: string; fromPage: boolean; ts: number }>;
+    }>> {
+        try {
+            const res = await this.http.get(`/${p.pageId}/conversations`, {
+                params: {
+                    access_token: p.pageToken,
+                    platform: 'messenger',
+                    fields: `participants,messages.limit(${p.msgLimit ?? 25}){id,message,from,created_time}`,
+                    limit: p.convLimit ?? 50,
+                },
+            });
+            const data: any[] = res.data?.data ?? [];
+            return data.map((conv) => {
+                const parts: any[] = conv?.participants?.data ?? [];
+                // The participant that is NOT the Page is the customer PSID.
+                const other = parts.find((pt) => String(pt?.id) !== p.pageId);
+                const psid = String(other?.id ?? '');
+                const msgs: any[] = conv?.messages?.data ?? [];
+                const messages = msgs.map((m) => ({
+                    mid: String(m?.id ?? ''),
+                    text: typeof m?.message === 'string' ? m.message : '',
+                    fromPage: String(m?.from?.id ?? '') === p.pageId,
+                    ts: m?.created_time ? Date.parse(m.created_time) || Date.now() : Date.now(),
+                })).reverse(); // Graph returns newest→oldest; store oldest→newest
+                return { psid, messages };
+            }).filter((c) => c.psid);
+        } catch (err: any) {
+            const m = translateMetaError(err);
+            Logger.error(`[PageGraphClient] getRecentConversations failed: code=${m.code} ${m.kind}`);
+            throw m;
+        }
+    }
+
     /** Verify a Page token is still usable; returns the page id/name it belongs to. */
     async verifyPageToken(pageToken: string): Promise<{ id: string; name: string }> {
         try {

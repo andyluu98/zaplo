@@ -328,6 +328,11 @@ declare global {
         verifyToken: (params: { pageId: string }) => Promise<{ success: boolean; status?: string; error?: string }>;
         listPages: () => Promise<{ success: boolean; pages: Array<{ page_id: string; name: string; app_id: string; category: string; picture_url: string; enabled: number; token_status: string; last_customer_message_at: number; last_backfill_at: number; connected_at?: number; updated_at?: number }>; error?: string }>;
         setPageEnabled: (params: { pageId: string; enabled: boolean }) => Promise<{ success: boolean; error?: string }>;
+        getWebhookInfo: (params: { appId?: string }) => Promise<{ success: boolean; port?: number; path?: string; localUrl?: string; publicUrl?: string; fullUrl?: string; tunnelUrl?: string | null; tunnelActive?: boolean; error?: string }>;
+        setWebhookConfig: (params: { appId: string; publicUrl?: string; webhookMode?: 'local' | 'tunnel'; webhookPort?: number }) => Promise<{ success: boolean; error?: string }>;
+        backfillNow: (params: { pageId?: string }) => Promise<{ success: boolean; stored?: number; error?: string }>;
+        startQuickTunnel: (params: { appId?: string }) => Promise<{ success: boolean; url?: string; fullUrl?: string; error?: string }>;
+        stopQuickTunnel: () => Promise<{ success: boolean; error?: string }>;
       };
       lockScreen: {
         status: () => Promise<{ success: boolean; enabled?: boolean; biometricEnabled?: boolean; biometricAvailable?: boolean; failedAttempts?: number; isCoolingDown?: boolean; remainingCooldown?: number; error?: string }>;
