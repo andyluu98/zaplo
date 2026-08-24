@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import ipc from '@/lib/ipc';
 import IntegrationDetailPage from './IntegrationDetailPage';
+import FacebookPageWizard from './FacebookPageWizard';
 import { useAppStore } from '@/store/appStore';
 
 // ─── Catalog definition ───────────────────────────────────────────────────────
@@ -16,14 +17,15 @@ interface CatalogItem {
   settingFields?: { key: string; label: string; type?: string; options?: { value: string; label: string }[] }[];
 }
 
-type TabKey = 'all' | 'pos' | 'payment' | 'shipping' | 'ai';
+type TabKey = 'all' | 'pos' | 'payment' | 'shipping' | 'ai' | 'facebook-page';
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: 'all',      label: 'Tất cả',            icon: '📌' },
-  { key: 'pos',      label: 'POS / Bán hàng',    icon: '🛒' },
-  { key: 'payment',  label: 'Thanh toán',        icon: '💳' },
-  { key: 'shipping', label: 'Vận chuyển',        icon: '📦' },
-  { key: 'ai',       label: 'Trợ lý AI',         icon: '🤖' },
+  { key: 'all',            label: 'Tất cả',            icon: '📌' },
+  { key: 'pos',            label: 'POS / Bán hàng',    icon: '🛒' },
+  { key: 'payment',        label: 'Thanh toán',        icon: '💳' },
+  { key: 'shipping',       label: 'Vận chuyển',        icon: '📦' },
+  { key: 'ai',             label: 'Trợ lý AI',         icon: '🤖' },
+  { key: 'facebook-page',  label: 'Facebook Page',     icon: '📘' },
 ];
 
 const SECTION_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -570,7 +572,7 @@ export default function IntegrationPage() {
 
   const scrollToSection = (key: TabKey) => {
     setActiveTab(key);
-    if (key === 'ai') return;
+    if (key === 'ai' || key === 'facebook-page') return;
     setTimeout(() => {
       const el = key === 'all' ? contentRef.current : document.getElementById(`section-${key}`);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -606,6 +608,18 @@ export default function IntegrationPage() {
             <button onClick={() => useAppStore.getState().setView('agentHub')}
               className="mt-5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold">↗ Mở AI &amp; Agent</button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === 'facebook-page') {
+    return (
+      <div className="flex flex-col h-full overflow-hidden bg-gray-900">
+        {/* Top bar */}
+        <TopBar activeTab={activeTab} onTabChange={scrollToSection} tunnelUrl={tunnelUrl} tunnelLoading={tunnelLoading} onTunnelToggle={handleTunnelToggle} />
+        <div className="flex-1 overflow-hidden">
+          <FacebookPageWizard />
         </div>
       </div>
     );

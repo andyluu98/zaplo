@@ -315,6 +315,30 @@ declare global {
         sendBadgeImage: (params: { dataUrl: string; count: number }) => void;
         flashFrame: (active: boolean) => void;
       };
+      fbPage: {
+        saveApp: (params: { appId: string; appSecret: string; verifyToken: string; configId?: string; publicUrl?: string; webhookPort?: number; webhookMode?: 'local' | 'tunnel' }) => Promise<{ success: boolean; error?: string }>;
+        getApp: (params: { appId: string }) => Promise<{ success: boolean; app?: { app_id: string; config_id: string; access_level: string; webhook_mode: string; webhook_port: number; public_url: string; hasSecret: boolean; hasVerifyToken: boolean } | null; error?: string }>;
+        listApps: () => Promise<{ success: boolean; apps: Array<{ app_id: string; config_id: string; access_level: string; webhook_mode: string; webhook_port: number; public_url: string; hasSecret: boolean; hasVerifyToken: boolean }>; error?: string }>;
+        setAccessLevel: (params: { appId: string; level: string }) => Promise<{ success: boolean; error?: string }>;
+        generateVerifyToken: () => Promise<{ success: boolean; verifyToken?: string; error?: string }>;
+        getRedirectUri: () => Promise<{ success: boolean; redirectUri: string }>;
+        listManagedPages: (params: { appId: string; redirectUri?: string; configId?: string }) => Promise<{ success: boolean; pages?: Array<{ page_id: string; name: string; category: string; picture_url: string; canMessage: boolean }>; access?: { level: string; grantedScopes: string[]; missingScopes: string[] }; error?: string }>;
+        connectPage: (params: { pageId: string }) => Promise<{ success: boolean; page?: { page_id: string; name: string; picture_url: string; category: string }; error?: string }>;
+        disconnectPage: (params: { pageId: string }) => Promise<{ success: boolean; error?: string }>;
+        verifyToken: (params: { pageId: string }) => Promise<{ success: boolean; status?: string; error?: string }>;
+        listPages: () => Promise<{ success: boolean; pages: Array<{ page_id: string; name: string; app_id: string; category: string; picture_url: string; enabled: number; token_status: string; last_customer_message_at: number; last_backfill_at: number; bot_disclosure?: number; connected_at?: number; updated_at?: number }>; error?: string }>;
+        setPageEnabled: (params: { pageId: string; enabled: boolean }) => Promise<{ success: boolean; error?: string }>;
+        setDisclosure: (params: { pageId: string; on: boolean }) => Promise<{ success: boolean; error?: string }>;
+        getWebhookInfo: (params: { appId?: string }) => Promise<{ success: boolean; port?: number; path?: string; localUrl?: string; publicUrl?: string; fullUrl?: string; tunnelUrl?: string | null; tunnelActive?: boolean; error?: string }>;
+        setWebhookConfig: (params: { appId: string; publicUrl?: string; webhookMode?: 'local' | 'tunnel'; webhookPort?: number }) => Promise<{ success: boolean; error?: string }>;
+        backfillNow: (params: { pageId?: string }) => Promise<{ success: boolean; stored?: number; error?: string }>;
+        startQuickTunnel: (params: { appId?: string }) => Promise<{ success: boolean; url?: string; fullUrl?: string; error?: string }>;
+        stopQuickTunnel: () => Promise<{ success: boolean; error?: string }>;
+        // ── Manual (human-operator) send from the chat UI ──────────────────────
+        sendMessage: (params: { pageId: string; psid: string; text: string }) => Promise<{ success: boolean; messageId?: string; error?: string }>;
+        sendImage: (params: { pageId: string; psid: string; url: string }) => Promise<{ success: boolean; messageId?: string; error?: string }>;
+        getReasoning: (params: { accountId: string; threadId: string; msgId?: string }) => Promise<{ success: boolean; reasoning?: string; error?: string }>;
+      };
       lockScreen: {
         status: () => Promise<{ success: boolean; enabled?: boolean; biometricEnabled?: boolean; biometricAvailable?: boolean; failedAttempts?: number; isCoolingDown?: boolean; remainingCooldown?: number; error?: string }>;
         setup: (params: { password: string }) => Promise<{ success: boolean; recoveryKey?: string; error?: string }>;
@@ -635,10 +659,10 @@ declare global {
       save:          (params: { zaloId: string; agent: any }) => Promise<{ success: boolean; id?: number; error?: string }>;
       enable:        (params: { id: number; enabled: boolean }) => Promise<{ success: boolean; error?: string }>;
       delete:        (params: { id: number }) => Promise<{ success: boolean; error?: string }>;
-      convState:     (params: { zaloId: string; threadId: string }) => Promise<{ success: boolean; state: import('@/../../src/models/automation').ConversationAiState | null; error?: string }>;
-      setAiState:    (params: { zaloId: string; threadId: string; paused: boolean }) => Promise<{ success: boolean; error?: string }>;
-      pin:           (params: { zaloId: string; threadId: string; agentId?: number | null }) => Promise<{ success: boolean; error?: string }>;
-      resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => Promise<{ success: boolean; agentId: number | null; error?: string }>;
+      convState:     (params: { zaloId: string; threadId: string; channel?: string }) => Promise<{ success: boolean; state: import('@/../../src/models/automation').ConversationAiState | null; error?: string }>;
+      setAiState:    (params: { zaloId: string; threadId: string; paused: boolean; channel?: string }) => Promise<{ success: boolean; error?: string }>;
+      pin:           (params: { zaloId: string; threadId: string; agentId?: number | null; channel?: string }) => Promise<{ success: boolean; error?: string }>;
+      resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean; channel?: string }) => Promise<{ success: boolean; agentId: number | null; error?: string }>;
     };
     facebookWrite?: {
       getLimits:    () => Promise<{ success: boolean; config?: any; error?: string }>;
@@ -737,6 +761,7 @@ export const ipc = {
   posting: window.electronAPI?.posting,
   chatAgent: window.electronAPI?.chatAgent,
   facebookWrite: window.electronAPI?.facebookWrite,
+  fbPage: window.electronAPI?.fbPage,
   agentMc: (window.electronAPI as any)?.agentMc,
   postStore: (window.electronAPI as any)?.postStore,
   schedule: (window.electronAPI as any)?.schedule,

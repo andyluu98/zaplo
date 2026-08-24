@@ -39,7 +39,7 @@ export function groupTriggerMatched(
  */
 export function stripSelfMentions(
   content: string,
-  mentions: Array<{ uid: string; pos: number; len: number }> | undefined,
+  mentions: Array<{ uid: string; pos?: number; len?: number }> | undefined,
   selfUid: string,
 ): string {
   let text = content || '';

@@ -14,6 +14,10 @@ import { HaravanAdapter } from './adapters/HaravanAdapter';
 import { SapoAdapter } from './adapters/SapoAdapter';
 import { NhanhAdapter } from './adapters/NhanhAdapter';
 import { PancakeAdapter } from './adapters/PancakeAdapter';
+import { handleVerify, handleWebhookPost } from '../facebook-page/page-webhook-handler';
+
+/** Max webhook body accepted (bytes) — protects the public Messenger endpoint. */
+const WEBHOOK_MAX_BYTES = 1_000_000;
 
 /** Map of active adapter instances (integrationId → adapter) */
 const adapterInstances = new Map<string, IntegrationAdapter>();
@@ -269,6 +273,60 @@ export const IntegrationRegistry = {
     webhookPort = port || 9888;
 
     webhookServer = http.createServer((req, res) => {
+      // Parse pathname separately from the query string so routing ignores
+      // ?hub.mode=... etc (red-team H2: match on parsed pathname).
+      let parsedUrl: URL | null = null;
+      try { parsedUrl = new URL(req.url || '/', 'http://localhost'); } catch { parsedUrl = null; }
+      const pathname = parsedUrl?.pathname || (req.url || '/').split('?')[0];
+
+      // ─── Facebook Messenger webhook: own GET verify + raw-body POST ───────
+      if (pathname === '/webhook/messenger') {
+        if (req.method === 'GET') {
+          const q: Record<string, string | undefined> = {};
+          parsedUrl?.searchParams.forEach((v, k) => { q[k] = v; });
+          const challenge = handleVerify(q);
+          if (challenge != null) {
+            res.writeHead(200, { 'Content-Type': 'text/plain' });
+            res.end(challenge);
+          } else {
+            res.writeHead(403, { 'Content-Type': 'text/plain' });
+            res.end('forbidden');
+          }
+          return;
+        }
+        if (req.method === 'POST') {
+          const chunks: Buffer[] = [];
+          let size = 0;
+          let tooBig = false;
+          req.on('data', (c: Buffer) => {
+            size += c.length;
+            if (size > WEBHOOK_MAX_BYTES) {
+              tooBig = true;
+              res.writeHead(413, { 'Content-Type': 'text/plain' });
+              res.end('payload too large');
+              req.destroy();               // stop reading the oversized stream
+              return;
+            }
+            chunks.push(c);
+          });
+          req.on('error', () => { try { res.writeHead(400); res.end('bad request'); } catch { /* noop */ } });
+          req.on('end', () => {
+            if (tooBig) return;            // 413 already sent in the data handler
+            const raw = Buffer.concat(chunks);
+            const sig = req.headers['x-hub-signature-256'] as string | undefined;
+            let status = 500;
+            try { status = handleWebhookPost(raw, sig).status; }
+            catch (e: any) { Logger.error(`[WebhookServer] messenger: ${e.message}`); status = 500; }
+            res.writeHead(status, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ ok: status === 200 }));
+          });
+          return;
+        }
+        res.writeHead(405, { 'Content-Type': 'text/plain' });
+        res.end('method not allowed');
+        return;
+      }
+
       if (req.method !== 'POST') {
         res.writeHead(405, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Method not allowed' }));

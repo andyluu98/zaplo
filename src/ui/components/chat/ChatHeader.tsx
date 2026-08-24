@@ -10,6 +10,8 @@ import { toLocalMediaUrl } from '@/lib/localMedia';
 import { useChannelCapability } from '@/hooks/useChannelCapability';
 import { fetchContactInfo } from '@/hooks/useZaloEvents';
 import { extractUserProfile } from '../../../utils/profileUtils';
+import { canSendNow, MESSAGING_WINDOW_MS } from '../../../services/facebook-page/messaging-window';
+import type { Channel } from '@/../configs/channelConfig';
 
 interface HeaderLocalLabel {
   id: number;
@@ -22,7 +24,7 @@ interface HeaderLocalLabel {
 }
 
 export default function ChatHeader() {
-  const { activeThreadId, activeThreadType, contacts, updateContact } = useChatStore();
+  const { activeThreadId, activeThreadType, contacts, updateContact, messages } = useChatStore();
   const { activeAccountId, getActiveAccount } = useAccountStore();
   const { showConversationInfo, toggleConversationInfo, searchOpen, toggleSearch, setSearchOpen, setSearchHighlightQuery, showNotification, labels: allLabels, setLabels, groupInfoCache, showGroupBoard, setShowGroupBoard, showIntegrationQuickPanel, toggleIntegrationQuickPanel, showAIQuickPanel, toggleAIQuickPanel, mergedInboxMode, setMobileShowChat } = useAppStore();
   const isMobile = useIsMobile();
@@ -454,6 +456,25 @@ export default function ChatHeader() {
   const activeAccount = getActiveAccount();
   const isFacebookDM = !isGroup && activeAccount?.channel === 'facebook';
   const groupInfo = isGroup ? (groupInfoCache[activeAccountId] || {})[activeThreadId] : undefined;
+  const threadChannel: Channel = (contact?.channel || activeAccount?.channel || 'zalo') as Channel;
+  const isPageThread = threadChannel === 'page';
+
+  // ── Page 24h standard-messaging window — computed from the thread's own last
+  //    inbound (customer) message, not the Page-global fb_page.last_customer_message_at
+  //    (which would be wrong for a Page with multiple simultaneous customers).
+  const pageWindowInfo = (() => {
+    if (!isPageThread) return null;
+    const threadMsgs = messages[`${activeAccountId}_${activeThreadId}`] || [];
+    let lastCustomerAt = 0;
+    for (const m of threadMsgs) {
+      if (m.is_sent === 0 && m.timestamp > lastCustomerAt) lastCustomerAt = m.timestamp;
+    }
+    const open = canSendNow(lastCustomerAt);
+    const remainingMs = open ? Math.max(0, lastCustomerAt + MESSAGING_WINDOW_MS - Date.now()) : 0;
+    const remainingH = Math.floor(remainingMs / (60 * 60 * 1000));
+    const remainingM = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+    return { open, lastCustomerAt, remainingH, remainingM };
+  })();
 
   // Render avatar: group composite or user avatar
   const renderAvatar = () => {
@@ -661,6 +682,17 @@ export default function ChatHeader() {
         </div>
 
         <div className="flex items-center gap-1">
+          {/* Cửa sổ nhắn tin tiêu chuẩn 24h của Meta (chỉ kênh Page) */}
+          {isPageThread && pageWindowInfo && (
+            <span
+              title={pageWindowInfo.open
+                ? 'Còn trong cửa sổ 24h — Page có thể trả lời khách bình thường'
+                : 'Ngoài cửa sổ 24h — Page không thể tự gửi tin, cần khách nhắn trước'}
+              className={`text-[10px] px-2 py-1 rounded-full font-medium flex-shrink-0 ${pageWindowInfo.open ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'}`}
+            >
+              {pageWindowInfo.open ? `⏱ Còn ${pageWindowInfo.remainingH}h${String(pageWindowInfo.remainingM).padStart(2, '0')}` : '⏱ Ngoài 24h'}
+            </span>
+          )}
           {/* Tải lại tin nhắn nhóm */}
           {isGroup && channelCap.supportsGroupReload && (
             <button
@@ -745,6 +777,10 @@ export default function ChatHeader() {
         threadId={activeThreadId}
         threadType={isGroup ? 'group' : 'user'}
         isFriend={contact?.is_friend === 1}
+        // Only override for Page — Zalo AND personal-Facebook conversation_ai_state
+        // rows are both keyed channel='zalo' today (Facebook auto-reply migration
+        // is still pending), so passing 'facebook' here would silently orphan them.
+        channel={isPageThread ? 'page' : undefined}
       />
 
       {/* Search bar — Zalo style with navigation */}
@@ -941,11 +977,15 @@ function HeaderLabelPickerPopup({ contactId, isGroup, x, y, labels, onAssign, on
 
 
 // ─── ChatAgentBar — thanh điều khiển AI Agent dưới header ──────────────────────
-function ChatAgentBar({ zaloId, threadId, threadType, isFriend }: {
+function ChatAgentBar({ zaloId, threadId, threadType, isFriend, channel }: {
   zaloId: string;
   threadId: string;
   threadType: 'user' | 'group';
   isFriend: boolean;
+  /** Channel of the account owning this thread — routes conversation_ai_state
+   *  reads/writes to the matching row (defaults to 'zalo' when omitted, so
+   *  existing Zalo call sites are unaffected). */
+  channel?: Channel;
 }) {
   const [paused, setPaused] = useState(false);
   const [pinnedAgentId, setPinnedAgentId] = useState<number | null>(null);
@@ -958,8 +998,8 @@ function ChatAgentBar({ zaloId, threadId, threadType, isFriend }: {
     if (!chatAgent || !zaloId || !threadId) return;
     try {
       const [stateRes, resolveRes, listRes] = await Promise.all([
-        chatAgent.convState({ zaloId, threadId }),
-        chatAgent.resolveThread({ zaloId, threadId, threadType, isFriend }),
+        chatAgent.convState({ zaloId, threadId, channel }),
+        chatAgent.resolveThread({ zaloId, threadId, threadType, isFriend, channel }),
         chatAgent.list({ zaloId }),
       ]);
       const st = stateRes?.state;
@@ -968,7 +1008,7 @@ function ChatAgentBar({ zaloId, threadId, threadType, isFriend }: {
       setResolvedAgentId(resolveRes?.agentId ?? null);
       setAgents((listRes?.agents || []).map((a: any) => ({ id: Number(a.id), name: String(a.name || `Agent #${a.id}`) })));
     } catch { /* ignore */ }
-  }, [zaloId, threadId, threadType, isFriend]);
+  }, [zaloId, threadId, threadType, isFriend, channel]);
 
   useEffect(() => { loadState(); }, [loadState]);
 
@@ -988,7 +1028,7 @@ function ChatAgentBar({ zaloId, threadId, threadType, isFriend }: {
     if (busy) return;
     setBusy(true);
     try {
-      await ipc.chatAgent!.setAiState({ zaloId, threadId, paused: !paused });
+      await ipc.chatAgent!.setAiState({ zaloId, threadId, paused: !paused, channel });
       await loadState();
     } finally { setBusy(false); }
   };
@@ -997,7 +1037,7 @@ function ChatAgentBar({ zaloId, threadId, threadType, isFriend }: {
     if (busy) return;
     setBusy(true);
     try {
-      await ipc.chatAgent!.setAiState({ zaloId, threadId, paused: false });
+      await ipc.chatAgent!.setAiState({ zaloId, threadId, paused: false, channel });
       await loadState();
     } finally { setBusy(false); }
   };
@@ -1007,7 +1047,7 @@ function ChatAgentBar({ zaloId, threadId, threadType, isFriend }: {
     setBusy(true);
     try {
       const agentId = val === '' ? null : Number(val);
-      await ipc.chatAgent!.pin({ zaloId, threadId, agentId });
+      await ipc.chatAgent!.pin({ zaloId, threadId, agentId, channel });
       await loadState();
     } finally { setBusy(false); }
   };

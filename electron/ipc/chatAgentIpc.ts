@@ -82,38 +82,38 @@ export function registerChatAgentIpc(): void {
 
     // ─── Conversation AI State (per-thread pause/pin) ────────────────────────────
 
-    ipcMain.handle('chat-agent:convState', async (_e, { zaloId, threadId }: { zaloId: string; threadId: string }) => {
+    ipcMain.handle('chat-agent:convState', async (_e, { zaloId, threadId, channel }: { zaloId: string; threadId: string; channel?: string }) => {
         try {
-            return { success: true, state: DatabaseService.getInstance().getConversationAiState(zaloId, threadId) };
+            return { success: true, state: DatabaseService.getInstance().getConversationAiState(zaloId, threadId, channel || 'zalo') };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
     // Bật/tắt AI cho 1 hội thoại. paused=false = "Giao lại cho Agent".
-    ipcMain.handle('chat-agent:setAiState', async (_e, { zaloId, threadId, paused }: { zaloId: string; threadId: string; paused: boolean }) => {
+    ipcMain.handle('chat-agent:setAiState', async (_e, { zaloId, threadId, paused, channel }: { zaloId: string; threadId: string; paused: boolean; channel?: string }) => {
         try {
             const db = DatabaseService.getInstance();
             db.setConversationAiState(zaloId, threadId, {
                 paused: paused ? 1 : 0,
                 paused_reason: paused ? 'manual' : '',
                 paused_at: Date.now(),
-            });
+            }, channel || 'zalo');
             db.save();
             return { success: true };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
     // Ghim hội thoại vào 1 agent (agentId null = bỏ ghim).
-    ipcMain.handle('chat-agent:pin', async (_e, { zaloId, threadId, agentId }: { zaloId: string; threadId: string; agentId?: number | null }) => {
+    ipcMain.handle('chat-agent:pin', async (_e, { zaloId, threadId, agentId, channel }: { zaloId: string; threadId: string; agentId?: number | null; channel?: string }) => {
         try {
             const db = DatabaseService.getInstance();
-            db.setConversationAiState(zaloId, threadId, { pinned_agent_id: agentId ?? null });
+            db.setConversationAiState(zaloId, threadId, { pinned_agent_id: agentId ?? null }, channel || 'zalo');
             db.save();
             return { success: true };
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
     // Quyết định agent nào phụ trách 1 hội thoại (Bảng định tuyến + header).
-    ipcMain.handle('chat-agent:resolveThread', async (_e, { zaloId, threadId, threadType, isFriend }: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => {
+    ipcMain.handle('chat-agent:resolveThread', async (_e, { zaloId, threadId, threadType, isFriend, channel }: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean; channel?: string }) => {
         try {
             const db = DatabaseService.getInstance();
             const labelIds = db.getLocalLabelThreads(zaloId)
@@ -122,9 +122,9 @@ export function registerChatAgentIpc(): void {
             const resolvedIsFriend = isFriend !== undefined
                 ? isFriend
                 : (threadType === 'user' ? db.checkIsFriend(zaloId, threadId) : false);
-            const pinnedAgentId = db.getConversationAiState(zaloId, threadId)?.pinned_agent_id ?? null;
+            const pinnedAgentId = db.getConversationAiState(zaloId, threadId, channel || 'zalo')?.pinned_agent_id ?? null;
             const ctx: ThreadCtx = { threadId, threadType, isFriend: resolvedIsFriend, labelIds, pinnedAgentId };
-            const agents = db.listEnabledChatAgents(zaloId).map(toRule);
+            const agents = db.listEnabledChatAgents(zaloId, channel || 'zalo').map(toRule);
             const agentId = resolveChatAgent(ctx, agents);
             return { success: true, agentId };
         } catch (e: any) { return { success: false, error: e.message }; }

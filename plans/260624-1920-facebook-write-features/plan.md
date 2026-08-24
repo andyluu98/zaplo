@@ -7,6 +7,7 @@ effort: 6-9 ngày (Phase 0-4) + spike Phase 5
 branch: claude/infallible-rhodes-5fc65a
 tags: [facebook, write, graphql, posting, chat-agent, electron]
 created: 2026-06-24
+blockedBy: [260824-0203-facebook-page-channel-deepseek-agent]
 ---
 
 # Facebook Write Features — Overview
@@ -36,8 +37,27 @@ trước khi bắt đầu. Xem Unresolved Questions. Plan thiết kế để KH�
 | 1 | Auto-comment bài đã scan | [phase-01](phase-01-auto-comment.md) | P1 | Med (doc_id) | pending | P0 |
 | 2 | Đăng bài tường cá nhân | [phase-02](phase-02-personal-post.md) | P2 | Med (doc_id) | ✅ engine+UI | P0 |
 | 3 | Đăng bài vào nhóm FB | [phase-03](phase-03-group-post.md) | P2 | Med | ✅ engine+UI | P0, P2 |
-| 4 | Auto-reply Messenger via Chat Agent | [phase-04](phase-04-auto-reply-messenger.md) | P2 | Med | pending | P0 |
-| 5 | Fanpage as Page (SPIKE) | [phase-05](phase-05-fanpage-as-page-spike.md) | P3 | HIGH | pending | P0-P2 |
+| 4 | Auto-reply Messenger via Chat Agent | [phase-04](phase-04-auto-reply-messenger.md) | P2 | Med | pending (thu hep) | P0, plan 260824-0203 |
+| 5 | Fanpage as Page (SPIKE) | [phase-05](phase-05-fanpage-as-page-spike.md) | P3 | HIGH | THAY THE - no-go | — |
+
+
+## Cập nhật 2026-08-24 — quan hệ với plan Facebook Page (Graph API)
+
+Plan mới `plans/260824-0203-facebook-page-channel-deepseek-agent/` đổi phạm vi hai phase cuối:
+
+- **P4 (auto-reply Messenger cá nhân)** — **thu hẹp**. Lớp trừu tượng kênh (`ChannelEvent`,
+  `ChannelSenderRegistry`, adapter) mà P4 cần được Phase 1 của plan mới giao. Sau đó P4 chỉ còn
+  việc đăng ký `FacebookSendService` vào sender registry và viết adapter cho FB cá nhân.
+  P4 nay **blockedBy** plan mới.
+  **Cập nhật 2026-08-24 (cuối):** lớp trừu tượng kênh + registry sender đã giao xong trên nhánh
+  `feat/fb-page-channel-phase1-5` (Phase 1-6 done, Phase 7 kiểm thử). Blocker của P4 đã gỡ —
+  P4 giờ chỉ còn đăng ký `FacebookSendService` vào sender registry + viết adapter FB cá nhân.
+
+- **P5 (Fanpage as Page — SPIKE)** — **THAY THẾ, no-go.** P5 đi hướng đóng vai Page qua session
+  cá nhân (`av=page_id`, doc_id page-scoped). Brainstorm ngày 2026-08-24 đã loại hướng này:
+  vi phạm ToS Meta, dễ khóa Page, và làm rủi ro lây sang kênh FB cá nhân đang chạy ổn định.
+  Thay bằng Graph API chính thức (Page Access Token + Webhook + Send API) trong plan mới.
+  **Không thực hiện P5.** Giữ file lại làm hồ sơ quyết định.
 
 ## Dependency graph
 ```

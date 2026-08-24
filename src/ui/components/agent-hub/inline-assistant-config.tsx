@@ -8,7 +8,7 @@ const PLATFORMS = [
   { value: 'openai', label: 'OpenAI', models: ['gpt-5.4-mini', 'gpt-5.4', 'gpt-5-mini'] },
   { value: 'gemini', label: 'Google Gemini', models: ['gemini-3.5-flash', 'gemini-3.1-pro-preview'] },
   { value: 'claude', label: 'Anthropic Claude', models: ['claude-4.6-sonnet-20260301', 'claude-4.0-haiku-20260101'] },
-  { value: 'deepseek', label: 'DeepSeek', models: ['deepseek-v4-flash', 'deepseek-v4-pro'] },
+  { value: 'deepseek', label: 'DeepSeek', models: ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp'] },
 ];
 
 export default function InlineAssistantConfig({ assistantId, onSaved }: { assistantId: string; onSaved: (id: string) => void }) {

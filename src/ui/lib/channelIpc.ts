@@ -43,6 +43,12 @@ export async function sendMessage(channel: Channel, params: {
       },
     }) ?? { success: false, error: 'FB IPC not available' };
   }
+  if (channel === 'page') {
+    // Manual (human-operator) send — distinct path from the AI auto-reply
+    // (PageSendService). Never falls through to Zalo (red-team M2).
+    return ipc.fbPage?.sendMessage({ pageId: params.accountId, psid: params.threadId, text: params.body })
+      ?? { success: false, error: 'Facebook Page IPC not available' };
+  }
   // Zalo
   return ipc.zalo?.sendMessage({
     zaloId: params.accountId,
@@ -86,6 +92,11 @@ export async function sendAttachment(channel: Channel, params: {
       fileType: params.fileType,
       ...(replyToMessageId ? { replyToMessageId } : {}),
     }) ?? { success: false, error: 'FB IPC not available' };
+  }
+  if (channel === 'page') {
+    // Graph Send API only accepts a publicly-reachable URL (pageGraphClient.sendImage),
+    // not a local file path — gracefully decline rather than mis-routing to Zalo.
+    return { success: false, error: 'Page chưa hỗ trợ gửi file từ máy — cần URL công khai (tính năng nâng cao)' };
   }
   // Zalo — route to sendImage or sendFile depending on extension
   return ipc.zalo?.sendFile({
@@ -133,6 +144,10 @@ export async function sendVideo(channel: Channel, params: {
       fileType: 'video',
       ...(replyToMessageId ? { replyToMessageId } : {}),
     }) ?? { success: false, error: 'FB IPC not available' };
+  }
+  if (channel === 'page') {
+    // Same local-file limitation as sendAttachment — Graph Send API needs a public URL.
+    return { success: false, error: 'Page chưa hỗ trợ gửi video từ máy — cần URL công khai (tính năng nâng cao)' };
   }
 
   // Zalo: upload thumbnail → upload video file → send
@@ -193,6 +208,9 @@ export async function unsendMessage(channel: Channel, params: {
       messageId: params.messageId,
     }) ?? { success: false, error: 'FB IPC not available' };
   }
+  if (channel === 'page') {
+    return { success: false, error: 'Page không hỗ trợ thu hồi tin nhắn (Messenger Send API không có API unsend)' };
+  }
   return ipc.zalo?.undoMessage({
     zaloId: params.accountId,
     threadId: params.threadId,
@@ -219,6 +237,9 @@ export async function addReaction(channel: Channel, params: {
       action: params.action || 'add',
     }) ?? { success: false, error: 'FB IPC not available' };
   }
+  if (channel === 'page') {
+    return { success: false, error: 'Page không hỗ trợ thả cảm xúc tin nhắn' };
+  }
   return ipc.zalo?.addReaction({
     zaloId: params.accountId,
     threadId: params.threadId,
@@ -240,7 +261,8 @@ export async function getThreads(channel: Channel, params: {
       forceRefresh: params.forceRefresh,
     }) ?? { success: false, error: 'FB IPC not available' };
   }
-  // Zalo doesn't have a getThreads — contacts are synced via events
+  // Page (like Zalo) has no getThreads pull — contacts are synced via the
+  // webhook (real-time) + startup backfill straight into the unified tables.
   return { success: true, threads: [] };
 }
 
@@ -260,7 +282,7 @@ export async function getMessages(channel: Channel, params: {
       offset: params.offset,
     }) ?? { success: false, error: 'FB IPC not available' };
   }
-  // Zalo messages are loaded from local DB via ipc.db
+  // Zalo AND Page messages both live in the unified local DB — same read path.
   return ipc.db?.getMessages?.({
     ownerZaloId: params.accountId,
     threadId: params.threadId,
@@ -281,7 +303,8 @@ export async function markAsRead(channel: Channel, params: {
       threadId: params.threadId,
     }) ?? { success: false, error: 'FB IPC not available' };
   }
-  // Zalo mark-as-read is handled differently (via db.markAsRead)
+  // Zalo AND Page mark-as-read are both handled elsewhere (via db.markAsRead,
+  // called directly from ConversationList — same unified-DB path for both).
   return { success: true };
 }
 
@@ -301,6 +324,11 @@ export async function sendTyping(channel: Channel, params: {
       isGroup: params.isGroup,
     }) ?? { success: false, error: 'FB IPC not available' };
   }
+  if (channel === 'page') {
+    // No dedicated manual-typing IPC yet — Page typing_on/typing_off is driven by
+    // the AI send path (PageSendService). Best-effort no-op for the manual UI.
+    return { success: true };
+  }
   // Zalo typing is handled inline in MessageInput.tsx
   return { success: true };
 }
@@ -315,6 +343,10 @@ export async function connectAccount(channel: Channel, params: {
     return ipc.fb?.connect({ accountId: params.accountId })
       ?? { success: false, error: 'FB IPC not available' };
   }
+  if (channel === 'page') {
+    // Pages connect through the OAuth wizard (FacebookPageWizard), not a generic reconnect call.
+    return { success: false, error: 'Page kết nối qua trình hướng dẫn (Facebook Page Wizard), không dùng connectAccount' };
+  }
   return ipc.login?.connectAccount?.(params.auth)
     ?? { success: false, error: 'Login IPC not available' };
 }
@@ -325,6 +357,10 @@ export async function disconnectAccount(channel: Channel, params: {
   if (channel === 'facebook') {
     return ipc.fb?.disconnect({ accountId: params.accountId })
       ?? { success: false, error: 'FB IPC not available' };
+  }
+  if (channel === 'page') {
+    return ipc.fbPage?.disconnectPage({ pageId: params.accountId })
+      ?? { success: false, error: 'Facebook Page IPC not available' };
   }
   return ipc.login?.disconnectAccount?.(params.accountId)
     ?? { success: false, error: 'Login IPC not available' };
@@ -338,6 +374,12 @@ export async function checkHealth(channel: Channel, params: {
   if (channel === 'facebook') {
     const res = await ipc.fb?.checkHealth({ accountId: params.accountId });
     return { success: res?.success ?? false, alive: res?.alive ?? false, error: res?.reason };
+  }
+  if (channel === 'page') {
+    const res = await ipc.fbPage?.listPages();
+    const page = res?.pages?.find(p => p.page_id === params.accountId);
+    if (!page) return { success: false, alive: false, error: 'Page không tồn tại' };
+    return { success: true, alive: !!page.enabled && page.token_status === 'active' };
   }
   const res = await ipc.login?.checkHealth?.(params.accountId);
   const result = res?.results?.[0];
@@ -357,6 +399,9 @@ export async function changeGroupName(channel: Channel, params: {
       threadId: params.threadId,
       name: params.name,
     }) ?? { success: false, error: 'FB IPC not available' };
+  }
+  if (channel === 'page') {
+    return { success: false, error: 'Page không hỗ trợ nhóm (Messenger Page chỉ nhắn tin 1:1)' };
   }
   // Zalo group rename via zalo IPC
   return ipc.zalo?.changeGroupName?.({
@@ -378,6 +423,9 @@ export async function blockUser(channel: Channel, params: {
       userId: params.userId,
     }) ?? { success: false, error: 'FB IPC not available' };
   }
+  if (channel === 'page') {
+    return { success: false, error: 'Page không hỗ trợ chặn người dùng từ Zaplo' };
+  }
   return ipc.zalo?.blockUser?.({
     auth: { zaloId: params.accountId },
     userId: params.userId,
@@ -393,6 +441,9 @@ export async function unblockUser(channel: Channel, params: {
       accountId: params.accountId,
       userId: params.userId,
     }) ?? { success: false, error: 'FB IPC not available' };
+  }
+  if (channel === 'page') {
+    return { success: false, error: 'Page không hỗ trợ bỏ chặn người dùng từ Zaplo' };
   }
   return ipc.zalo?.unblockUser?.({
     auth: { zaloId: params.accountId },
@@ -416,6 +467,9 @@ export async function forwardMessage(channel: Channel, params: {
       isGroup: params.threadType === 1,
     }) ?? { success: false, error: 'FB IPC not available' };
   }
+  if (channel === 'page') {
+    return { success: false, error: 'Page không hỗ trợ chuyển tiếp tin nhắn' };
+  }
   return ipc.zalo?.forwardMessage?.({
     auth: { zaloId: params.accountId },
     msgId: params.messageId,
@@ -438,6 +492,9 @@ export async function editMessage(channel: Channel, params: {
       text: params.text,
     }) ?? { success: false, error: 'FB IPC not available' };
   }
+  if (channel === 'page') {
+    return { success: false, error: 'Page không hỗ trợ chỉnh sửa tin nhắn' };
+  }
   return { success: false, error: 'Zalo does not support editMessage' };
 }
 
@@ -456,6 +513,9 @@ export async function createPoll(channel: Channel, params: {
       question: params.question,
       options: params.options,
     }) ?? { success: false, error: 'FB IPC not available' };
+  }
+  if (channel === 'page') {
+    return { success: false, error: 'Page không hỗ trợ tạo bình chọn (Messenger Page chỉ nhắn tin 1:1)' };
   }
   // Zalo poll creation (params differ but map universally)
   return ipc.zalo?.createPoll?.({

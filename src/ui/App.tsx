@@ -22,6 +22,7 @@ import ErpPage from './features/erp/ErpPage';
 import GroupPostingPage from './components/posting/group-posting-page';
 import AgentHubPage from './components/agent-hub/agent-hub-page';
 import FbWritePage from './components/facebook-write/fb-write-page';
+import FacebookPageView from './components/facebook-page/facebook-page-view';
 import AccountInitPanel from './components/common/AccountInitPanel';
 import { UpdateNotification } from './components/common/UpdateNotification';
 import { useAppStore } from './store/appStore';
@@ -1314,6 +1315,11 @@ export default function App() {
           {view === 'fbWrite' && (
             <div className="flex-1 h-full overflow-hidden">
               <FbWritePage />
+            </div>
+          )}
+          {view === 'facebookPage' && (
+            <div className="flex-1 h-full overflow-hidden">
+              <FacebookPageView />
             </div>
           )}
           {view === 'dashboard' && (

@@ -2,31 +2,40 @@
  * ChatAgentDispatcher — MAIN-process service that auto-replies to incoming
  * customer messages using a Chat Agent (assistant + routing rules).
  *
- * Flow per incoming message on thread T (account A):
+ * Channel-agnostic since Phase 1: it consumes a normalised `ChannelEvent` off
+ * `event:channelMessage` and resolves every account-keyed data access through a
+ * ChannelContextProvider and every send through a ChannelSender. Zalo is one
+ * channel (bridged from the legacy `event:message` by ZaloChannelAdapter); Page
+ * (Phase 2/3) is another. Nothing here references zaloId, DatabaseService,
+ * ConnectionManager or api.sendMessage directly.
+ *
+ * Flow per incoming message on thread T (account A, channel C):
  *   1. Skip own/AI echoes (isSelf) — but use them to auto-pause on human reply.
  *   2. Build ThreadCtx (type, friend, labels, pin) + load enabled agents (rules).
  *   3. decideChatReply() → skip | suggest | reply.
- *   4. reply → load history → chatForWorkflow() → parse segments → send each.
+ *   4. reply → load history → chatForWorkflow() → parse segments → sender.send().
  *
- * Integrates into the LIVE message stream via EventBroadcaster.onBeforeSend
- * ('event:message') — the same hook WorkflowEngineService uses, so it runs in
- * the main process right when a message arrives.
- *
- * NOTE: This does NOT touch the legacy auto-reply workflow; both can coexist
- * until the migration phase removes the old path.
+ * All per-thread state maps are keyed `channel:accountId:threadId[:senderId]` so
+ * two channels (or two accounts) never collide, and rehook() clears them all.
  */
 
-import { ThreadType } from 'zca-js';
-import DatabaseService from '../database/DatabaseService';
-import ConnectionManager from '../../utils/ConnectionManager';
 import EventBroadcaster from '../event/EventBroadcaster';
 import AIAssistantService from '../ai/AIAssistantService';
 import { parseStructuredResponse } from '../../utils/aiUtils';
+import { delay } from '../../utils/delay';
 import { decideChatReply, shouldAutoResume, groupTriggerMatched, stripSelfMentions, stripSelfMentionText } from './chat-agent-decider';
 import { MessageAggregator } from './message-aggregator';
 import type { ChatAgentRule, ThreadCtx } from './chat-agent-resolver';
-import Logger from '../../utils/Logger';
 import type { ChatAgent } from '../../models';
+import type { AIStructuredSegment } from '../../utils/aiUtils';
+import type { ChatChannel, ChannelEvent, ChannelContextProvider } from './channel-event';
+import { channelProviderRegistry, channelSenderRegistry } from './channel-sender-registry';
+import { ZaloContextProvider } from './channel-context/zalo-context-provider';
+import { ZaloSender } from './senders/zalo-sender';
+import ZaloChannelAdapter from './adapters/zalo-channel-adapter';
+import { PageContextProvider } from './channel-context/page-context-provider';
+import { pageSendService } from '../facebook-page/page-send-service';
+import Logger from '../../utils/Logger';
 
 /** Window (ms) for treating a SELF message as an echo of something the AI just sent. */
 const AI_SENT_TTL_MS = 60_000;
@@ -40,19 +49,20 @@ class ChatAgentDispatcher {
     private static instance: ChatAgentDispatcher;
 
     private started = false;
+    private channelsRegistered = false;
     private unsubscribe: (() => void) | null = null;
 
-    /** `${threadId}|${normContent}` → expiry ts. Marks text the AI just sent, so its echo is ignored. */
+    /** `channel:accountId:threadId|normContent` → expiry ts. Marks text the AI just sent, so its echo is ignored. */
     private aiSentKeys = new Map<string, number>();
-    /** threadId → last AI reply ts (min-delay throttle, keyed within account via composite key). */
+    /** replyKey → last AI reply ts (min-delay throttle). */
     private lastReplyAt = new Map<string, number>();
-    /** Threads currently being processed — prevents concurrent double-replies. */
+    /** Reply keys currently being processed — prevents concurrent double-replies. */
     private processing = new Set<string>();
     /** Debounce buffer — gom tin khách gửi ngắt quãng thành 1 lượt trước khi trả lời. */
     private aggregator = new MessageAggregator();
     /** Per-thread reply queue — flushed turns wait here and are sent sequentially (never dropped). */
     private replyQueue = new Map<string, string[]>();
-    /** Thread keys with a drain loop running (so a second flush appends instead of racing). */
+    /** Reply keys with a drain loop running (so a second flush appends instead of racing). */
     private draining = new Set<string>();
 
     public static getInstance(): ChatAgentDispatcher {
@@ -60,13 +70,25 @@ class ChatAgentDispatcher {
         return ChatAgentDispatcher.instance;
     }
 
-    /** Bind the 'event:message' listener (idempotent on unsubscribe handle). */
+    /** Register the built-in channels (provider + sender). Idempotent. */
+    private registerChannels(): void {
+        if (this.channelsRegistered) return;
+        channelProviderRegistry.register('zalo', new ZaloContextProvider());
+        channelSenderRegistry.register('zalo', new ZaloSender());
+        // Page (Phase 4 activation): inbound events already flow from Phase 3; wiring
+        // the provider + sender turns replies on. No Zalo path is touched.
+        channelProviderRegistry.register('page', new PageContextProvider());
+        channelSenderRegistry.register('page', pageSendService);
+        this.channelsRegistered = true;
+    }
+
+    /** Bind the 'event:channelMessage' listener (idempotent on unsubscribe handle). */
     private bind(): void {
         if (this.unsubscribe) this.unsubscribe();
-        this.unsubscribe = EventBroadcaster.onBeforeSend('event:message', (data: any) => {
+        this.unsubscribe = EventBroadcaster.onBeforeSend('event:channelMessage', (data: ChannelEvent) => {
             // Never let a handler error bubble into the broadcaster.
-            Promise.resolve(this.onMessage(data)).catch(err =>
-                Logger.warn(`[ChatAgentDispatcher] onMessage error: ${err?.message || err}`),
+            Promise.resolve(this.onEvent(data)).catch(err =>
+                Logger.warn(`[ChatAgentDispatcher] onEvent error: ${err?.message || err}`),
             );
         });
     }
@@ -75,75 +97,81 @@ class ChatAgentDispatcher {
     public start(): void {
         if (this.started) return;
         this.started = true;
+        this.registerChannels();
+        ZaloChannelAdapter.getInstance().start();
         this.bind();
         Logger.log('[ChatAgentDispatcher] started');
     }
 
     /**
-     * Re-attach the listener after EventBroadcaster.clearBeforeSendHooks() (workspace switch)
-     * wiped it. Safe to call regardless of `started`; only re-binds if previously started.
+     * Re-attach listeners after EventBroadcaster.clearBeforeSendHooks() (workspace switch)
+     * wiped them, and drop all per-thread state so a new workspace never inherits the old
+     * one's debounce/echo/throttle maps (red-team M6). Safe to call regardless of `started`.
      */
     public rehook(): void {
         if (!this.started) return;
+        ZaloChannelAdapter.getInstance().rehook();
         this.bind();
         this.aggregator.clear();
         this.replyQueue.clear();
+        this.draining.clear();
+        this.processing.clear();
+        this.lastReplyAt.clear();
+        this.aiSentKeys.clear();
         Logger.log('[ChatAgentDispatcher] re-hooked after hooks cleared');
     }
 
     public stop(): void {
         if (this.unsubscribe) { this.unsubscribe(); this.unsubscribe = null; }
+        ZaloChannelAdapter.getInstance().stop();
         this.aggregator.clear();
         this.replyQueue.clear();
+        this.draining.clear();
+        this.processing.clear();
+        this.lastReplyAt.clear();
+        this.aiSentKeys.clear();
         this.started = false;
         Logger.log('[ChatAgentDispatcher] stopped');
     }
 
     // ─── Incoming message ─────────────────────────────────────────────────
 
-    private async onMessage(data: any): Promise<void> {
-        // Payload mirrors WorkflowEngineService.flattenTriggerData('trigger.message'):
-        //   data = { zaloId, message }, message = UserMessage|GroupMessage
-        //   message.{ type:0|1, isSelf, threadId, data:{ uidFrom, msgId, ts, content, msgType } }
-        const zaloId: string = data?.zaloId || '';
-        const msg = data?.message || data?.data || {};
-        const msgData = (msg as any).data || {};
-        const threadId: string = (msg as any).threadId || msgData.idTo || '';
-        if (!zaloId || !threadId) return;
+    private async onEvent(evt: ChannelEvent): Promise<void> {
+        const { channel, accountId, threadId } = evt;
+        if (!accountId || !threadId) return;
+        const provider = channelProviderRegistry.pick(channel);
+        if (!provider) return;
 
-        const isSelf = !!((msg as any).isSelf || data?.isSelf);
-        const isGroup = (msg as any).type === 1 || !!(msg as any).isGroup;
-        const mentions = msgData.mentions || (msg as any).mentions;
-        const uidFrom = String(msgData.uidFrom || (msg as any).uidFrom || '');
-        const rawContent = this.extractContent(msgData, msg);
+        const isGroup = evt.threadType === 'group';
+        const rawContent = evt.text;
 
-        if (isSelf) {
-            this.handleSelfMessage(zaloId, threadId, rawContent, String(msgData.msgId || ''), isGroup);
+        if (evt.isSelf) {
+            this.handleSelfMessage(channel, provider, accountId, threadId, rawContent, evt.msgId || '', isGroup);
             return;
         }
 
         // Strip the bot's OWN @mention so the AI answers the question, not the mentioned name
         // (e.g. "@Esta Leasing chào bạn" → "chào bạn"). Mentions of others are kept.
-        const content = stripSelfMentions(rawContent, mentions, zaloId);
-        // Ignore empty (sticker/media-only, or a bare @mention with no text).
-        if (!content.trim()) return;
-
-        const db = DatabaseService.getInstance();
+        const content = stripSelfMentions(rawContent, evt.mentions, accountId);
+        // Ignore empty (sticker/media-only, or a bare @mention with no text) — UNLESS the
+        // message carries images (a caption-less photo the vision model should answer).
+        const hasImages = !!(evt.images && evt.images.length);
+        if (!content.trim() && !hasImages) return;
 
         // ── Build routing inputs ──────────────────────────────────────────
-        const agents = this.loadAgentRules(zaloId);
+        const agents = this.loadAgentRules(provider, accountId);
         if (!agents.length) return;
 
-        const ctx = this.buildThreadCtx(zaloId, threadId, isGroup);
-        let st = db.getConversationAiState(zaloId, threadId);
+        const ctx = this.buildThreadCtx(provider, accountId, threadId, isGroup);
+        let st = provider.getAiState(accountId, threadId);
 
         // Auto-resume a HUMAN handoff after the owning agent's configured silence window.
         if (st?.paused) {
             const owner = decideChatReply(ctx, agents, { paused: false });
-            const ownerAgent = owner.agentId != null ? this.findAgent(zaloId, owner.agentId) : null;
+            const ownerAgent = owner.agentId != null ? this.findAgent(provider, accountId, owner.agentId) : null;
             if (ownerAgent && shouldAutoResume(st, ownerAgent.autoresume_minutes || 0, Date.now())) {
-                db.setConversationAiState(zaloId, threadId, { paused: 0, paused_reason: '', paused_at: 0 });
-                EventBroadcaster.emit('chatAgent:update', { zaloId, threadId, agentId: ownerAgent.id, type: 'resumed' });
+                provider.setAiState(accountId, threadId, { paused: 0, paused_reason: '', paused_at: 0 });
+                EventBroadcaster.emit('chatAgent:update', { channel, zaloId: accountId, accountId, threadId, agentId: ownerAgent.id, type: 'resumed' });
                 st = null;
             }
         }
@@ -151,67 +179,52 @@ class ChatAgentDispatcher {
         const decision = decideChatReply(ctx, agents, { paused: !!st?.paused });
         if (decision.skip || decision.agentId == null) return;
 
-        const agent = this.findAgent(zaloId, decision.agentId);
+        const agent = this.findAgent(provider, accountId, decision.agentId);
         if (!agent) return;
 
         // Buffer key: per-SENDER in a group (so one member's chatter never merges into another
         // member's addressed turn), per-thread in a DM. Reply/throttle stay keyed per-thread.
-        const bufKey = isGroup ? `${zaloId}|${threadId}|${uidFrom}` : `${zaloId}|${threadId}`;
+        const bufKey = isGroup
+            ? this.mapKey(channel, accountId, threadId, evt.senderId)
+            : this.mapKey(channel, accountId, threadId);
 
         // In a GROUP, only engage when addressed. The FIRST fragment of a turn must address
         // the bot (@mention or trigger keyword); once a turn is being buffered, subsequent
-        // quick fragments from the SAME sender join even without re-tagging (tags once, then
-        // types details).
+        // quick fragments from the SAME sender join even without re-tagging.
         if (isGroup && !this.aggregator.hasPending(bufKey)) {
-            const keywords = ((agent as any).trigger_keywords || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+            const keywords = (agent.trigger_keywords || '').split(',').map(s => s.trim()).filter(Boolean);
             // mention detection uses the original mentions array; keyword check uses cleaned text.
-            if (!groupTriggerMatched(content, mentions, zaloId, keywords)) return;
+            if (!groupTriggerMatched(content, evt.mentions, accountId, keywords)) return;
         }
 
         if (decision.mode === 'suggest') {
             // UI surfaces the suggestion; we don't auto-send (drafting handled in a later phase).
             EventBroadcaster.emit('chatAgent:suggestion', {
-                zaloId, threadId, agentId: agent.id, threadType: isGroup ? 1 : 0,
+                channel, zaloId: accountId, accountId, threadId, agentId: agent.id, threadType: isGroup ? 1 : 0,
             });
             return;
         }
 
         // ── mode === 'reply' ──────────────────────────────────────────────
         // Gom tin ngắt quãng: chờ khách im DEBOUNCE_MS rồi xếp vào hàng đợi trả lời 1 lần.
+        // `force` khi tin chỉ có ảnh (text rỗng) → vẫn flush để trả lời tin ảnh.
         this.aggregator.enqueue(bufKey, content, combined =>
-            this.enqueueReply(zaloId, threadId, isGroup, agent, combined),
+            this.enqueueReply(channel, provider, accountId, threadId, isGroup, agent, combined),
+            hasImages && !content.trim(),
         );
-    }
-
-    /** Extract human-readable text from a message payload (same rules as the workflow engine). */
-    private extractContent(msgData: any, msg: any): string {
-        const rawContent = msgData.content || (msg as any).content;
-        const msgType = String(msgData.msgType || (msg as any).msgType || '');
-        let content = String(
-            (rawContent as any)?.msg ?? (typeof rawContent === 'string' ? rawContent : '') ?? '',
-        );
-        if (!content && rawContent && typeof rawContent === 'object') {
-            if (msgType === 'chat.recommended' || msgType === 'chat.link') {
-                content = String((rawContent as any).title || (rawContent as any).href || '');
-            } else {
-                content = String((rawContent as any).title || '');
-            }
-        }
-        return content;
     }
 
     // ─── Routing inputs ───────────────────────────────────────────────────
 
-    /** Map DB ChatAgent rows → resolver rules. */
-    private loadAgentRules(zaloId: string): ChatAgentRule[] {
-        const agents = DatabaseService.getInstance().listEnabledChatAgents(zaloId);
-        return agents.map(a => this.toRule(a));
+    /** Map enabled ChatAgent rows → resolver rules. */
+    private loadAgentRules(provider: ChannelContextProvider, accountId: string): ChatAgentRule[] {
+        return provider.getAgents(accountId).map(a => this.toRule(a));
     }
 
     private toRule(a: ChatAgent): ChatAgentRule {
         return {
             id: a.id!,
-            enabled: true, // listEnabledChatAgents already filters enabled=1
+            enabled: true, // getAgents already filters enabled=1
             threadIds: (a.thread_ids || []).map(String),
             // chat_agent_label.label_id is numeric → stringify so it matches ThreadCtx.labelIds.
             labelIds: (a.label_ids || []).map(String),
@@ -222,14 +235,10 @@ class ChatAgentDispatcher {
         };
     }
 
-    private buildThreadCtx(zaloId: string, threadId: string, isGroup: boolean): ThreadCtx {
-        const db = DatabaseService.getInstance();
-        // Thread labels (local_label_threads.label_id is numeric → String() for resolver match).
-        const labelIds = db.getLocalLabelThreads(zaloId)
-            .filter(r => r.thread_id === threadId)
-            .map(r => String(r.label_id));
-        const isFriend = isGroup ? false : db.checkIsFriend(zaloId, threadId);
-        const pinnedAgentId = db.getConversationAiState(zaloId, threadId)?.pinned_agent_id ?? null;
+    private buildThreadCtx(provider: ChannelContextProvider, accountId: string, threadId: string, isGroup: boolean): ThreadCtx {
+        const labelIds = provider.getLabelThreads(accountId, threadId);
+        const isFriend = isGroup ? false : provider.isFriend(accountId, threadId);
+        const pinnedAgentId = provider.getAiState(accountId, threadId)?.pinned_agent_id ?? null;
         return {
             threadId,
             threadType: isGroup ? 'group' : 'user',
@@ -240,8 +249,8 @@ class ChatAgentDispatcher {
     }
 
     /** Re-fetch the full ChatAgent row (needs assistant_id + autopause flag, not in the rule). */
-    private findAgent(zaloId: string, agentId: number): ChatAgent | null {
-        return DatabaseService.getInstance().listEnabledChatAgents(zaloId).find(a => a.id === agentId) || null;
+    private findAgent(provider: ChannelContextProvider, accountId: string, agentId: number): ChatAgent | null {
+        return provider.getAgents(accountId).find(a => a.id === agentId) || null;
     }
 
     // ─── Reply ────────────────────────────────────────────────────────────
@@ -251,16 +260,16 @@ class ChatAgentDispatcher {
      * sequentially per thread so a turn is NEVER dropped because a prior reply is in flight
      * or the anti-spam throttle hasn't elapsed (the throttle becomes a delay, not a drop).
      */
-    private enqueueReply(zaloId: string, threadId: string, isGroup: boolean, agent: ChatAgent, combined: string): void {
-        const key = `${zaloId}|${threadId}`;
+    private enqueueReply(channel: ChatChannel, provider: ChannelContextProvider, accountId: string, threadId: string, isGroup: boolean, agent: ChatAgent, combined: string): void {
+        const key = this.mapKey(channel, accountId, threadId);
         const q = this.replyQueue.get(key) ?? [];
         q.push(combined);
         this.replyQueue.set(key, q);
-        if (!this.draining.has(key)) void this.drain(zaloId, threadId, isGroup, agent, key);
+        if (!this.draining.has(key)) void this.drain(channel, provider, accountId, threadId, isGroup, agent, key);
     }
 
     /** Drain a thread's reply queue one turn at a time, spacing sends by MIN_REPLY_DELAY_MS. */
-    private async drain(zaloId: string, threadId: string, isGroup: boolean, agent: ChatAgent, key: string): Promise<void> {
+    private async drain(channel: ChatChannel, provider: ChannelContextProvider, accountId: string, threadId: string, isGroup: boolean, agent: ChatAgent, key: string): Promise<void> {
         this.draining.add(key);
         try {
             for (;;) {
@@ -270,11 +279,11 @@ class ChatAgentDispatcher {
                 if (q.length === 0) this.replyQueue.delete(key);
                 // Throttle as DELAY (not drop): keep at least MIN_REPLY_DELAY_MS between sends.
                 const wait = MIN_REPLY_DELAY_MS - (Date.now() - (this.lastReplyAt.get(key) ?? 0));
-                if (wait > 0) await new Promise(r => setTimeout(r, wait));
+                if (wait > 0) await delay(wait);
                 try {
-                    await this.reply(zaloId, threadId, isGroup, agent, combined);
-                } catch (err: any) {
-                    Logger.warn(`[ChatAgentDispatcher] reply error: ${err?.message || err}`);
+                    await this.reply(channel, provider, accountId, threadId, isGroup, agent, combined);
+                } catch (err) {
+                    Logger.warn(`[ChatAgentDispatcher] reply error: ${err instanceof Error ? err.message : String(err)}`);
                 }
             }
         } finally {
@@ -282,27 +291,30 @@ class ChatAgentDispatcher {
         }
     }
 
-    private async reply(zaloId: string, threadId: string, isGroup: boolean, agent: ChatAgent, currentText = ''): Promise<void> {
-        const key = `${zaloId}|${threadId}`;
+    private async reply(channel: ChatChannel, provider: ChannelContextProvider, accountId: string, threadId: string, isGroup: boolean, agent: ChatAgent, currentText = ''): Promise<void> {
+        const key = this.mapKey(channel, accountId, threadId);
         if (this.processing.has(key)) return; // concurrency guard (drain serializes, so normally never trips)
 
-        const conn = ConnectionManager.getConnection(zaloId);
-        if (!conn?.api) {
-            Logger.warn(`[ChatAgentDispatcher] ${zaloId}: not connected — skip reply`);
+        const sender = channelSenderRegistry.pick(channel);
+        if (!sender) {
+            Logger.warn(`[ChatAgentDispatcher] no sender for channel ${channel} — skip reply`);
+            return;
+        }
+        if (sender.isReady && !sender.isReady(accountId)) {
+            Logger.warn(`[ChatAgentDispatcher] ${channel}:${accountId} not connected — skip reply`);
             return;
         }
 
         this.processing.add(key);
         try {
-            const db = DatabaseService.getInstance();
             // Re-check pause: a human may have taken over during the debounce window.
-            if (db.getConversationAiState(zaloId, threadId)?.paused) {
+            if (provider.getAiState(accountId, threadId)?.paused) {
                 Logger.log(`[ChatAgentDispatcher] ${key} paused during debounce — skip reply`);
                 return;
             }
             // Re-validate the agent at flush time — it may have been disabled / lost its assistant
             // during the debounce window (the captured row is stale).
-            const fresh = this.findAgent(zaloId, agent.id);
+            const fresh = this.findAgent(provider, accountId, agent.id!);
             if (!fresh || !fresh.assistant_id) {
                 Logger.log(`[ChatAgentDispatcher] agent ${agent.id} no longer active — skip reply`);
                 return;
@@ -315,19 +327,18 @@ class ChatAgentDispatcher {
             // Strip the bot's own @mention from history too (stored content keeps "@<name> …";
             // no TMention pos/len in the DB) so the assistant answers instead of "correcting" the
             // addressed name across past turns. Name-agnostic — uses the account's display name.
-            const selfName = db.getAccountName(zaloId);
+            const selfName = provider.getAccountName(accountId);
 
-            // getMessages returns newest→oldest; reverse to old→new for the LLM.
-            const history = db.getMessages(zaloId, threadId, contextCount)
-                .slice()
-                .reverse()
+            const history = provider.getHistory(accountId, threadId, contextCount)
                 .map(m => {
-                    const role = m.is_sent ? 'assistant' : 'user';
-                    let content = this.messageText(m);
-                    if (role === 'user') content = stripSelfMentionText(content, selfName);
-                    return { role, content };
+                    const content = m.role === 'user' ? stripSelfMentionText(m.content, selfName) : m.content;
+                    // Carry customer image URLs through to the vision model. An image-only
+                    // turn (no caption) must survive the empty-text filter below.
+                    return m.images && m.images.length
+                        ? { role: m.role, content, images: m.images }
+                        : { role: m.role, content };
                 })
-                .filter(m => m.content.trim());
+                .filter(m => m.content.trim() || ('images' in m && (m as any).images?.length));
 
             // Ensure the current incoming question is the last user turn — the DB row for it
             // may not be persisted yet when this event fires, so append it if missing.
@@ -339,15 +350,33 @@ class ChatAgentDispatcher {
 
             if (!history.length) return;
 
-            const { result } = await AIAssistantService.getInstance().chatForWorkflow(assistantId, history);
-            const threadType = isGroup ? ThreadType.Group : ThreadType.User;
-            const sentCount = await this.sendResult(conn.api, threadId, threadType, result);
+            // Thinking is per-call and Page-only: the DeepSeek `thinking` param would
+            // corrupt the structured-JSON contract the Zalo path relies on (red-team H5),
+            // so Zalo passes thinking:false and behaves exactly as before.
+            const wantThinking = channel === 'page';
+            const { result, reasoning } = await AIAssistantService.getInstance()
+                .chatForWorkflow(assistantId, history, { thinking: wantThinking });
+            // Persist the chain-of-thought for debugging only — never sent to the customer,
+            // never synced to employees (ai_reasoning_log is outside SYNCABLE_TABLES). msgId
+            // is not threaded into the debounce path yet; thread-level is enough for review.
+            if (reasoning) {
+                AIAssistantService.getInstance().logReasoning({
+                    channel, accountId, threadId, msgId: '', assistantId, reasoning,
+                });
+            }
+            const segments = this.buildSegments(result);
+            if (!segments.length) return;
 
-            if (sentCount > 0) {
+            const res = await sender.send({
+                accountId, threadId, threadType: isGroup ? 'group' : 'user', segments,
+            });
+            for (const t of res.sentTexts) this.rememberAiSent(channel, accountId, threadId, t);
+
+            if (res.sentCount > 0) {
                 this.lastReplyAt.set(key, Date.now());
-                Logger.log(`[ChatAgentDispatcher] replied ${key} via agent ${agent.id} (${sentCount} segment(s))`);
+                Logger.log(`[ChatAgentDispatcher] replied ${key} via agent ${agent.id} (${res.sentCount} segment(s))`);
                 EventBroadcaster.emit('chatAgent:update', {
-                    zaloId, threadId, agentId: agent.id, type: 'replied', sentCount,
+                    channel, zaloId: accountId, accountId, threadId, agentId: agent.id, type: 'replied', sentCount: res.sentCount,
                 });
             }
         } finally {
@@ -355,62 +384,16 @@ class ChatAgentDispatcher {
         }
     }
 
-    /** Best-effort plain text of a stored message (content may be JSON for rich types). */
-    private messageText(m: { content: string; msg_type?: string }): string {
-        const raw = m.content || '';
-        if (!raw) return '';
-        if (raw.trim().startsWith('{')) {
-            try {
-                const o = JSON.parse(raw);
-                return String(o.msg || o.title || '');
-            } catch { /* fall through */ }
-        }
-        return raw;
-    }
-
     /**
-     * Parse the assistant result into segments and send each to the thread.
-     * Text segments → sendMessage; image segments → send each URL as plain text
-     * (image upload from URL is handled by the workflow engine; here we keep it
-     * simple and robust by forwarding the URL — richer media handling is a later phase).
-     * Returns the number of segments actually sent.
+     * Parse the assistant result into segments. A structured JSON reply becomes its
+     * text/image segments (preserved as-is, empty array = nothing to send); a plain
+     * reply becomes a single text segment.
      */
-    private async sendResult(api: any, threadId: string, threadType: ThreadType, result: string): Promise<number> {
-        const segments = parseStructuredResponse(result);
-        let sent = 0;
-
-        if (!segments) {
-            // Plain text fallback.
-            const text = (result || '').trim();
-            if (!text) return 0;
-            await api.sendMessage({ msg: text }, threadId, threadType);
-            this.rememberAiSent(threadId, text);
-            return 1;
-        }
-
-        for (let i = 0; i < segments.length; i++) {
-            const seg = segments[i];
-            if (i > 0) await new Promise(r => setTimeout(r, 600));
-            try {
-                if (seg.type === 'text' && seg.content) {
-                    const text = String(seg.content);
-                    await api.sendMessage({ msg: text }, threadId, threadType);
-                    this.rememberAiSent(threadId, text);
-                    sent++;
-                } else if (seg.type === 'image') {
-                    const urls = Array.isArray(seg.content) ? seg.content : [seg.content];
-                    for (const url of urls) {
-                        if (!url || typeof url !== 'string') continue;
-                        await api.sendMessage({ msg: String(url) }, threadId, threadType);
-                        this.rememberAiSent(threadId, String(url));
-                        sent++;
-                    }
-                }
-            } catch (e: any) {
-                Logger.warn(`[ChatAgentDispatcher] send segment failed: ${e.message}`);
-            }
-        }
-        return sent;
+    private buildSegments(result: string): AIStructuredSegment[] {
+        const parsed = parseStructuredResponse(result);
+        if (parsed) return parsed;
+        const text = (result || '').trim();
+        return text ? [{ type: 'text', content: text }] : [];
     }
 
     // ─── Self message: echo detection + auto-pause ────────────────────────
@@ -421,67 +404,63 @@ class ChatAgentDispatcher {
      *  - It does NOT match → a human typed by hand → auto-pause the thread if the
      *    responsible agent has autopause_on_human.
      */
-    private handleSelfMessage(zaloId: string, threadId: string, content: string, msgId: string, isGroup: boolean): void {
+    private handleSelfMessage(channel: ChatChannel, provider: ChannelContextProvider, accountId: string, threadId: string, content: string, msgId: string, isGroup: boolean): void {
         const text = (content || '').trim();
         if (!text) return;
 
-        const key = this.aiKey(threadId, text);
+        const key = this.aiEchoKey(channel, accountId, threadId, text);
         const exp = this.aiSentKeys.get(key);
         if (exp && exp > Date.now()) {
             // Echo of an AI-sent segment — consume it, do NOT auto-pause.
             this.aiSentKeys.delete(key);
-            this.tagSentByAi(zaloId, msgId); // best-effort
+            provider.tagSentByAi(accountId, msgId); // best-effort
             return;
         }
 
         // Echo guard: if the AI replied on this thread very recently, a non-matching self
-        // message is most likely a reformatted echo (Zalo rewrites links/emoji) — not a human.
+        // message is most likely a reformatted echo (links/emoji rewritten) — not a human.
         // Skip auto-pause to avoid the AI pausing itself.
-        if (Date.now() - (this.lastReplyAt.get(`${zaloId}|${threadId}`) ?? 0) < AI_SENT_TTL_MS) return;
+        if (Date.now() - (this.lastReplyAt.get(this.mapKey(channel, accountId, threadId)) ?? 0) < AI_SENT_TTL_MS) return;
 
         // Human typed by hand → auto-pause if the agent that owns this thread wants it.
         try {
-            const db = DatabaseService.getInstance();
-            const agents = this.loadAgentRules(zaloId);
+            const agents = this.loadAgentRules(provider, accountId);
             if (!agents.length) return;
-            const ctx = this.buildThreadCtx(zaloId, threadId, isGroup);
+            const ctx = this.buildThreadCtx(provider, accountId, threadId, isGroup);
             // Don't let an existing pause flip the routing; we just want the owning agent.
             const decision = decideChatReply(ctx, agents, { paused: false });
             if (decision.agentId == null) return;
-            const agent = this.findAgent(zaloId, decision.agentId);
+            const agent = this.findAgent(provider, accountId, decision.agentId);
             if (agent?.autopause_on_human) {
-                db.setConversationAiState(zaloId, threadId, {
+                provider.setAiState(accountId, threadId, {
                     paused: 1, paused_reason: 'human', paused_at: Date.now(),
                 });
-                Logger.log(`[ChatAgentDispatcher] auto-paused ${zaloId}|${threadId} (human reply)`);
+                Logger.log(`[ChatAgentDispatcher] auto-paused ${channel}:${accountId}:${threadId} (human reply)`);
                 EventBroadcaster.emit('chatAgent:update', {
-                    zaloId, threadId, agentId: agent.id, type: 'paused', reason: 'human',
+                    channel, zaloId: accountId, accountId, threadId, agentId: agent.id, type: 'paused', reason: 'human',
                 });
             }
-        } catch (e: any) {
-            Logger.warn(`[ChatAgentDispatcher] auto-pause error: ${e.message}`);
+        } catch (e) {
+            Logger.warn(`[ChatAgentDispatcher] auto-pause error: ${e instanceof Error ? e.message : String(e)}`);
         }
     }
 
-    /** Mark a stored message as AI-sent (messages.sent_by exists via migration). Guarded. */
-    private tagSentByAi(zaloId: string, msgId: string): void {
-        if (!msgId) return;
-        try {
-            DatabaseService.getInstance().run(
-                `UPDATE messages SET sent_by='ai' WHERE owner_zalo_id=? AND msg_id=?`,
-                [zaloId, msgId],
-            );
-        } catch (e: any) { Logger.warn(`[ChatAgentDispatcher] tagSentByAi: ${e.message}`); }
-    }
-
-    private rememberAiSent(threadId: string, text: string): void {
-        this.aiSentKeys.set(this.aiKey(threadId, text), Date.now() + AI_SENT_TTL_MS);
+    private rememberAiSent(channel: ChatChannel, accountId: string, threadId: string, text: string): void {
+        this.aiSentKeys.set(this.aiEchoKey(channel, accountId, threadId, text), Date.now() + AI_SENT_TTL_MS);
         this.pruneAiSent();
     }
 
-    private aiKey(threadId: string, text: string): string {
-        // Normalize whitespace so minor echo reformatting still matches.
-        return `${threadId}|${text.replace(/\s+/g, ' ').trim().toLowerCase()}`;
+    // ─── Keys ───────────────────────────────────────────────────────────────
+
+    /** State-map key: `channel:accountId:threadId` (+ `:senderId` for group buffers). */
+    private mapKey(channel: ChatChannel, accountId: string, threadId: string, senderId?: string): string {
+        const base = `${channel}:${accountId}:${threadId}`;
+        return senderId ? `${base}:${senderId}` : base;
+    }
+
+    /** Echo-suppression key: normalise whitespace so minor echo reformatting still matches. */
+    private aiEchoKey(channel: ChatChannel, accountId: string, threadId: string, text: string): string {
+        return `${channel}:${accountId}:${threadId}|${text.replace(/\s+/g, ' ').trim().toLowerCase()}`;
     }
 
     private pruneAiSent(): void {

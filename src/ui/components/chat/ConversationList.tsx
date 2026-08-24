@@ -687,9 +687,12 @@ export default function ConversationList() {
     (async () => {
       try {
         const isGroupThread = activeThreadType === 1;
+        // Only override for Page — Zalo AND personal-Facebook conversation_ai_state
+        // rows are both keyed channel='zalo' today, so only 'page' needs the param.
+        const chAgentChannel = (activeAccountObj?.channel || 'zalo') === 'page' ? 'page' : undefined;
         const [stateRes, resolveRes] = await Promise.all([
-          chatAgent.convState({ zaloId: zid, threadId: tid }),
-          chatAgent.resolveThread({ zaloId: zid, threadId: tid, threadType: isGroupThread ? 'group' : 'user' }),
+          chatAgent.convState({ zaloId: zid, threadId: tid, channel: chAgentChannel }),
+          chatAgent.resolveThread({ zaloId: zid, threadId: tid, threadType: isGroupThread ? 'group' : 'user', channel: chAgentChannel }),
         ]);
         if (cancelled) return;
         const st = stateRes?.state;
@@ -699,7 +702,7 @@ export default function ConversationList() {
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
-  }, [activeAccountId, activeThreadId, activeThreadType]);
+  }, [activeAccountId, activeThreadId, activeThreadType, activeAccountObj?.channel]);
 
   const accountContacts = activeAccountId ? (contacts[activeAccountId] || []) : [];
   // Không tính unread của hội thoại trong thư mục "Khác"
@@ -1821,14 +1824,14 @@ export default function ConversationList() {
               {/* Channel filter submenu */}
               <div className="border-t border-gray-700 mt-1 pt-1">
                 <div className="px-3 py-1 text-[10px] text-gray-500 uppercase tracking-wider">Kênh</div>
-                {(['all', 'zalo', 'facebook'] as const).map(ch => (
+                {(['all', 'zalo', 'facebook', 'page'] as const).map(ch => (
                   <button
                     key={ch}
                     onClick={() => { setChannelFilter(ch); setMoreMenuOpen(false); }}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-700 text-left ${channelFilter === ch ? 'text-white bg-gray-700/50' : 'text-gray-300'}`}
                   >
-                    <span>{ch === 'all' ? '🌐' : ch === 'zalo' ? '💙' : '💜'}</span>
-                    <span>{ch === 'all' ? 'Tất cả kênh' : ch === 'zalo' ? 'Zalo' : 'Facebook'}</span>
+                    <span>{ch === 'all' ? '🌐' : ch === 'zalo' ? '💙' : ch === 'facebook' ? '💜' : '📘'}</span>
+                    <span>{ch === 'all' ? 'Tất cả kênh' : ch === 'zalo' ? 'Zalo' : ch === 'facebook' ? 'Facebook' : 'Facebook Page'}</span>
                     {channelFilter === ch && <span className="ml-auto text-blue-400">✓</span>}
                   </button>
                 ))}

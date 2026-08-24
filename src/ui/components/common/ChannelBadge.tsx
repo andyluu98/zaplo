@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Channel, getChannelColor } from '../../../configs/channelConfig';
+import { Channel, getChannelColor, getChannelLabel } from '../../../configs/channelConfig';
 
 interface Props {
   channel: Channel;
@@ -58,7 +58,7 @@ export default function ChannelBadge({ channel, size = 'sm', className = '' }: P
     <span
       className={`inline-flex items-center justify-center rounded-full border border-[#1a1d27] ${sizeClass} ${className}`}
       style={{ backgroundColor: color }}
-      title={channel === 'zalo' ? 'Zalo' : 'Facebook'}
+      title={getChannelLabel(channel)}
     >
       {channel === 'zalo'
         ? <ZaloIcon size={iconSize} />

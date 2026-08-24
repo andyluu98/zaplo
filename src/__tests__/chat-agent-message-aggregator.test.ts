@@ -122,6 +122,27 @@ describe('MessageAggregator', () => {
     expect(onFlush).not.toHaveBeenCalled();
   });
 
+  test('forced empty turn flushes (image-only message)', () => {
+    const agg = new MessageAggregator(1000);
+    const onFlush = jest.fn();
+    agg.enqueue('t', '', onFlush, true); // force = image-only, no caption
+    jest.advanceTimersByTime(1000);
+    expect(onFlush).toHaveBeenCalledTimes(1);
+    expect(onFlush).toHaveBeenCalledWith('');
+  });
+
+  test('force flag is cleared after flush — next empty turn does not flush', () => {
+    const agg = new MessageAggregator(1000);
+    const onFlush = jest.fn();
+    agg.enqueue('t', '', onFlush, true);
+    jest.advanceTimersByTime(1000);
+    expect(onFlush).toHaveBeenCalledTimes(1);
+    onFlush.mockClear();
+    agg.enqueue('t', '   ', onFlush); // not forced
+    jest.advanceTimersByTime(1000);
+    expect(onFlush).not.toHaveBeenCalled();
+  });
+
   test('latest onFlush wins for the same key', () => {
     const agg = new MessageAggregator(1000);
     const first = jest.fn();

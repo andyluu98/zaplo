@@ -623,10 +623,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     save:          (params: { zaloId: string; agent: any }) => ipcRenderer.invoke('chat-agent:save', params),
     enable:        (params: { id: number; enabled: boolean }) => ipcRenderer.invoke('chat-agent:enable', params),
     delete:        (params: { id: number }) => ipcRenderer.invoke('chat-agent:delete', params),
-    convState:     (params: { zaloId: string; threadId: string }) => ipcRenderer.invoke('chat-agent:convState', params),
-    setAiState:    (params: { zaloId: string; threadId: string; paused: boolean }) => ipcRenderer.invoke('chat-agent:setAiState', params),
-    pin:           (params: { zaloId: string; threadId: string; agentId?: number | null }) => ipcRenderer.invoke('chat-agent:pin', params),
-    resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => ipcRenderer.invoke('chat-agent:resolveThread', params),
+    convState:     (params: { zaloId: string; threadId: string; channel?: string }) => ipcRenderer.invoke('chat-agent:convState', params),
+    setAiState:    (params: { zaloId: string; threadId: string; paused: boolean; channel?: string }) => ipcRenderer.invoke('chat-agent:setAiState', params),
+    pin:           (params: { zaloId: string; threadId: string; agentId?: number | null; channel?: string }) => ipcRenderer.invoke('chat-agent:pin', params),
+    resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean; channel?: string }) => ipcRenderer.invoke('chat-agent:resolveThread', params),
   },
 
   // ─── Lịch nội dung (content_schedule_item) ────────────────────────
@@ -669,6 +669,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
     groupList:     (params: { accountId: string }) => ipcRenderer.invoke('facebook:group:list', params),
     groupSaveManual: (params: { accountId: string; linkOrId: string; name: string }) => ipcRenderer.invoke('facebook:group:saveManual', params),
     groupDelete:   (params: { accountId: string; groupId: string }) => ipcRenderer.invoke('facebook:group:delete', params),
+  },
+
+  // ─── Facebook Page (Graph API channel: connect + auto-reply) ──────
+  fbPage: {
+    saveApp:            (params: { appId: string; appSecret: string; verifyToken: string; configId?: string; publicUrl?: string; webhookPort?: number; webhookMode?: 'local' | 'tunnel' }) => ipcRenderer.invoke('fbpage:saveApp', params),
+    getApp:             (params: { appId: string }) => ipcRenderer.invoke('fbpage:getApp', params),
+    listApps:           () => ipcRenderer.invoke('fbpage:listApps'),
+    setAccessLevel:     (params: { appId: string; level: string }) => ipcRenderer.invoke('fbpage:setAccessLevel', params),
+    generateVerifyToken:() => ipcRenderer.invoke('fbpage:generateVerifyToken'),
+    getRedirectUri:     () => ipcRenderer.invoke('fbpage:getRedirectUri'),
+    listManagedPages:   (params: { appId: string; redirectUri?: string; configId?: string }) => ipcRenderer.invoke('fbpage:listManagedPages', params),
+    connectPage:        (params: { pageId: string }) => ipcRenderer.invoke('fbpage:connectPage', params),
+    disconnectPage:     (params: { pageId: string }) => ipcRenderer.invoke('fbpage:disconnectPage', params),
+    verifyToken:        (params: { pageId: string }) => ipcRenderer.invoke('fbpage:verifyToken', params),
+    listPages:          () => ipcRenderer.invoke('fbpage:listPages'),
+    setPageEnabled:     (params: { pageId: string; enabled: boolean }) => ipcRenderer.invoke('fbpage:setPageEnabled', params),
+    setDisclosure:      (params: { pageId: string; on: boolean }) => ipcRenderer.invoke('fbpage:setDisclosure', params),
+    getWebhookInfo:     (params: { appId?: string }) => ipcRenderer.invoke('fbpage:getWebhookInfo', params),
+    setWebhookConfig:   (params: { appId: string; publicUrl?: string; webhookMode?: 'local' | 'tunnel'; webhookPort?: number }) => ipcRenderer.invoke('fbpage:setWebhookConfig', params),
+    backfillNow:        (params: { pageId?: string }) => ipcRenderer.invoke('fbpage:backfillNow', params),
+    startQuickTunnel:   (params: { appId?: string }) => ipcRenderer.invoke('fbpage:startQuickTunnel', params),
+    stopQuickTunnel:    () => ipcRenderer.invoke('fbpage:stopQuickTunnel'),
+    // Manual (human-operator) send from the chat UI — distinct from the AI auto-reply path.
+    sendMessage:        (params: { pageId: string; psid: string; text: string }) => ipcRenderer.invoke('fbpage:sendMessage', params),
+    sendImage:          (params: { pageId: string; psid: string; url: string }) => ipcRenderer.invoke('fbpage:sendImage', params),
+    getReasoning:       (params: { accountId: string; threadId: string; msgId?: string }) => ipcRenderer.invoke('fbpage:getReasoning', params),
   },
 
   lockScreen: {

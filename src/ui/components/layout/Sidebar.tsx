@@ -315,6 +315,7 @@ export default function Sidebar({ onAddAccount }: SidebarProps) {
         )}
         <NavBtn icon="groupPosting" label="Zalo" active={view === 'groupPosting'} onClick={() => setView('groupPosting')} />
         <NavBtn icon="fbWrite" label="Facebook đăng bài" active={view === 'fbWrite'} onClick={() => setView('fbWrite')} />
+        <NavBtn icon="facebookPage" label="Facebook Page" active={view === 'facebookPage'} onClick={() => setView('facebookPage')} />
         <NavBtn icon="agentHub" label="AI & Agent" active={view === 'agentHub'} onClick={() => setView('agentHub')} />
         {/* ERP — gated by module permission AND ERP RBAC (`erp.access`).
             Inside ERP, fine-grained writes enforced via `useErpPermissions().can(...)` +
@@ -417,6 +418,12 @@ function NavBtn({ icon, label, active, onClick, dot }: { icon: string; label: st
     fbWrite: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+      </svg>
+    ),
+    facebookPage: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 2C6.48 2 2 6.15 2 11.27c0 2.91 1.44 5.51 3.7 7.2V22l3.38-1.86c.9.25 1.87.38 2.92.38 5.52 0 10-4.15 10-9.25C22 6.15 17.52 2 12 2z"/>
+        <path d="M8 12.5l2.8-3 2.4 2 2.8-3"/>
       </svg>
     ),
   };
@@ -628,6 +635,13 @@ function NavIcon({ name }: { name: string }) {
       return (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+        </svg>
+      );
+    case 'facebookPage':
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2C6.48 2 2 6.15 2 11.27c0 2.91 1.44 5.51 3.7 7.2V22l3.38-1.86c.9.25 1.87.38 2.92.38 5.52 0 10-4.15 10-9.25C22 6.15 17.52 2 12 2z"/>
+          <path d="M8 12.5l2.8-3 2.4 2 2.8-3"/>
         </svg>
       );
     default:

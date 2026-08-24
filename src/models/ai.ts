@@ -32,6 +32,13 @@ export interface AIAssistantFile {
 export interface ChatMessage {
     role: 'system' | 'user' | 'assistant';
     content: string;
+    /**
+     * Image URLs attached to this turn (customer-sent photos). Only consumed on
+     * the vision path (`isVisionModel`) for the OpenAI-compatible provider; every
+     * other model ignores it and sends `content` as a plain string. Optional so
+     * the Zalo/plain-text path is unchanged.
+     */
+    images?: string[];
 }
 
 export interface AIUsageLog {
@@ -53,4 +60,20 @@ export interface AIAccountAssistant {
     zalo_id: string;
     role: 'suggestion' | 'panel';
     assistant_id: string;
+}
+
+/**
+ * Chain-of-thought behind one AI reply. Stored in ai_reasoning_log, which is
+ * NOT synced to employee machines (holds customer message + knowledge + internal
+ * policy). Keyed to the reply via (channel, account_id, thread_id, msg_id).
+ */
+export interface AIReasoningLog {
+    id?: number;
+    channel: string;
+    account_id: string;
+    thread_id: string;
+    msg_id: string;
+    assistant_id: string;
+    reasoning_text: string;
+    created_at: number;
 }

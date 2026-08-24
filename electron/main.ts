@@ -27,6 +27,7 @@ import { registerLockScreenIpc } from './ipc/lockScreenIpc';
 import { registerPostingIpc } from './ipc/postingIpc';
 import { registerChatAgentIpc } from './ipc/chatAgentIpc';
 import { registerFacebookWriteIpc } from './ipc/facebook-write-ipc';
+import { registerFacebookPageIpc } from './ipc/facebook-page-ipc';
 import { registerAgentMcIpc } from './ipc/agent-mc-ipc';
 import { registerPostStoreIpc } from './ipc/post-store-ipc';
 import { registerScheduleIpc } from './ipc/schedule-ipc';
@@ -674,6 +675,9 @@ async function startupAllWorkspaces(): Promise<void> {
       });
 
       for (const acc of accounts) {
+        // Only Zalo accounts reconnect via cookie session; skip Page / FB-personal
+        // rows (channel != 'zalo'). Undefined channel = legacy Zalo-only DB → zalo.
+        if (acc.channel && acc.channel !== 'zalo') continue;
         if (connectedZaloIds.has(acc.zalo_id)) continue; // already connected
         try {
           await loginService.connectUser({
@@ -904,6 +908,7 @@ app.whenReady().then(async () => {
   registerPostingIpc();
   registerChatAgentIpc();
   registerFacebookWriteIpc();
+  registerFacebookPageIpc();
   registerAgentMcIpc();
   registerPostStoreIpc();
   registerScheduleIpc();
@@ -953,6 +958,13 @@ app.whenReady().then(async () => {
       WorkflowEngineService.getInstance()['triggerWorkflows']('trigger.payment', data);
     });
   }, 2500);
+  // Backfill Facebook Page messages missed while offline (persist only, no emit
+  // → never replies to old messages on restart). Runs after the webhook server + DB.
+  setTimeout(() => {
+    import('../src/services/facebook-page/page-backfill-service')
+      .then(m => m.backfillAllPages())
+      .catch(err => console.warn('[main] Page backfill failed:', err?.message || err));
+  }, 6000);
 
   // Initialize Tracking Service (chỉ chạy trong production build)
   setTimeout(() => {

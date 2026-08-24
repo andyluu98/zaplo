@@ -505,6 +505,7 @@ Screens are ordered by typical usage flow: dashboard → chat → CRM → workfl
 - Create workflows using plain natural language commands — no drag-and-drop needed
 - Use AI action nodes in workflows to build 24/7 auto-reply chatbots
 - Multi-platform AI support: OpenAI, Claude, Gemini and 9Router (local AI gateway)
+- **Facebook Page channel (Messenger):** connect a Page via the official Graph API (Page Token + Webhook + Send API); a DeepSeek chatbot auto-replies to customer messages with reasoning, understands **images** the customer sends (vision model), types and marks-seen like a human, respects Meta's 24h window, and auto-pauses when a human agent replies
 
 ## 🔒 Security & data
 
