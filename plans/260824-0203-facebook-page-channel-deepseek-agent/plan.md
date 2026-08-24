@@ -24,6 +24,7 @@ Ba trong bốn thành phần đã có sẵn trong repo và được **tái dùng
 | # | Quyết định | Chọn | Ghi chú |
 |---|---|---|---|
 | 1 | Kết nối Page | **Graph API chính thức** | Không dùng session cá nhân đóng vai Page (hướng cũ ở `260624-1920/phase-05` — nay bỏ) |
+| 1b | Mô hình FB app | **App-per-deployer + wizard** (KHÔNG app chung của vendor) | Counsel kongming 2026-08-24: webhook Messenger chỉ 1 callback URL/app → app chung bắt buộc backend relay + secret nhúng binary, trái local-first. Nhẹ hoá bằng wizard + FLB `config_id` + UI access-level + App Review kit. Ma sát thật = Business Verification + App Review mỗi deployer, không mô hình nào bỏ được trừ khi thành Meta Tech Provider |
 | 2 | Knowledge | **Giữ dump toàn văn** | Tái dùng `buildSystemPrompt()` nguyên trạng, không RAG ở vòng này |
 | 3 | Thinking | **1 lượt, thinking bật per-call** | `deepseek-v4-flash` + `thinking:{type:'enabled'}` truyền **theo từng lời gọi** (chỉ Page path), không phải flag toàn assistant; `reasoning_content` lưu `ai_reasoning_log`, không gửi khách |
 | 4 | Model cũ hỏng | **Vá trong plan này** | `deepseek-chat`/`deepseek-reasoner` khai tử 24/07/2026; vá cả 2 bản `normalizeModelName` |
@@ -49,7 +50,7 @@ Quyết định #3-4 chốt lại **sau khi** xác minh tài liệu DeepSeek (2 
 | # | Phase | Status | Priority | Effort | Depends |
 |---|-------|--------|----------|--------|---------|
 | 1 | [Trừu tượng hoá kênh cho Chat Agent](./phase-01-channel-abstraction.md) | ✅ Done | P1 | 2.5-3d | — |
-| 2 | [Kết nối Page + lược đồ dữ liệu](./phase-02-page-connect.md) | Pending | P1 | 2d | 1 |
+| 2 | [Kết nối Page + lược đồ dữ liệu](./phase-02-page-connect.md) | ✅ Done | P1 | 2d | 1 |
 | 3 | [Webhook nhận tin + backfill](./phase-03-webhook-inbound.md) | Pending | P1 | 2-2.5d | 2 |
 | 4 | [Send API + hành vi giống người](./phase-04-send-humanlike.md) | Pending | P1 | 1.5d | 2 |
 | 5 | [DeepSeek V4 thinking + vá model chết](./phase-05-deepseek-thinking.md) | ✅ Done | P1 | 1-1.5d | — |
@@ -193,3 +194,28 @@ Không còn câu hỏi chặn nào.
 - **Backup DB trước lần khởi động đầu tiên** sau bản này: `DatabaseService` tự chạy migration tạo `ai_reasoning_log` khi app boot (bảng mới, guard `sqlite_master`, không ALTER bảng cũ — rủi ro thấp nhưng vẫn backup theo ràng buộc cứng).
 - Dispatcher **chưa được gọi `start()`** ở main process (đúng thiết kế — Phase 2/3 mới boot-wire khi có Page path + PageSender). Zalo auto-reply hiện vẫn 100% qua WorkflowEngineService.
 - `logUsage` ghi tên model thô (chưa normalize) — cosmetic, pre-existing, không sửa trong slice này.
+
+## Kết quả triển khai — Phase 2 (2026-08-24)
+
+**Trạng thái:** **Done**. Cook slice `Phase 2` (hướng app-per-deployer + wizard + FLB, chốt sau counsel kongming). Hai cổng bắt buộc đã qua.
+
+### Đã tạo/sửa
+- **Schema (`DatabaseService.ts`):** thêm `channel` cho `chat_agent`/`chat_agent_thread` (ALTER guard idempotent); rebuild PK `conversation_ai_state` → `(channel, owner_zalo_id, thread_id)` (create-copy-swap **trong transaction**, backfill `zalo`); bảng mới `fb_app` (gồm `config_id`, `access_level`) + `fb_page`; CRUD + `deleteFbPage` (chỉ xoá `channel='page'`) + `upsertPageAccount`. Widen `listEnabledChatAgents`/`getConversationAiState`/`setConversationAiState` với `channel='zalo'` mặc định (Zalo không đổi); `saveChatAgent` lưu `channel`.
+- **Secrets (`SecureSettingsService.ts`):** `encryptStrict`/`decryptSecret` (ciphertext lưu thẳng cột `*_enc`) + `secureSetStrict` + `EncryptionUnavailableError` — hard-fail, không plaintext im lặng. `secureSet` cũ giữ nguyên cho Zalo.
+- **Service mới (`src/services/facebook-page/`):** `page-graph-client.ts` (Graph v25.0 + dịch lỗi Meta 190/613/10 — 8 test), `page-auth-service.ts` (OAuth: partition cô lập, state ngẫu nhiên, khớp **origin+path chính xác**, đổi code→token ở main-proc, rẽ FLB `config_id` vs classic scope, `detectAccessLevel`, buffer token trong RAM có TTL, connect atomic), `page-types.ts`. `chat-agent/channel-context/page-context-provider.ts`.
+- **Model:** `models/facebook-page.ts` (`FbApp`/`FbPage`/`ManagedPage`/…), `models/index.ts`, `models/automation.ts` (`ChatAgent.channel?`).
+- **IPC/preload/renderer:** `electron/ipc/facebook-page-ipc.ts` (namespace `fbpage:`, **tước `*_enc` trước khi trả renderer**), `main.ts` (register), `preload.ts` (`fbPage`), `ui/lib/ipc.ts` (types).
+- **UI:** `ui/components/integration/FacebookPageWizard.tsx` (wizard 3 bước: đăng ký app → đăng nhập & chọn Page → quản lý Page đã kết nối; banner access-level trung thực; hộp copy redirect-URI/verify-token/webhook) + tab mới trong `IntegrationPage.tsx`.
+- **Vá M1 (side-effect từ slice này):** `loginIpc.ts` + `main.ts` — vòng reconnect Zalo lọc `channel!=='zalo'` (bỏ qua row Page/FB, tránh `connectUser` ném vì `cookies=''`; đồng thời vá luôn bug cũ với row `channel='facebook'`).
+- **Test:** `page-graph-client.test.ts` (8), `page-schema-migration.test.ts` (4 — chứng minh rebuild PK idempotent + không mất state pause Zalo + page/zalo cùng thread_id không đụng nhau).
+
+### Cổng kiểm chứng
+- **Code review:** 3 ràng buộc cứng **PASS** (không hồi quy Zalo; không plaintext secret — mã hoá hard-fail + IPC tước `*_enc` + không log; migration idempotent + atomic). Không Critical/blocking. Đã vá M1 (reconnect lọc kênh), M2 (`connectPage` atomic), L1 (khớp origin+path chính xác), L3 (TTL buffer thật), L4 (guard `channel` khi upsert account). Chấp nhận có ghi chú: M3 (test mirror SQL — cần electron mock chưa có), L2 (message lỗi Meta "unknown" tới renderer — không phải secret). Báo cáo: `plans/reports/code-review-260824-1023-fb-page-phase2.md`.
+- **Tester:** 28 suites / 212 tests pass, 0 fail; `tsc` cả 2 config exit 0. Báo cáo: `plans/reports/tester-260824-1025-fb-page-phase2-report.md`.
+
+### Lưu ý trước khi deploy
+- **Backup DB trước lần boot đầu** sau bản này: migration rebuild PK `conversation_ai_state` + thêm cột `channel` chạy khi app khởi động (atomic + idempotent, đã test trên DB có dữ liệu, nhưng vẫn backup theo ràng buộc cứng).
+- **App Review là ma sát thật:** mỗi deployer cần Business Verification + App Review `pages_messaging` để bot trả lời khách công khai; dev mode chỉ chat được với tài khoản có vai trò trong app. Wizard/FLB/kit chỉ làm nhẹ, không bỏ được bước này.
+- **Phép thử rẻ đáng làm trước khi hoàn thiện UX copy:** app live + standard access, nhắn Page từ tài khoản không-vai-trò — nếu webhook nổ thì deployer bỏ được App Review cho Page của chính mình.
+- **Page provider chưa boot-wire vào dispatcher** (đúng thiết kế — Phase 3 webhook cấp event + Phase 4 PageSender mới kích hoạt). Kết nối Page ở Phase 2 lưu dữ liệu + credential, chưa tự trả lời.
+- `access_level='advanced'` không suy ra được từ client → deployer tự đặt sau khi App Review duyệt (nút trong wizard → `setAccessLevel`).

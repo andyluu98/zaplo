@@ -24,6 +24,12 @@ export type {
     FBJsonRpcRequest, FBJsonRpcResponse, FBJsonRpcEvent,
 } from './facebook';
 
+// Facebook Page (Graph API channel)
+export type {
+    FbApp, FbPage, ManagedPage,
+    PageTokenStatus, PageAccessLevel, PageWebhookMode,
+} from './facebook-page';
+
 // AI
 export type { AIAssistant, AIAssistantFile, ChatMessage, AIPlatform, AIUsageLog, AIAccountAssistant } from './ai';
 

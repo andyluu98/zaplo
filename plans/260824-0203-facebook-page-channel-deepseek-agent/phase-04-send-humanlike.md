@@ -24,6 +24,7 @@ Gửi trả lời lên Messenger qua Send API với hành vi đọc như ngườ
 4. Trễ theo độ dài — **tái dùng** helper trích từ `WorkflowEngineService.ts:944` (`min(max(len*30,800),3000)`) thành một hàm dùng chung, thay vì viết `typingDelayMs` mới (red-team H6). Nhiễu ngẫu nhiên, có trần <20s (Meta tự tắt typing sau ~20s).
 5. Tách nhiều tin: **dùng lại** cơ chế multi-segment sẵn có (dispatcher tách theo segment JSON, paced 600ms `:388`). Không thêm `splitIntoMessages` chạy trên chuỗi.
 6. Cổng 24h: đọc `fb_page.last_customer_message_at`, quá 24h → **không gọi API**, đánh dấu thread cần người.
+6b. **Công bố bot** (counsel kongming 2026-08-24): dòng disclosure đầu hội thoại, có cờ bật/tắt per-Page, **mặc định BẬT** ít nhất khi app còn dưới App Review. Human-mimicry (typing/delay) + zero disclosure là lý do dễ bị Meta reject nhất + rủi ro chính sách ở vùng có luật (Meta nêu California/Đức). Bản thân typing/delay không vi phạm.
 7. Ghi tin đã gửi vào unified `messages` (`channel='page'`, `is_sent=1`, `sent_by='ai'`), lưu `message_id` Send API trả (cho phân biệt echo ở Phase 3 C6).
 8. Lỗi Meta: 613 (rate-limit)→lùi cấp số nhân; 190 (token)→dừng Page, `token_status`; 10/200 (quyền)→dừng, báo.
 

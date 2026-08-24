@@ -315,6 +315,20 @@ declare global {
         sendBadgeImage: (params: { dataUrl: string; count: number }) => void;
         flashFrame: (active: boolean) => void;
       };
+      fbPage: {
+        saveApp: (params: { appId: string; appSecret: string; verifyToken: string; configId?: string; publicUrl?: string; webhookPort?: number; webhookMode?: 'local' | 'tunnel' }) => Promise<{ success: boolean; error?: string }>;
+        getApp: (params: { appId: string }) => Promise<{ success: boolean; app?: { app_id: string; config_id: string; access_level: string; webhook_mode: string; webhook_port: number; public_url: string; hasSecret: boolean; hasVerifyToken: boolean } | null; error?: string }>;
+        listApps: () => Promise<{ success: boolean; apps: Array<{ app_id: string; config_id: string; access_level: string; webhook_mode: string; webhook_port: number; public_url: string; hasSecret: boolean; hasVerifyToken: boolean }>; error?: string }>;
+        setAccessLevel: (params: { appId: string; level: string }) => Promise<{ success: boolean; error?: string }>;
+        generateVerifyToken: () => Promise<{ success: boolean; verifyToken?: string; error?: string }>;
+        getRedirectUri: () => Promise<{ success: boolean; redirectUri: string }>;
+        listManagedPages: (params: { appId: string; redirectUri?: string; configId?: string }) => Promise<{ success: boolean; pages?: Array<{ page_id: string; name: string; category: string; picture_url: string; canMessage: boolean }>; access?: { level: string; grantedScopes: string[]; missingScopes: string[] }; error?: string }>;
+        connectPage: (params: { pageId: string }) => Promise<{ success: boolean; page?: { page_id: string; name: string; picture_url: string; category: string }; error?: string }>;
+        disconnectPage: (params: { pageId: string }) => Promise<{ success: boolean; error?: string }>;
+        verifyToken: (params: { pageId: string }) => Promise<{ success: boolean; status?: string; error?: string }>;
+        listPages: () => Promise<{ success: boolean; pages: Array<{ page_id: string; name: string; app_id: string; category: string; picture_url: string; enabled: number; token_status: string; last_customer_message_at: number; last_backfill_at: number; connected_at?: number; updated_at?: number }>; error?: string }>;
+        setPageEnabled: (params: { pageId: string; enabled: boolean }) => Promise<{ success: boolean; error?: string }>;
+      };
       lockScreen: {
         status: () => Promise<{ success: boolean; enabled?: boolean; biometricEnabled?: boolean; biometricAvailable?: boolean; failedAttempts?: number; isCoolingDown?: boolean; remainingCooldown?: number; error?: string }>;
         setup: (params: { password: string }) => Promise<{ success: boolean; recoveryKey?: string; error?: string }>;
@@ -737,6 +751,7 @@ export const ipc = {
   posting: window.electronAPI?.posting,
   chatAgent: window.electronAPI?.chatAgent,
   facebookWrite: window.electronAPI?.facebookWrite,
+  fbPage: window.electronAPI?.fbPage,
   agentMc: (window.electronAPI as any)?.agentMc,
   postStore: (window.electronAPI as any)?.postStore,
   schedule: (window.electronAPI as any)?.schedule,

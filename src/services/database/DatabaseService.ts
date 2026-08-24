@@ -5,6 +5,7 @@ import Logger from '../../utils/Logger';
 import BetterSqlite3 from 'better-sqlite3';
 import type { Account, Message, Contact, CRMNote, CRMCampaign, CRMCampaignContact, CRMSendLog, CRMCampaignStatus, CRMContactStatus } from '../../models';
 import type { ContentPillar, ContentDraft, ImageAsset, ImageFolder, PostSchedule, PostLog, DraftApprovalStatus, PostLogStatus, PostingAgent, AgentSchedule, ChatAgent, ConversationAiState } from '../../models';
+import type { FbApp, FbPage } from '../../models';
 import { createImageFolderTables, migrateImageAssetFolderColumn, migratePostingAgentFolderColumns, migratePostStoreFolderColumns, getImageFolders, saveImageFolder, deleteImageFolder, getImages, moveImages, deleteImages } from '../posting/image-folder-store';
 
 // better-sqlite3: native SQLite — no WASM heap, memory-mapped I/O
@@ -985,6 +986,7 @@ class DatabaseService {
                 autoresume_minutes INTEGER NOT NULL DEFAULT 0,
                 allow_manual_toggle INTEGER NOT NULL DEFAULT 1,
                 trigger_keywords TEXT DEFAULT '',
+                channel TEXT NOT NULL DEFAULT 'zalo',
                 created_at INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL DEFAULT 0
             );
@@ -993,6 +995,7 @@ class DatabaseService {
                 owner_zalo_id TEXT NOT NULL,
                 thread_id TEXT NOT NULL,
                 thread_type INTEGER NOT NULL DEFAULT 1,
+                channel TEXT NOT NULL DEFAULT 'zalo',
                 PRIMARY KEY (chat_agent_id, thread_id)
             );
             CREATE TABLE IF NOT EXISTS chat_agent_label (
@@ -1001,6 +1004,7 @@ class DatabaseService {
                 PRIMARY KEY (chat_agent_id, label_id)
             );
             CREATE TABLE IF NOT EXISTS conversation_ai_state (
+                channel TEXT NOT NULL DEFAULT 'zalo',
                 owner_zalo_id TEXT NOT NULL,
                 thread_id TEXT NOT NULL,
                 paused INTEGER NOT NULL DEFAULT 0,
@@ -1008,7 +1012,7 @@ class DatabaseService {
                 paused_at INTEGER DEFAULT 0,
                 pinned_agent_id INTEGER DEFAULT NULL,
                 updated_at INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY (owner_zalo_id, thread_id)
+                PRIMARY KEY (channel, owner_zalo_id, thread_id)
             );
             CREATE INDEX IF NOT EXISTS idx_chat_agent_thread ON chat_agent_thread(thread_id);
             CREATE INDEX IF NOT EXISTS idx_chat_agent_owner ON chat_agent(owner_zalo_id);
@@ -1030,6 +1034,41 @@ class DatabaseService {
             );
             CREATE INDEX IF NOT EXISTS idx_fb_action_dedupe ON fb_action_log(account_id, action_type, dedupe_key);
             CREATE INDEX IF NOT EXISTS idx_fb_action_day ON fb_action_log(account_id, action_type, created_at);
+        `);
+
+        // ─── Facebook PAGE (Graph API v25 channel) — credentials + config ────────
+        // Bảng MỚI, tách hẳn subsystem FB cá nhân (src/services/facebook/*).
+        // Dữ liệu hội thoại Page KHÔNG ở đây — nằm ở accounts/contacts/messages với
+        // channel='page' (unified). Ở đây chỉ credential + trạng thái + config webhook.
+        // Token/secret được mã hoá (enc:...) qua SecureSettingsService.encryptStrict.
+        this.exec(`
+            CREATE TABLE IF NOT EXISTS fb_app (
+                app_id TEXT PRIMARY KEY,
+                app_secret_enc TEXT NOT NULL DEFAULT '',
+                verify_token_enc TEXT NOT NULL DEFAULT '',
+                config_id TEXT DEFAULT '',
+                access_level TEXT NOT NULL DEFAULT 'dev',
+                webhook_mode TEXT NOT NULL DEFAULT 'local',
+                webhook_port INTEGER NOT NULL DEFAULT 0,
+                public_url TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS fb_page (
+                page_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL DEFAULT '',
+                access_token_enc TEXT NOT NULL DEFAULT '',
+                app_id TEXT NOT NULL DEFAULT '',
+                category TEXT NOT NULL DEFAULT '',
+                picture_url TEXT NOT NULL DEFAULT '',
+                enabled INTEGER NOT NULL DEFAULT 1,
+                token_status TEXT NOT NULL DEFAULT 'active',
+                last_customer_message_at INTEGER NOT NULL DEFAULT 0,
+                last_backfill_at INTEGER NOT NULL DEFAULT 0,
+                connected_at INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS idx_fb_page_app ON fb_page(app_id);
         `);
 
         // ─── Facebook Groups đã lưu (chọn theo tên khi đăng) ────────────────────
@@ -1829,6 +1868,88 @@ class DatabaseService {
             this.save();
         } catch (err: any) {
             Logger.warn(`[DatabaseService] Migration fb_group: ${err.message}`);
+        }
+
+        // ─── Migration: fb_app / fb_page (Page channel) on EXISTING databases ────
+        // Bảng MỚI → an toàn CREATE IF NOT EXISTS (không đụng bảng Zalo/FB cá nhân).
+        try {
+            db!.exec(`
+                CREATE TABLE IF NOT EXISTS fb_app (
+                    app_id TEXT PRIMARY KEY, app_secret_enc TEXT NOT NULL DEFAULT '',
+                    verify_token_enc TEXT NOT NULL DEFAULT '', config_id TEXT DEFAULT '',
+                    access_level TEXT NOT NULL DEFAULT 'dev', webhook_mode TEXT NOT NULL DEFAULT 'local',
+                    webhook_port INTEGER NOT NULL DEFAULT 0, public_url TEXT NOT NULL DEFAULT '',
+                    created_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE TABLE IF NOT EXISTS fb_page (
+                    page_id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', access_token_enc TEXT NOT NULL DEFAULT '',
+                    app_id TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '', picture_url TEXT NOT NULL DEFAULT '',
+                    enabled INTEGER NOT NULL DEFAULT 1, token_status TEXT NOT NULL DEFAULT 'active',
+                    last_customer_message_at INTEGER NOT NULL DEFAULT 0, last_backfill_at INTEGER NOT NULL DEFAULT 0,
+                    connected_at INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL DEFAULT 0
+                );
+                CREATE INDEX IF NOT EXISTS idx_fb_page_app ON fb_page(app_id);
+            `);
+            this.save();
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration fb_app/fb_page: ${err.message}`);
+        }
+
+        // ─── Migration: add `channel` to chat_agent + chat_agent_thread ─────────
+        // Cho phép agent Page (channel='page') sống chung agent Zalo. Rows cũ mặc
+        // định 'zalo' → hành vi Zalo không đổi. ALTER idempotent qua guard cột.
+        try {
+            const caCols = this.query<any>(`PRAGMA table_info(chat_agent)`);
+            if (caCols.length > 0 && !caCols.some((c: any) => c.name === 'channel')) {
+                db!.exec(`ALTER TABLE chat_agent ADD COLUMN channel TEXT NOT NULL DEFAULT 'zalo'`);
+                this.save();
+                Logger.log('[DatabaseService] ✅ Migration: added channel to chat_agent');
+            }
+            const catCols = this.query<any>(`PRAGMA table_info(chat_agent_thread)`);
+            if (catCols.length > 0 && !catCols.some((c: any) => c.name === 'channel')) {
+                db!.exec(`ALTER TABLE chat_agent_thread ADD COLUMN channel TEXT NOT NULL DEFAULT 'zalo'`);
+                this.save();
+                Logger.log('[DatabaseService] ✅ Migration: added channel to chat_agent_thread');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration chat_agent channel: ${err.message}`);
+        }
+
+        // ─── Migration: rebuild conversation_ai_state PK to include `channel` ────
+        // PK cũ (owner_zalo_id, thread_id) không phân biệt kênh → pause/handoff Page
+        // sẽ đè state Zalo cùng thread_id (red-team C6). Rebuild PK thành
+        // (channel, owner_zalo_id, thread_id). Rows cũ backfill channel='zalo'.
+        // Bọc transaction để atomic (không mất state pause nếu lỗi giữa chừng).
+        try {
+            const casCols = this.query<any>(`PRAGMA table_info(conversation_ai_state)`);
+            if (casCols.length > 0 && !casCols.some((c: any) => c.name === 'channel')) {
+                const rebuild = db!.transaction(() => {
+                    db!.exec(`
+                        CREATE TABLE conversation_ai_state_new (
+                            channel TEXT NOT NULL DEFAULT 'zalo',
+                            owner_zalo_id TEXT NOT NULL,
+                            thread_id TEXT NOT NULL,
+                            paused INTEGER NOT NULL DEFAULT 0,
+                            paused_reason TEXT DEFAULT '',
+                            paused_at INTEGER DEFAULT 0,
+                            pinned_agent_id INTEGER DEFAULT NULL,
+                            updated_at INTEGER NOT NULL DEFAULT 0,
+                            PRIMARY KEY (channel, owner_zalo_id, thread_id)
+                        );
+                        INSERT INTO conversation_ai_state_new
+                            (channel, owner_zalo_id, thread_id, paused, paused_reason, paused_at, pinned_agent_id, updated_at)
+                            SELECT 'zalo', owner_zalo_id, thread_id, paused, paused_reason, paused_at, pinned_agent_id, updated_at
+                            FROM conversation_ai_state;
+                        DROP TABLE conversation_ai_state;
+                        ALTER TABLE conversation_ai_state_new RENAME TO conversation_ai_state;
+                    `);
+                });
+                rebuild();
+                this.save();
+                Logger.log('[DatabaseService] ✅ Migration: rebuilt conversation_ai_state PK with channel');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration conversation_ai_state PK: ${err.message}`);
         }
 
         // ─── Migration: agent-centric posting columns (content_draft, post_log) ──
@@ -8172,10 +8293,10 @@ class DatabaseService {
     }
 
     /** List enabled chat agents for an account, each with its thread_ids/label_ids (resolver input). */
-    public listEnabledChatAgents(zaloId: string): ChatAgent[] {
+    public listEnabledChatAgents(zaloId: string, channel: string = 'zalo'): ChatAgent[] {
         if (!this.initialized) return [];
         try {
-            const agents = this.query<any>(`SELECT * FROM chat_agent WHERE owner_zalo_id=? AND enabled=1 ORDER BY id ASC`, [zaloId]);
+            const agents = this.query<any>(`SELECT * FROM chat_agent WHERE owner_zalo_id=? AND enabled=1 AND channel=? ORDER BY id ASC`, [zaloId, channel]);
             agents.forEach((a: any) => {
                 a.thread_ids = this.query<any>(`SELECT thread_id FROM chat_agent_thread WHERE chat_agent_id=?`, [a.id]).map((r: any) => r.thread_id);
                 a.label_ids  = this.query<any>(`SELECT label_id FROM chat_agent_label WHERE chat_agent_id=?`, [a.id]).map((r: any) => r.label_id);
@@ -8191,16 +8312,17 @@ class DatabaseService {
             const now = Date.now();
             let id = a.id ?? 0;
             this.transaction(() => {
+                const channel = (a as any).channel || 'zalo';
                 if (a.id) {
-                    this.run(`UPDATE chat_agent SET name=?, assistant_id=?, enabled=?, reply_mode=?, is_default=?, default_scope_dm=?, default_scope_group=?, default_stranger_only=?, autopause_on_human=?, autoresume_minutes=?, allow_manual_toggle=?, trigger_keywords=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
-                        [a.name, a.assistant_id ?? '', a.enabled ?? 0, a.reply_mode || 'auto', a.is_default ?? 0, a.default_scope_dm ?? 0, a.default_scope_group ?? 0, a.default_stranger_only ?? 0, a.autopause_on_human ?? 1, a.autoresume_minutes ?? 0, a.allow_manual_toggle ?? 1, (a as any).trigger_keywords ?? '', now, a.id, a.owner_zalo_id]);
+                    this.run(`UPDATE chat_agent SET name=?, assistant_id=?, enabled=?, reply_mode=?, is_default=?, default_scope_dm=?, default_scope_group=?, default_stranger_only=?, autopause_on_human=?, autoresume_minutes=?, allow_manual_toggle=?, trigger_keywords=?, channel=?, updated_at=? WHERE id=? AND owner_zalo_id=?`,
+                        [a.name, a.assistant_id ?? '', a.enabled ?? 0, a.reply_mode || 'auto', a.is_default ?? 0, a.default_scope_dm ?? 0, a.default_scope_group ?? 0, a.default_stranger_only ?? 0, a.autopause_on_human ?? 1, a.autoresume_minutes ?? 0, a.allow_manual_toggle ?? 1, (a as any).trigger_keywords ?? '', channel, now, a.id, a.owner_zalo_id]);
                 } else {
-                    id = this.runInsert(`INSERT INTO chat_agent (owner_zalo_id, name, assistant_id, enabled, reply_mode, is_default, default_scope_dm, default_scope_group, default_stranger_only, autopause_on_human, autoresume_minutes, allow_manual_toggle, trigger_keywords, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                        [a.owner_zalo_id, a.name, a.assistant_id ?? '', a.enabled ?? 0, a.reply_mode || 'auto', a.is_default ?? 0, a.default_scope_dm ?? 0, a.default_scope_group ?? 0, a.default_stranger_only ?? 0, a.autopause_on_human ?? 1, a.autoresume_minutes ?? 0, a.allow_manual_toggle ?? 1, (a as any).trigger_keywords ?? '', now, now]);
+                    id = this.runInsert(`INSERT INTO chat_agent (owner_zalo_id, name, assistant_id, enabled, reply_mode, is_default, default_scope_dm, default_scope_group, default_stranger_only, autopause_on_human, autoresume_minutes, allow_manual_toggle, trigger_keywords, channel, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        [a.owner_zalo_id, a.name, a.assistant_id ?? '', a.enabled ?? 0, a.reply_mode || 'auto', a.is_default ?? 0, a.default_scope_dm ?? 0, a.default_scope_group ?? 0, a.default_stranger_only ?? 0, a.autopause_on_human ?? 1, a.autoresume_minutes ?? 0, a.allow_manual_toggle ?? 1, (a as any).trigger_keywords ?? '', channel, now, now]);
                 }
                 // replace links
                 this.run(`DELETE FROM chat_agent_thread WHERE chat_agent_id=?`, [id]);
-                (a.thread_ids || []).forEach(t => this.run(`INSERT OR IGNORE INTO chat_agent_thread (chat_agent_id, owner_zalo_id, thread_id, thread_type) VALUES (?,?,?,?)`, [id, a.owner_zalo_id, t, 1]));
+                (a.thread_ids || []).forEach(t => this.run(`INSERT OR IGNORE INTO chat_agent_thread (chat_agent_id, owner_zalo_id, thread_id, thread_type, channel) VALUES (?,?,?,?,?)`, [id, a.owner_zalo_id, t, 1, channel]));
                 this.run(`DELETE FROM chat_agent_label WHERE chat_agent_id=?`, [id]);
                 (a.label_ids || []).forEach(l => this.run(`INSERT OR IGNORE INTO chat_agent_label (chat_agent_id, label_id) VALUES (?,?)`, [id, l]));
             });
@@ -8228,18 +8350,18 @@ class DatabaseService {
     }
 
     // ─── Conversation AI State (per-thread pause/pin) ───────────────────────
-    public getConversationAiState(zaloId: string, threadId: string): ConversationAiState | null {
+    public getConversationAiState(zaloId: string, threadId: string, channel: string = 'zalo'): ConversationAiState | null {
         if (!this.initialized) return null;
-        try { return this.query<any>(`SELECT * FROM conversation_ai_state WHERE owner_zalo_id=? AND thread_id=?`, [zaloId, threadId])[0] ?? null; }
+        try { return this.query<any>(`SELECT * FROM conversation_ai_state WHERE owner_zalo_id=? AND thread_id=? AND channel=?`, [zaloId, threadId, channel])[0] ?? null; }
         catch (err: any) { Logger.error(`[DB] getConversationAiState: ${err.message}`); return null; }
     }
 
     /** Upsert per-thread AI state. Only the supplied fields in `patch` are written. */
-    public setConversationAiState(zaloId: string, threadId: string, patch: Partial<ConversationAiState>): void {
+    public setConversationAiState(zaloId: string, threadId: string, patch: Partial<ConversationAiState>, channel: string = 'zalo'): void {
         if (!this.initialized) return;
         try {
             const now = Date.now();
-            const cur = this.getConversationAiState(zaloId, threadId);
+            const cur = this.getConversationAiState(zaloId, threadId, channel);
             const merged = {
                 paused:          patch.paused          ?? cur?.paused          ?? 0,
                 paused_reason:   patch.paused_reason   ?? cur?.paused_reason   ?? '',
@@ -8247,13 +8369,136 @@ class DatabaseService {
                 pinned_agent_id: patch.pinned_agent_id !== undefined ? patch.pinned_agent_id : (cur?.pinned_agent_id ?? null),
             };
             if (cur) {
-                this.run(`UPDATE conversation_ai_state SET paused=?, paused_reason=?, paused_at=?, pinned_agent_id=?, updated_at=? WHERE owner_zalo_id=? AND thread_id=?`,
-                    [merged.paused, merged.paused_reason, merged.paused_at, merged.pinned_agent_id, now, zaloId, threadId]);
+                this.run(`UPDATE conversation_ai_state SET paused=?, paused_reason=?, paused_at=?, pinned_agent_id=?, updated_at=? WHERE owner_zalo_id=? AND thread_id=? AND channel=?`,
+                    [merged.paused, merged.paused_reason, merged.paused_at, merged.pinned_agent_id, now, zaloId, threadId, channel]);
             } else {
-                this.run(`INSERT INTO conversation_ai_state (owner_zalo_id, thread_id, paused, paused_reason, paused_at, pinned_agent_id, updated_at) VALUES (?,?,?,?,?,?,?)`,
-                    [zaloId, threadId, merged.paused, merged.paused_reason, merged.paused_at, merged.pinned_agent_id, now]);
+                this.run(`INSERT INTO conversation_ai_state (channel, owner_zalo_id, thread_id, paused, paused_reason, paused_at, pinned_agent_id, updated_at) VALUES (?,?,?,?,?,?,?,?)`,
+                    [channel, zaloId, threadId, merged.paused, merged.paused_reason, merged.paused_at, merged.pinned_agent_id, now]);
             }
         } catch (err: any) { Logger.error(`[DB] setConversationAiState: ${err.message}`); }
+    }
+
+    // ─── Facebook Page channel: fb_app / fb_page credentials + config ───────────
+    // Chỉ metadata + ciphertext (đã mã hoá ngoài, lưu nguyên). KHÔNG mã hoá/giải mã
+    // ở đây — service tầng trên dùng SecureSettingsService.encryptStrict/decryptSecret.
+
+    public upsertFbApp(a: FbApp): void {
+        if (!this.initialized) return;
+        try {
+            const now = Date.now();
+            this.run(
+                `INSERT INTO fb_app (app_id, app_secret_enc, verify_token_enc, config_id, access_level, webhook_mode, webhook_port, public_url, created_at, updated_at)
+                 VALUES (?,?,?,?,?,?,?,?,?,?)
+                 ON CONFLICT(app_id) DO UPDATE SET
+                   app_secret_enc=excluded.app_secret_enc, verify_token_enc=excluded.verify_token_enc,
+                   config_id=excluded.config_id, access_level=excluded.access_level,
+                   webhook_mode=excluded.webhook_mode, webhook_port=excluded.webhook_port,
+                   public_url=excluded.public_url, updated_at=excluded.updated_at`,
+                [a.app_id, a.app_secret_enc ?? '', a.verify_token_enc ?? '', a.config_id ?? '',
+                 a.access_level ?? 'dev', a.webhook_mode ?? 'local', a.webhook_port ?? 0, a.public_url ?? '', now, now],
+            );
+        } catch (err: any) { Logger.error(`[DB] upsertFbApp: ${err.message}`); }
+    }
+
+    public getFbApp(appId: string): FbApp | null {
+        if (!this.initialized) return null;
+        try { return this.query<any>(`SELECT * FROM fb_app WHERE app_id=?`, [appId])[0] ?? null; }
+        catch (err: any) { Logger.error(`[DB] getFbApp: ${err.message}`); return null; }
+    }
+
+    public listFbApps(): FbApp[] {
+        if (!this.initialized) return [];
+        try { return this.query<any>(`SELECT * FROM fb_app ORDER BY created_at ASC`); }
+        catch (err: any) { Logger.error(`[DB] listFbApps: ${err.message}`); return []; }
+    }
+
+    public setFbAppAccessLevel(appId: string, level: string): void {
+        if (!this.initialized) return;
+        try { this.run(`UPDATE fb_app SET access_level=?, updated_at=? WHERE app_id=?`, [level, Date.now(), appId]); }
+        catch (err: any) { Logger.error(`[DB] setFbAppAccessLevel: ${err.message}`); }
+    }
+
+    public upsertFbPage(p: FbPage): void {
+        if (!this.initialized) return;
+        try {
+            const now = Date.now();
+            this.run(
+                `INSERT INTO fb_page (page_id, name, access_token_enc, app_id, category, picture_url, enabled, token_status, last_customer_message_at, last_backfill_at, connected_at, updated_at)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+                 ON CONFLICT(page_id) DO UPDATE SET
+                   name=excluded.name, access_token_enc=excluded.access_token_enc, app_id=excluded.app_id,
+                   category=excluded.category, picture_url=excluded.picture_url, enabled=excluded.enabled,
+                   token_status=excluded.token_status, updated_at=excluded.updated_at`,
+                [p.page_id, p.name ?? '', p.access_token_enc ?? '', p.app_id ?? '', p.category ?? '', p.picture_url ?? '',
+                 p.enabled ?? 1, p.token_status ?? 'active', p.last_customer_message_at ?? 0, p.last_backfill_at ?? 0, now, now],
+            );
+        } catch (err: any) { Logger.error(`[DB] upsertFbPage: ${err.message}`); }
+    }
+
+    public getFbPage(pageId: string): FbPage | null {
+        if (!this.initialized) return null;
+        try { return this.query<any>(`SELECT * FROM fb_page WHERE page_id=?`, [pageId])[0] ?? null; }
+        catch (err: any) { Logger.error(`[DB] getFbPage: ${err.message}`); return null; }
+    }
+
+    public listFbPages(): FbPage[] {
+        if (!this.initialized) return [];
+        try { return this.query<any>(`SELECT * FROM fb_page ORDER BY connected_at ASC`); }
+        catch (err: any) { Logger.error(`[DB] listFbPages: ${err.message}`); return []; }
+    }
+
+    public setFbPageTokenStatus(pageId: string, status: string): void {
+        if (!this.initialized) return;
+        try { this.run(`UPDATE fb_page SET token_status=?, updated_at=? WHERE page_id=?`, [status, Date.now(), pageId]); }
+        catch (err: any) { Logger.error(`[DB] setFbPageTokenStatus: ${err.message}`); }
+    }
+
+    public setFbPageEnabled(pageId: string, enabled: number): void {
+        if (!this.initialized) return;
+        try { this.run(`UPDATE fb_page SET enabled=?, updated_at=? WHERE page_id=?`, [enabled ? 1 : 0, Date.now(), pageId]); }
+        catch (err: any) { Logger.error(`[DB] setFbPageEnabled: ${err.message}`); }
+    }
+
+    /**
+     * Disconnect a Page: remove its credential row AND all of its unified-table
+     * data (accounts/contacts/messages with channel='page' for this page) and its
+     * chat_agent rows. Scoped strictly to channel='page' so no Zalo/FB-personal
+     * data is ever touched.
+     */
+    public deleteFbPage(pageId: string): void {
+        if (!this.initialized) return;
+        try {
+            this.transaction(() => {
+                // chat_agent + links for this Page
+                const agentIds = this.query<any>(`SELECT id FROM chat_agent WHERE owner_zalo_id=? AND channel='page'`, [pageId]).map((r: any) => r.id);
+                agentIds.forEach((id: number) => {
+                    this.run(`DELETE FROM chat_agent_thread WHERE chat_agent_id=?`, [id]);
+                    this.run(`DELETE FROM chat_agent_label WHERE chat_agent_id=?`, [id]);
+                });
+                this.run(`DELETE FROM chat_agent WHERE owner_zalo_id=? AND channel='page'`, [pageId]);
+                this.run(`DELETE FROM conversation_ai_state WHERE owner_zalo_id=? AND channel='page'`, [pageId]);
+                // unified conversation data for this Page
+                this.run(`DELETE FROM messages WHERE owner_zalo_id=? AND channel='page'`, [pageId]);
+                this.run(`DELETE FROM contacts WHERE owner_zalo_id=? AND channel='page'`, [pageId]);
+                this.run(`DELETE FROM accounts WHERE zalo_id=? AND channel='page'`, [pageId]);
+                // credentials
+                this.run(`DELETE FROM fb_page WHERE page_id=?`, [pageId]);
+            });
+        } catch (err: any) { Logger.error(`[DB] deleteFbPage: ${err.message}`); }
+    }
+
+    /** Upsert the unified `accounts` row that represents a connected Page. */
+    public upsertPageAccount(pageId: string, name: string, avatarUrl: string): void {
+        if (!this.initialized) return;
+        try {
+            const now = new Date().toISOString();
+            this.run(
+                `INSERT INTO accounts (zalo_id, full_name, avatar_url, imei, user_agent, cookies, is_active, channel, created_at)
+                 VALUES (?,?,?,?,?,?,?,?,?)
+                 ON CONFLICT(zalo_id) DO UPDATE SET full_name=excluded.full_name, avatar_url=excluded.avatar_url, is_active=1, channel='page'`,
+                [pageId, name || '', avatarUrl || '', '', '', '', 1, 'page', now],
+            );
+        } catch (err: any) { Logger.error(`[DB] upsertPageAccount: ${err.message}`); }
     }
 
     /** Count messages of a thread — used to detect the "first message" of a conversation. */

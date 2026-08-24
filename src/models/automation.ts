@@ -92,6 +92,7 @@ export interface ChatAgent {
     autoresume_minutes: number;        // minutes of human silence before AI resumes (0 = never)
     allow_manual_toggle: number;       // 1 = user may pause/resume per conversation
     trigger_keywords?: string;         // CSV; in groups reply only on @mention or these keywords
+    channel?: string;                  // 'zalo' (default) | 'page' — which channel this agent serves
     created_at?: number;
     updated_at?: number;
     // joined (not stored on the row):

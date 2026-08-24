@@ -671,6 +671,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     groupDelete:   (params: { accountId: string; groupId: string }) => ipcRenderer.invoke('facebook:group:delete', params),
   },
 
+  // ─── Facebook Page (Graph API channel: connect + auto-reply) ──────
+  fbPage: {
+    saveApp:            (params: { appId: string; appSecret: string; verifyToken: string; configId?: string; publicUrl?: string; webhookPort?: number; webhookMode?: 'local' | 'tunnel' }) => ipcRenderer.invoke('fbpage:saveApp', params),
+    getApp:             (params: { appId: string }) => ipcRenderer.invoke('fbpage:getApp', params),
+    listApps:           () => ipcRenderer.invoke('fbpage:listApps'),
+    setAccessLevel:     (params: { appId: string; level: string }) => ipcRenderer.invoke('fbpage:setAccessLevel', params),
+    generateVerifyToken:() => ipcRenderer.invoke('fbpage:generateVerifyToken'),
+    getRedirectUri:     () => ipcRenderer.invoke('fbpage:getRedirectUri'),
+    listManagedPages:   (params: { appId: string; redirectUri?: string; configId?: string }) => ipcRenderer.invoke('fbpage:listManagedPages', params),
+    connectPage:        (params: { pageId: string }) => ipcRenderer.invoke('fbpage:connectPage', params),
+    disconnectPage:     (params: { pageId: string }) => ipcRenderer.invoke('fbpage:disconnectPage', params),
+    verifyToken:        (params: { pageId: string }) => ipcRenderer.invoke('fbpage:verifyToken', params),
+    listPages:          () => ipcRenderer.invoke('fbpage:listPages'),
+    setPageEnabled:     (params: { pageId: string; enabled: boolean }) => ipcRenderer.invoke('fbpage:setPageEnabled', params),
+  },
+
   lockScreen: {
     status:           () => ipcRenderer.invoke('lockScreen:status'),
     setup:            (params: { password: string }) => ipcRenderer.invoke('lockScreen:setup', params),

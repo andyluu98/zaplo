@@ -300,6 +300,10 @@ export function registerLoginIpc(mainWindow: BrowserWindow | null) {
             const results = [];
 
             for (const acc of accounts) {
+                // Only Zalo accounts reconnect via cookie session. Page / FB-personal
+                // rows (channel != 'zalo', cookies='') would throw on connectUser —
+                // skip them. Undefined channel = legacy Zalo-only DB → treat as zalo.
+                if ((acc as any).channel && (acc as any).channel !== 'zalo') continue;
                 try {
                     const auth = {
                         imei: acc.imei,
