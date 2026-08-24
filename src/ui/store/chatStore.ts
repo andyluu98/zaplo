@@ -42,8 +42,10 @@ export interface MessageItem {
   quote_data?: string;
   reply_to_id?: string | null;
   handled_by_employee?: string | null;  // employee_id of employee who sent/handled this message
-  /** Kênh chat: 'zalo' | 'facebook'. Default 'zalo' cho backward compat */
+  /** Kênh chat: 'zalo' | 'facebook' | 'page'. Default 'zalo' cho backward compat */
   channel?: Channel;
+  /** Page channel only: who actually sent this outbound message ('ai' auto-reply vs 'human' manual). */
+  sent_by?: 'ai' | 'human';
 }
 
 export interface ContactItem {

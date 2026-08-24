@@ -326,7 +326,7 @@ declare global {
         connectPage: (params: { pageId: string }) => Promise<{ success: boolean; page?: { page_id: string; name: string; picture_url: string; category: string }; error?: string }>;
         disconnectPage: (params: { pageId: string }) => Promise<{ success: boolean; error?: string }>;
         verifyToken: (params: { pageId: string }) => Promise<{ success: boolean; status?: string; error?: string }>;
-        listPages: () => Promise<{ success: boolean; pages: Array<{ page_id: string; name: string; app_id: string; category: string; picture_url: string; enabled: number; token_status: string; last_customer_message_at: number; last_backfill_at: number; connected_at?: number; updated_at?: number }>; error?: string }>;
+        listPages: () => Promise<{ success: boolean; pages: Array<{ page_id: string; name: string; app_id: string; category: string; picture_url: string; enabled: number; token_status: string; last_customer_message_at: number; last_backfill_at: number; bot_disclosure?: number; connected_at?: number; updated_at?: number }>; error?: string }>;
         setPageEnabled: (params: { pageId: string; enabled: boolean }) => Promise<{ success: boolean; error?: string }>;
         setDisclosure: (params: { pageId: string; on: boolean }) => Promise<{ success: boolean; error?: string }>;
         getWebhookInfo: (params: { appId?: string }) => Promise<{ success: boolean; port?: number; path?: string; localUrl?: string; publicUrl?: string; fullUrl?: string; tunnelUrl?: string | null; tunnelActive?: boolean; error?: string }>;
@@ -334,6 +334,10 @@ declare global {
         backfillNow: (params: { pageId?: string }) => Promise<{ success: boolean; stored?: number; error?: string }>;
         startQuickTunnel: (params: { appId?: string }) => Promise<{ success: boolean; url?: string; fullUrl?: string; error?: string }>;
         stopQuickTunnel: () => Promise<{ success: boolean; error?: string }>;
+        // ── Manual (human-operator) send from the chat UI ──────────────────────
+        sendMessage: (params: { pageId: string; psid: string; text: string }) => Promise<{ success: boolean; messageId?: string; error?: string }>;
+        sendImage: (params: { pageId: string; psid: string; url: string }) => Promise<{ success: boolean; messageId?: string; error?: string }>;
+        getReasoning: (params: { accountId: string; threadId: string; msgId?: string }) => Promise<{ success: boolean; reasoning?: string; error?: string }>;
       };
       lockScreen: {
         status: () => Promise<{ success: boolean; enabled?: boolean; biometricEnabled?: boolean; biometricAvailable?: boolean; failedAttempts?: number; isCoolingDown?: boolean; remainingCooldown?: number; error?: string }>;
@@ -655,10 +659,10 @@ declare global {
       save:          (params: { zaloId: string; agent: any }) => Promise<{ success: boolean; id?: number; error?: string }>;
       enable:        (params: { id: number; enabled: boolean }) => Promise<{ success: boolean; error?: string }>;
       delete:        (params: { id: number }) => Promise<{ success: boolean; error?: string }>;
-      convState:     (params: { zaloId: string; threadId: string }) => Promise<{ success: boolean; state: import('@/../../src/models/automation').ConversationAiState | null; error?: string }>;
-      setAiState:    (params: { zaloId: string; threadId: string; paused: boolean }) => Promise<{ success: boolean; error?: string }>;
-      pin:           (params: { zaloId: string; threadId: string; agentId?: number | null }) => Promise<{ success: boolean; error?: string }>;
-      resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => Promise<{ success: boolean; agentId: number | null; error?: string }>;
+      convState:     (params: { zaloId: string; threadId: string; channel?: string }) => Promise<{ success: boolean; state: import('@/../../src/models/automation').ConversationAiState | null; error?: string }>;
+      setAiState:    (params: { zaloId: string; threadId: string; paused: boolean; channel?: string }) => Promise<{ success: boolean; error?: string }>;
+      pin:           (params: { zaloId: string; threadId: string; agentId?: number | null; channel?: string }) => Promise<{ success: boolean; error?: string }>;
+      resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean; channel?: string }) => Promise<{ success: boolean; agentId: number | null; error?: string }>;
     };
     facebookWrite?: {
       getLimits:    () => Promise<{ success: boolean; config?: any; error?: string }>;

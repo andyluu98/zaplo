@@ -497,7 +497,7 @@ export default function MessageInput() {
     if (!activeAccountId) return;
     const account = getActiveAccount();
     if (!account) return;
-    const isFb = account.channel === 'facebook';
+    const isFb = (account.channel || 'zalo') !== 'zalo';
     const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
     const mode = isFb ? 'local' : ((localStorage.getItem(`qm_mode_${activeAccountId}`) as 'zalo' | 'local') || 'zalo');
     fetchQuickMessages(auth, activeAccountId, mode).then(setQuickMessages).catch(() => {});
@@ -506,7 +506,7 @@ export default function MessageInput() {
       if (!activeAccountId) return;
       const account = getActiveAccount();
       if (!account) return;
-      const isFb = account.channel === 'facebook';
+      const isFb = (account.channel || 'zalo') !== 'zalo';
       const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
       const mode = isFb ? 'local' : ((localStorage.getItem(`qm_mode_${activeAccountId}`) as 'zalo' | 'local') || 'zalo');
       fetchQuickMessages(auth, activeAccountId, mode).then(setQuickMessages).catch(() => {});
@@ -664,8 +664,8 @@ export default function MessageInput() {
 
   // Debounced lookup when text contains phone number
   useEffect(() => {
-    // Skip for Facebook channel — only Zalo supports business cards
-    if (activeContact?.channel === 'facebook') return;
+    // Skip for non-Zalo channels — only Zalo supports business cards
+    if ((activeContact?.channel || 'zalo') !== 'zalo') return;
 
     if (contactCardTimerRef.current) clearTimeout(contactCardTimerRef.current);
 
@@ -807,9 +807,10 @@ export default function MessageInput() {
           }
 
           const ch = activeContact?.channel || 'zalo';
-          if (ch === 'facebook') {
-            // Facebook: gửi video qua sendAttachment với fileType='video'
-            await channelIpc.sendVideo('facebook', {
+          if (ch !== 'zalo') {
+            // Facebook: gửi video qua sendAttachment với fileType='video'. Page: sendVideo
+            // gracefully declines (Graph Send API cần URL công khai, không nhận local file).
+            const videoRes = await channelIpc.sendVideo(ch, {
               accountId: activeAccountId!,
               threadId: activeThreadId,
               threadType: activeThreadType,
@@ -817,6 +818,7 @@ export default function MessageInput() {
               body: '',
               quote: quotePayload || undefined,
             });
+            if (!videoRes?.success && videoRes?.error) showNotification(videoRes.error, 'error');
           } else {
             // Zalo: upload thumb → upload video → send
             let thumbUrl = '';
@@ -849,17 +851,17 @@ export default function MessageInput() {
         try {
           const quotePayload = buildQuotePayload(replyTo);
           const ch = activeContact?.channel || 'zalo';
-          if (ch === 'facebook') {
+          if (ch !== 'zalo') {
             const fileName = file.name;
             const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
             addMessage(activeAccountId!, activeThreadId, {
               msg_id: tempId, owner_zalo_id: activeAccountId!, thread_id: activeThreadId,
               thread_type: activeThreadType, sender_id: activeAccountId!, content: `📎 ${fileName}`,
-              msg_type: 'file', timestamp: Date.now(), is_sent: 1, status: 'sending', channel: 'facebook',
+              msg_type: 'file', timestamp: Date.now(), is_sent: 1, status: 'sending', channel: ch,
               attachments: JSON.stringify([{ type: 'file', localPath: tempPath, name: fileName }]),
             });
-            const fileRes = await channelIpc.sendAttachment('facebook', { accountId: activeAccountId!, threadId: activeThreadId, filePath: tempPath, threadType: activeThreadType });
-            if (!fileRes?.success) { showNotification(fileRes?.error || 'Gửi file Facebook thất bại', 'error'); removeMessage(activeAccountId!, activeThreadId, tempId); }
+            const fileRes = await channelIpc.sendAttachment(ch, { accountId: activeAccountId!, threadId: activeThreadId, filePath: tempPath, threadType: activeThreadType });
+            if (!fileRes?.success) { showNotification(fileRes?.error || 'Gửi file thất bại', 'error'); removeMessage(activeAccountId!, activeThreadId, tempId); }
           } else {
             await ipc.zalo?.sendFile({
               auth, threadId: activeThreadId, type: activeThreadType, filePath: tempPath,
@@ -1315,16 +1317,19 @@ export default function MessageInput() {
           if (imagePaths.length > 0 && tempImgId) {
             try {
               const ch = activeContact?.channel || 'zalo';
-              if (ch === 'facebook') {
-                // FB: send multiple images via channelIpc
+              if (ch !== 'zalo') {
+                // FB/Page: send multiple images via channelIpc (Page gracefully declines — see sendAttachment)
                 for (const imgPath of imagePaths) {
-                  await channelIpc.sendAttachment('facebook', {
+                  const res = await channelIpc.sendAttachment(ch, {
                     accountId,
                     threadId,
                     threadType: threadType as any,
                     filePath: imgPath,
                     body: '',
                   });
+                  // Page: abort the batch on failure (temp bubbles get cleaned up by the
+                  // outer catch). Facebook keeps its prior best-effort behavior (no throw).
+                  if (ch === 'page' && !res?.success && res?.error) throw new Error(res.error);
                 }
               } else {
                 await ipc.zalo?.sendImages({ auth, threadId, type: threadType, filePaths: imagePaths });
@@ -1357,14 +1362,15 @@ export default function MessageInput() {
               }
 
               const ch = activeContact?.channel || 'zalo';
-              if (ch === 'facebook') {
-                await channelIpc.sendVideo('facebook', {
+              if (ch !== 'zalo') {
+                const res = await channelIpc.sendVideo(ch, {
                   accountId,
                   threadId,
                   threadType,
                   filePath: videoPath,
                   body: '',
                 });
+                if (!res?.success && res?.error) throw new Error(res.error);
               } else {
                 let thumbUrl = '';
                 if (thumbPath) {
@@ -1400,13 +1406,14 @@ export default function MessageInput() {
           if (msgTitle && tempTextId) {
             try {
               const ch = activeContact?.channel || 'zalo';
-              if (ch === 'facebook') {
-                await channelIpc.sendMessage('facebook', {
+              if (ch !== 'zalo') {
+                const res = await channelIpc.sendMessage(ch, {
                   accountId,
                   threadId,
                   threadType: threadType as any,
                   body: msgTitle,
                 });
+                if (!res?.success && res?.error) throw new Error(res.error);
               } else {
                 await ipc.zalo?.sendMessage({ auth, threadId, type: threadType, message: msgTitle });
               }
@@ -1549,6 +1556,9 @@ export default function MessageInput() {
             });
             removeMessage(activeAccountId!, activeThreadId, batchTempId);
             if (!batchRes?.success) showNotification(batchRes?.error || 'Gửi ảnh Facebook thất bại', 'error');
+          } else if (ch === 'page') {
+            // Page's Graph Send API only accepts a public URL, not local clipboard blobs.
+            showNotification('Page chưa hỗ trợ dán ảnh clipboard — cần URL công khai (tính năng nâng cao)', 'error');
           } else {
             await ipc.zalo?.sendImages({
               auth,
@@ -1608,9 +1618,9 @@ export default function MessageInput() {
       const linkPayload = parseLinkWithCaption(msgText);
       if (linkPayload && !linkPayload.caption && isUrlOnly(msgText)) {
         const ch = activeContact?.channel || 'zalo';
-        if (ch === 'facebook') {
-          await channelIpc.sendMessage('facebook', { accountId: activeAccountId, threadId: activeThreadId, body: msgText, threadType: activeThreadType, quote: quotePayload })
-            .then((r: any) => { if (!r?.success) showNotification(r?.error || 'Gửi tin nhắn Facebook thất bại', 'error'); });
+        if (ch !== 'zalo') {
+          await channelIpc.sendMessage(ch, { accountId: activeAccountId, threadId: activeThreadId, body: msgText, threadType: activeThreadType, quote: quotePayload })
+            .then((r: any) => { if (!r?.success) showNotification(r?.error || 'Gửi tin nhắn thất bại', 'error'); });
         } else {
           await ipc.zalo?.sendLink({
             auth,
@@ -1627,16 +1637,17 @@ export default function MessageInput() {
       // ── Gửi tin nhắn văn bản thường ─────────────────────────────
       const activeChannel = activeContact?.channel || 'zalo';
 
-      if (activeChannel === 'facebook') {
-        // Facebook: route through channelIpc facade
+      if (activeChannel !== 'zalo') {
+        // Facebook/Page: route through channelIpc facade
         setReplyTo(null);
+        const tempMsgId = `temp_${Date.now()}`;
         addMessage(activeAccountId, activeThreadId, {
-          msg_id: `temp_${Date.now()}`, owner_zalo_id: activeAccountId, thread_id: activeThreadId,
+          msg_id: tempMsgId, owner_zalo_id: activeAccountId, thread_id: activeThreadId,
           thread_type: activeThreadType, sender_id: activeAccountId, content: msgText,
-          msg_type: 'text', timestamp: Date.now(), is_sent: 1, status: 'sending', channel: 'facebook',
+          msg_type: 'text', timestamp: Date.now(), is_sent: 1, status: 'sending', channel: activeChannel,
           ...(quotePayload ? { quote_data: quotePayload } : {}),
         });
-        const fbResult = await channelIpc.sendMessage('facebook', {
+        const fbResult = await channelIpc.sendMessage(activeChannel, {
           accountId: activeAccountId,
           threadId: activeThreadId,
           body: msgText,
@@ -1644,8 +1655,17 @@ export default function MessageInput() {
           quote: quotePayload,
         });
         if (!fbResult?.success) {
-          const errMsg = fbResult?.error || 'Gửi tin nhắn Facebook thất bại';
+          const errMsg = fbResult?.error || 'Gửi tin nhắn thất bại';
           showNotification(errMsg, 'error');
+        } else if (activeChannel === 'page') {
+          // Page has no realtime MQTT echo to reconcile the temp bubble (unlike
+          // Facebook/Zalo) — swap it for a "sent" row keyed by the real Meta message_id.
+          removeMessage(activeAccountId, activeThreadId, tempMsgId);
+          addMessage(activeAccountId, activeThreadId, {
+            msg_id: fbResult.messageId || tempMsgId, owner_zalo_id: activeAccountId, thread_id: activeThreadId,
+            thread_type: activeThreadType, sender_id: activeAccountId, content: msgText,
+            msg_type: 'text', timestamp: Date.now(), is_sent: 1, status: 'sent', channel: activeChannel,
+          });
         }
         if (activeAccountId) markReplied(activeAccountId, activeThreadId);
       } else {
@@ -1700,8 +1720,8 @@ export default function MessageInput() {
     setSending(true);
     try {
       const ch = activeContact?.channel || 'zalo';
-      if (ch === 'facebook') {
-        const likeRes = await channelIpc.sendMessage('facebook', { accountId: activeAccountId, threadId: activeThreadId, body: '👍', threadType: activeThreadType });
+      if (ch !== 'zalo') {
+        const likeRes = await channelIpc.sendMessage(ch, { accountId: activeAccountId, threadId: activeThreadId, body: '👍', threadType: activeThreadType });
         if (!likeRes?.success) showNotification(likeRes?.error || 'Gửi thất bại', 'error');
       } else {
         await ipc.zalo?.sendMessage({ auth, threadId: activeThreadId, type: activeThreadType, message: '👍' });
@@ -1746,6 +1766,9 @@ export default function MessageInput() {
         } else if ((batchRes.uploadedCount || 0) < (batchRes.totalCount || 0)) {
           showNotification(`${(batchRes.totalCount || 0) - (batchRes.uploadedCount || 0)} ảnh upload thất bại`, 'error');
         }
+      } else if (ch === 'page') {
+        // Page's Graph Send API only accepts a public URL, not local files from disk.
+        showNotification('Page chưa hỗ trợ gửi ảnh từ máy — cần URL công khai (tính năng nâng cao)', 'error');
       } else {
         // Zalo: sendImages batch
         await ipc.zalo?.sendImages({
@@ -1772,18 +1795,18 @@ export default function MessageInput() {
     try {
       const quotePayload = buildQuotePayload(replyTo);
       const ch = activeContact?.channel || 'zalo';
-      if (ch === 'facebook') {
+      if (ch !== 'zalo') {
         const fileName = filePath.split(/[\\/]/).pop() || 'file';
         const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
         addMessage(activeAccountId!, activeThreadId, {
           msg_id: tempId, owner_zalo_id: activeAccountId!, thread_id: activeThreadId,
           thread_type: activeThreadType, sender_id: activeAccountId!, content: `📎 ${fileName}`,
-          msg_type: 'file', timestamp: Date.now(), is_sent: 1, status: 'sending', channel: 'facebook',
+          msg_type: 'file', timestamp: Date.now(), is_sent: 1, status: 'sending', channel: ch,
           attachments: JSON.stringify([{ type: 'file', localPath: filePath, name: fileName }]),
         });
-        const fileRes = await channelIpc.sendAttachment('facebook', { accountId: activeAccountId!, threadId: activeThreadId, filePath, threadType: activeThreadType });
+        const fileRes = await channelIpc.sendAttachment(ch, { accountId: activeAccountId!, threadId: activeThreadId, filePath, threadType: activeThreadType });
         if (!fileRes?.success) {
-          showNotification(fileRes?.error || 'Gửi file Facebook thất bại', 'error');
+          showNotification(fileRes?.error || 'Gửi file thất bại', 'error');
           removeMessage(activeAccountId!, activeThreadId, tempId);
         }
         // The MQTT echo will arrive and replace tempId automatically via useChatEvents
@@ -1840,9 +1863,10 @@ export default function MessageInput() {
       }
 
       const ch = activeContact?.channel || 'zalo';
-      if (ch === 'facebook') {
-        // Facebook: gửi video qua sendAttachment với fileType='video'
-        const result = await channelIpc.sendVideo('facebook', {
+      if (ch !== 'zalo') {
+        // Facebook: gửi video qua sendAttachment với fileType='video'. Page: sendVideo
+        // gracefully declines (Graph Send API cần URL công khai, không nhận local file).
+        const result = await channelIpc.sendVideo(ch, {
           accountId: activeAccountId!,
           threadId: activeThreadId,
           threadType: activeThreadType,
@@ -1851,7 +1875,7 @@ export default function MessageInput() {
           quote: quotePayload || undefined,
         });
         if (!result.success) {
-          showNotification(result.error || 'Gửi video Facebook thất bại', 'error');
+          showNotification(result.error || 'Gửi video thất bại', 'error');
           return;
         }
       } else {
@@ -2403,8 +2427,8 @@ export default function MessageInput() {
         }
 
         const ch = activeContact?.channel || 'zalo';
-        if (ch === 'facebook') {
-          await channelIpc.sendVideo('facebook', {
+        if (ch !== 'zalo') {
+          const videoRes = await channelIpc.sendVideo(ch, {
             accountId: activeAccountId!,
             threadId: activeThreadId,
             threadType: activeThreadType,
@@ -2412,6 +2436,7 @@ export default function MessageInput() {
             body: '',
             quote: quotePayload || undefined,
           });
+          if (!videoRes?.success && videoRes?.error) showNotification(videoRes.error, 'error');
         } else {
           let thumbUrl = '';
           if (thumbPath) {
@@ -2452,18 +2477,18 @@ export default function MessageInput() {
       try {
         const quotePayload = buildQuotePayload(replyTo);
         const ch = activeContact?.channel || 'zalo';
-        if (ch === 'facebook') {
+        if (ch !== 'zalo') {
           const fileName = file.name;
           const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
           addMessage(activeAccountId!, activeThreadId, {
             msg_id: tempId, owner_zalo_id: activeAccountId!, thread_id: activeThreadId,
             thread_type: activeThreadType, sender_id: activeAccountId!, content: `📎 ${fileName}`,
-            msg_type: 'file', timestamp: Date.now(), is_sent: 1, status: 'sending', channel: 'facebook',
+            msg_type: 'file', timestamp: Date.now(), is_sent: 1, status: 'sending', channel: ch,
             attachments: JSON.stringify([{ type: 'file', localPath: tempPath, name: fileName }]),
           });
-          const fileRes = await channelIpc.sendAttachment('facebook', { accountId: activeAccountId!, threadId: activeThreadId, filePath: tempPath, threadType: activeThreadType });
+          const fileRes = await channelIpc.sendAttachment(ch, { accountId: activeAccountId!, threadId: activeThreadId, filePath: tempPath, threadType: activeThreadType });
           if (!fileRes?.success) {
-            showNotification(fileRes?.error || 'Gửi file Facebook thất bại', 'error');
+            showNotification(fileRes?.error || 'Gửi file thất bại', 'error');
             removeMessage(activeAccountId!, activeThreadId, tempId);
           }
         } else {
@@ -2914,7 +2939,7 @@ export default function MessageInput() {
                     if (activeAccountId) {
                       const account = getActiveAccount();
                       if (account) {
-                        const isFb = account.channel === 'facebook';
+                        const isFb = (account.channel || 'zalo') !== 'zalo';
                         const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent };
                         const mode = isFb ? 'local' : ((localStorage.getItem(`qm_mode_${activeAccountId}`) as 'zalo' | 'local') || 'local');
                         if (!isFb) invalidateZaloQuickMessageCache(activeAccountId);

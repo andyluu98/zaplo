@@ -623,10 +623,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     save:          (params: { zaloId: string; agent: any }) => ipcRenderer.invoke('chat-agent:save', params),
     enable:        (params: { id: number; enabled: boolean }) => ipcRenderer.invoke('chat-agent:enable', params),
     delete:        (params: { id: number }) => ipcRenderer.invoke('chat-agent:delete', params),
-    convState:     (params: { zaloId: string; threadId: string }) => ipcRenderer.invoke('chat-agent:convState', params),
-    setAiState:    (params: { zaloId: string; threadId: string; paused: boolean }) => ipcRenderer.invoke('chat-agent:setAiState', params),
-    pin:           (params: { zaloId: string; threadId: string; agentId?: number | null }) => ipcRenderer.invoke('chat-agent:pin', params),
-    resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean }) => ipcRenderer.invoke('chat-agent:resolveThread', params),
+    convState:     (params: { zaloId: string; threadId: string; channel?: string }) => ipcRenderer.invoke('chat-agent:convState', params),
+    setAiState:    (params: { zaloId: string; threadId: string; paused: boolean; channel?: string }) => ipcRenderer.invoke('chat-agent:setAiState', params),
+    pin:           (params: { zaloId: string; threadId: string; agentId?: number | null; channel?: string }) => ipcRenderer.invoke('chat-agent:pin', params),
+    resolveThread: (params: { zaloId: string; threadId: string; threadType: 'user' | 'group'; isFriend?: boolean; channel?: string }) => ipcRenderer.invoke('chat-agent:resolveThread', params),
   },
 
   // ─── Lịch nội dung (content_schedule_item) ────────────────────────
@@ -691,6 +691,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     backfillNow:        (params: { pageId?: string }) => ipcRenderer.invoke('fbpage:backfillNow', params),
     startQuickTunnel:   (params: { appId?: string }) => ipcRenderer.invoke('fbpage:startQuickTunnel', params),
     stopQuickTunnel:    () => ipcRenderer.invoke('fbpage:stopQuickTunnel'),
+    // Manual (human-operator) send from the chat UI — distinct from the AI auto-reply path.
+    sendMessage:        (params: { pageId: string; psid: string; text: string }) => ipcRenderer.invoke('fbpage:sendMessage', params),
+    sendImage:          (params: { pageId: string; psid: string; url: string }) => ipcRenderer.invoke('fbpage:sendImage', params),
+    getReasoning:       (params: { accountId: string; threadId: string; msgId?: string }) => ipcRenderer.invoke('fbpage:getReasoning', params),
   },
 
   lockScreen: {

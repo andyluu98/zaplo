@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type AppView = 'chat' | 'friends' | 'settings' | 'dashboard' | 'crm' | 'workflow' | 'integration' | 'analytics' | 'erp' | 'groupPosting' | 'agentHub' | 'fbWrite';
+type AppView = 'chat' | 'friends' | 'settings' | 'dashboard' | 'crm' | 'workflow' | 'integration' | 'analytics' | 'erp' | 'groupPosting' | 'agentHub' | 'fbWrite' | 'facebookPage';
 export type AppTheme = 'dark' | 'light';
 
 export interface GroupMember {

@@ -83,8 +83,10 @@ export class PageSendService implements ChannelSender {
         if (!page || !page.enabled) return fail;
         if (page.token_status !== 'active') return fail;
 
-        // 24h standard-messaging window: outside it, do NOT call the API.
-        if (!canSendNow(page.last_customer_message_at)) {
+        // 24h standard-messaging window: outside it, do NOT call the API. Gated
+        // PER-conversation (per-PSID), not on the page-wide last-inbound, so a reply
+        // queued behind a delay can't slip out on another customer's recency.
+        if (!canSendNow(db.getPageThreadLastInboundAt(pageId, psid))) {
             Logger.log(`[PageSend] ${pageId}/${psid}: outside 24h window — leaving for human`);
             return fail;
         }

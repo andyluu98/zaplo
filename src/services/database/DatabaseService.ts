@@ -8492,6 +8492,25 @@ class DatabaseService {
         catch (err: any) { Logger.error(`[DB] setFbPageDisclosure: ${err.message}`); }
     }
 
+    /**
+     * Timestamp (ms) of the customer's most recent inbound message in ONE Page
+     * thread — the correct basis for Meta's 24h window, which is per-conversation
+     * (per-PSID), not per-Page. `fb_page.last_customer_message_at` is the page-wide
+     * max and would wrongly green-light a stale thread when another customer is
+     * recent. Returns 0 when the thread has no inbound message.
+     */
+    public getPageThreadLastInboundAt(pageId: string, psid: string): number {
+        if (!this.initialized) return 0;
+        try {
+            const row = this.queryOne<any>(
+                `SELECT MAX(timestamp) AS ts FROM messages
+                   WHERE owner_zalo_id=? AND thread_id=? AND channel='page' AND is_sent=0`,
+                [pageId, psid],
+            );
+            return Number(row?.ts) || 0;
+        } catch (err: any) { Logger.error(`[DB] getPageThreadLastInboundAt: ${err.message}`); return 0; }
+    }
+
     /** True if the AI has already sent at least one message in this Page thread. */
     public hasPageAiReplied(pageId: string, psid: string): boolean {
         if (!this.initialized) return false;
@@ -8510,7 +8529,7 @@ class DatabaseService {
      * so the webhook echo of this same message is recognised as ours (dedupe) and
      * never triggers human-handoff auto-pause.
      */
-    public recordPageSentMessage(pageId: string, psid: string, messageId: string, text: string, attachmentsJson = '[]', ts = Date.now()): void {
+    public recordPageSentMessage(pageId: string, psid: string, messageId: string, text: string, attachmentsJson = '[]', ts = Date.now(), sentBy: 'ai' | 'human' = 'ai'): void {
         if (!this.initialized) return;
         const mid = messageId || `page_out_${pageId}_${psid}_${ts}`;
         const hasAttachments = !!attachmentsJson && attachmentsJson !== '[]' && attachmentsJson !== '';
@@ -8520,7 +8539,7 @@ class DatabaseService {
                 `INSERT OR IGNORE INTO messages
                    (msg_id, owner_zalo_id, thread_id, thread_type, sender_id, content, msg_type, timestamp, is_sent, attachments, channel, status, sent_by)
                  VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-                [mid, pageId, psid, 0, pageId, text, msgType, ts, 1, attachmentsJson, 'page', 'sent', 'ai'],
+                [mid, pageId, psid, 0, pageId, text, msgType, ts, 1, attachmentsJson, 'page', 'sent', sentBy],
             );
         } catch (err: any) { Logger.error(`[DB] recordPageSentMessage: ${err.message}`); }
     }

@@ -14,6 +14,7 @@ import { ManagePanel } from './GroupInfoPanel';
 import                           { UserProfilePopup } from '../common/UserProfilePopup';
 import FBVideoThumb from './FBVideoThumb';
 import { RecalledBubble, BankCardBubble } from './MessageBubbles';
+import ReasoningPanel from './ReasoningPanel';
 import GroupAvatar from '../common/GroupAvatar';
 import PhoneDisplay from '../common/PhoneDisplay';
 import ipc from '@/lib/ipc';
@@ -106,6 +107,8 @@ export default function ChatWindow() {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectedMsgIds, setSelectedMsgIds] = useState<Set<string>>(new Set());
   const [reactionPopup, setReactionPopup] = useState<{ msg: any; activeEmoji: string } | null>(null);
+  // Page AI reasoning popup — opened from an AI bubble's "🧠" button (never in-bubble).
+  const [reasoningPanelMsg, setReasoningPanelMsg] = useState<{ threadId: string; msgId: string } | null>(null);
   const [reactionContextMenu, setReactionContextMenu] = useState<{ x: number; y: number; msg: any; myEmoji: string | null } | null>(null);
   const [atTop, setAtTop] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
@@ -2153,6 +2156,20 @@ export default function ChatWindow() {
                     />
                   </div>
 
+                  {/* Page AI reasoning button — opens ReasoningPanel; reasoning never renders in-bubble.
+                      Note: the dispatcher currently logs reasoning at thread level (msg_id=''), not per
+                      real Meta message_id yet — so this intentionally omits msgId and always resolves the
+                      latest reasoning for the thread (see AIAssistantService.getReasoning fallback). */}
+                  {msg.channel === 'page' && msg.sent_by === 'ai' && (
+                    <button
+                      type="button"
+                      title="Xem chuỗi suy luận của AI"
+                      onClick={() => setReasoningPanelMsg({ threadId: activeThreadId!, msgId: '' })}
+                      className={`absolute -top-2 z-10 w-5 h-5 rounded-full bg-gray-800 border border-gray-600 text-[10px] flex items-center justify-center opacity-0 group-hover/msg:opacity-100 transition-opacity hover:bg-gray-700 ${isSent ? 'right-0' : 'left-0'}`}
+                    >
+                      🧠
+                    </button>
+                  )}
 
                   {/* Single reaction button — position absolute at bottom corner (side matching bubble alignment) */}
                   {channelCap.supportsReaction && !isEcardMsg && !isGroupedStickerFirst && (() => {
@@ -2498,6 +2515,16 @@ export default function ChatWindow() {
           activeAccountId={activeAccountId || ''}
           activeThreadId={activeThreadId}
           onClose={() => setUserProfilePopup(null)}
+        />
+      )}
+
+      {/* Page AI reasoning panel — opened from an AI bubble's 🧠 button */}
+      {reasoningPanelMsg && activeAccountId && (
+        <ReasoningPanel
+          accountId={activeAccountId}
+          threadId={reasoningPanelMsg.threadId}
+          msgId={reasoningPanelMsg.msgId}
+          onClose={() => setReasoningPanelMsg(null)}
         />
       )}
 

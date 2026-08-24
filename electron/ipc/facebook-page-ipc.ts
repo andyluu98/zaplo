@@ -13,11 +13,14 @@ import DatabaseService from '../../src/services/database/DatabaseService';
 import EventBroadcaster from '../../src/services/event/EventBroadcaster';
 import Logger from '../../src/utils/Logger';
 import { pageAuthService } from '../../src/services/facebook-page/page-auth-service';
-import { EncryptionUnavailableError } from '../../src/services/secure/SecureSettingsService';
+import { EncryptionUnavailableError, decryptSecret } from '../../src/services/secure/SecureSettingsService';
 import { DEFAULT_REDIRECT_URI } from '../../src/services/facebook-page/page-types';
 import { backfillPage, backfillAllPages } from '../../src/services/facebook-page/page-backfill-service';
 import { IntegrationRegistry } from '../../src/services/integrations/IntegrationRegistry';
 import TunnelService from '../../src/services/tunnel/TunnelService';
+import { pageGraphClient, MetaGraphError } from '../../src/services/facebook-page/page-graph-client';
+import { canSendNow } from '../../src/services/facebook-page/messaging-window';
+import AIAssistantService from '../../src/services/ai/AIAssistantService';
 import type { FbApp, FbPage } from '../../src/models';
 
 const WEBHOOK_PATH = '/webhook/messenger';
@@ -219,5 +222,63 @@ export function registerFacebookPageIpc(): void {
     ipcMain.handle('fbpage:stopQuickTunnel', async () => {
         try { await TunnelService.stop(); return { success: true }; }
         catch (e: any) { return { success: false, error: e.message }; }
+    });
+
+    // ─── Manual (human-operator) send — distinct from the AI auto-reply path ──
+    // Same 24h-window + token gating as PageSendService, but sent_by='human' so
+    // the webhook echo of this send is recognised as ours (never mistaken for a
+    // separate human-handoff event) without ever going through the AI/dispatcher.
+    ipcMain.handle('fbpage:sendMessage', async (_e, { pageId, psid, text }: { pageId: string; psid: string; text: string }) => {
+        try {
+            if (!pageId || !psid || !text?.trim()) return { success: false, error: 'Thiếu pageId/psid/nội dung' };
+            const db = DatabaseService.getInstance();
+            const page = db.getFbPage(pageId);
+            if (!page || !page.enabled) return { success: false, error: 'Page chưa kết nối hoặc đang tắt' };
+            // 24h window is PER-conversation (per-PSID), not per-Page — matches the ChatHeader pill.
+            if (!canSendNow(db.getPageThreadLastInboundAt(pageId, psid))) {
+                return { success: false, error: 'Ngoài cửa sổ 24h nhắn tin tiêu chuẩn của Meta — khách cần nhắn trước khi Page trả lời lại' };
+            }
+            const token = decryptSecret(page.access_token_enc);
+            if (!token) return { success: false, error: 'Không giải mã được access token của Page' };
+            const messageId = await pageGraphClient.sendText({ pageId, pageToken: token, psid, text: text.trim() });
+            db.recordPageSentMessage(pageId, psid, messageId, text.trim(), '[]', Date.now(), 'human');
+            db.save();
+            return { success: true, messageId };
+        } catch (e: any) {
+            const msg = e instanceof MetaGraphError ? e.message : (e.message || 'Gửi tin nhắn thất bại');
+            Logger.error(`[fbpage:sendMessage] ${msg}`);
+            return { success: false, error: msg };
+        }
+    });
+
+    ipcMain.handle('fbpage:sendImage', async (_e, { pageId, psid, url }: { pageId: string; psid: string; url: string }) => {
+        try {
+            if (!pageId || !psid || !url?.trim()) return { success: false, error: 'Thiếu pageId/psid/url ảnh' };
+            const db = DatabaseService.getInstance();
+            const page = db.getFbPage(pageId);
+            if (!page || !page.enabled) return { success: false, error: 'Page chưa kết nối hoặc đang tắt' };
+            // 24h window is PER-conversation (per-PSID), not per-Page — matches the ChatHeader pill.
+            if (!canSendNow(db.getPageThreadLastInboundAt(pageId, psid))) {
+                return { success: false, error: 'Ngoài cửa sổ 24h nhắn tin tiêu chuẩn của Meta — khách cần nhắn trước khi Page trả lời lại' };
+            }
+            const token = decryptSecret(page.access_token_enc);
+            if (!token) return { success: false, error: 'Không giải mã được access token của Page' };
+            const messageId = await pageGraphClient.sendImage({ pageId, pageToken: token, psid, url: url.trim() });
+            db.recordPageSentMessage(pageId, psid, messageId, url.trim(), JSON.stringify([{ type: 'image', url: url.trim() }]), Date.now(), 'human');
+            db.save();
+            return { success: true, messageId };
+        } catch (e: any) {
+            const msg = e instanceof MetaGraphError ? e.message : (e.message || 'Gửi ảnh thất bại');
+            Logger.error(`[fbpage:sendImage] ${msg}`);
+            return { success: false, error: msg };
+        }
+    });
+
+    // ─── Reasoning (Phase 5's ai_reasoning_log, NOT synced to employees) ──────
+    ipcMain.handle('fbpage:getReasoning', async (_e, { accountId, threadId, msgId }: { accountId: string; threadId: string; msgId?: string }) => {
+        try {
+            const reasoning = AIAssistantService.getInstance().getReasoning({ channel: 'page', accountId, threadId, msgId });
+            return { success: true, reasoning };
+        } catch (e: any) { return { success: false, error: e.message }; }
     });
 }

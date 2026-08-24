@@ -54,7 +54,7 @@ Quyết định #3-4 chốt lại **sau khi** xác minh tài liệu DeepSeek (2 
 | 3 | [Webhook nhận tin + backfill](./phase-03-webhook-inbound.md) | ✅ Done | P1 | 2-2.5d | 2 |
 | 4 | [Send API + hành vi giống người + đọc ảnh (vision)](./phase-04-send-humanlike.md) | ✅ Done | P1 | 2d | 2 |
 | 5 | [DeepSeek V4 thinking + vá model chết](./phase-05-deepseek-thinking.md) | ✅ Done | P1 | 1-1.5d | — |
-| 6 | [UI quản lý Page + hội thoại](./phase-06-ui.md) | Pending | P2 | 1.5-2d | 3,4 |
+| 6 | [UI quản lý Page + hội thoại](./phase-06-ui.md) | ✅ Done | P2 | 1.5-2d | 3,4 |
 | 7 | [Review + kiểm thử tích hợp](./phase-07-review.md) | Pending | P1 | 1d | 1-6 |
 
 Phase 5 độc lập với 1-4, có thể làm song song. Tổng ~11-14d (effort Phase 1-3 tăng sau red-team).

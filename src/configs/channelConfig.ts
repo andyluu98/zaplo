@@ -3,7 +3,7 @@
  * Dùng bởi UI để quyết định hiển thị/ẩn tính năng, bởi IPC facade để route API calls.
  */
 
-export type Channel = 'zalo' | 'facebook';
+export type Channel = 'zalo' | 'facebook' | 'page';
 
 export interface ChannelCapability {
   // ─── Thông tin kênh ─────────────────────────────────────────
@@ -208,6 +208,76 @@ export const CHANNEL_CONFIG: Record<Channel, ChannelCapability> = {
     supportsLeaveGroup: false,
     supportsGroupReload: false,
     supportsQuickMessages: false,
+    supportsInviteToGroup: false,
+    supportsCampaigns: false,
+  },
+
+  // Facebook PAGE (Graph Send API) — official 1:1 Messenger for a Page. Capability
+  // is deliberately narrow: no groups, stickers, polls, unsend, reactions, or any
+  // Zalo-only social feature. Typing + seen (sender_action) and text/media send only.
+  page: {
+    id: 'page',
+    label: 'Facebook Page',
+    icon: 'facebook',
+    color: '#0A7CFF',
+
+    supportsDM: true,
+    supportsGroup: false,
+
+    supportsText: true,
+    supportsImage: true,
+    supportsVideo: true,
+    supportsFile: true,
+    supportsAudio: true,
+    supportsGif: true,
+    supportsSticker: false,
+    supportsPoll: false,
+    supportsReminder: false,
+    supportsReply: false,
+    supportsReaction: false,
+    supportsUnsend: false,
+    supportsForward: false,
+    supportsPin: false,
+
+    supportsBusinessCard: false,
+    supportsBankCard: false,
+    supportsTextStyle: false,
+    supportsAlias: false,
+    supportsMuteSync: false,
+    supportsPinConversation: false,
+    supportsCreateGroup: false,
+    supportsMutualGroups: false,
+    supportsBlock: false,
+    supportsReport: false,
+    supportsRemoveFriend: false,
+
+    supportsGroupRename: false,
+    supportsGroupEmoji: false,
+    supportsGroupNickname: false,
+    supportsGroupLink: false,
+    supportsGroupAdmin: false,
+    supportsGroupBoard: false,
+    supportsGroupLock: false,
+
+    supportsFriendRequest: false,
+    supportsLabel: false,
+    supportsSeenStatus: true,
+    supportsTypingIndicator: true,
+    supportsCRMSearch: false,
+    supportsCRMHistory: false,
+    supportsCRMPhoneImport: false,
+    supportsCRMGroups: false,
+    supportsScanData: false,
+
+    // Pages connect through the dedicated wizard (OAuth), not the generic login flow.
+    loginMethods: [],
+
+    supportsChangeGroupAvatar: false,
+    supportsGroupManage: false,
+    supportsPendingApproval: false,
+    supportsLeaveGroup: false,
+    supportsGroupReload: false,
+    supportsQuickMessages: true,
     supportsInviteToGroup: false,
     supportsCampaigns: false,
   },

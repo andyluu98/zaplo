@@ -1,7 +1,7 @@
 ---
 phase: 6
 title: "UI quản lý Page + hội thoại"
-status: pending
+status: done
 priority: P2
 effort: "1.5-2d"
 dependencies: [3, 4]
@@ -95,3 +95,24 @@ Giao diện kết nối Page, xem hội thoại Messenger, gán agent. Chèn và
 **Giả định có thể vỡ:** rằng Page hiện trong `ConversationList` không cần loader riêng vì đã ở `contacts`.
 **Dấu hiệu vỡ:** `ConversationList` nạp qua IPC Zalo-specific (`ipc.zalo.getConversations`) không đọc `contacts` đa kênh.
 **Phản ứng đã định:** thêm IPC `facebookPage.getConversations` đọc `contacts channel='page'` + merge ở store; vẫn một màn hình chat. Ghi vào file này.
+**Kết quả:** giả định ĐÚNG — `ConversationList` đọc `contacts` đa kênh, không cần loader riêng.
+
+## Kết quả triển khai (2026-08-24)
+
+**Trạng thái:** **Done**. Hai cổng bắt buộc đã qua.
+
+### Đã tạo/sửa
+- **Nền kênh:** `channelConfig.ts` — `Channel += 'page'` + `CHANNEL_CONFIG.page` (năng lực hẹp: DM, text/ảnh/video/file, typing+seen; KHÔNG sticker/poll/group/unsend/reaction/reply/label/CRM). `WorkflowEditor.tsx` thu hẹp kênh workflow về `'zalo'|'facebook'` (Page không có workflow). Blast radius `'page'` chỉ 2 lỗi tsc (đều ở posting subsystem) — vì phần lớn code so sánh chuỗi.
+- **IPC facade:** `channelIpc.ts` thêm nhánh `'page'` mọi hàm (send→`ipc.fbPage.*`; op không hỗ trợ trả lỗi gọn, KHÔNG rơi Zalo — đóng red-team M2). `MessageInput.tsx` tổng quát ~15 chỗ `ch==='facebook'`→`ch!=='zalo'` truyền `ch` thật (FB byte-identical; abort-on-error batch **chỉ** áp cho Page — giữ FB best-effort).
+- **Gửi tay:** `fbpage:sendMessage`/`sendImage` (cổng 24h **per-PSID** qua `getPageThreadLastInboundAt`, `sent_by='human'`, không lộ `*_enc`). `fbpage:getReasoning` đọc `ai_reasoning_log` (không sync).
+- **Điều hướng + màn hình:** `AppView += 'facebookPage'`, Sidebar (2 chỗ icon), `App.tsx` route; `facebook-page-view.tsx` (nhúng lại `FacebookPageWizard` connect + `page-list.tsx` + `page-webhook-panel.tsx`).
+- **Chat:** `ChatHeader` đồng hồ 24h **per-thread** + `ChatAgentBar` truyền `channel` (chỉ `'page'`); `ConversationList` filter + badge Page + AI-badge đúng kênh; `ChatWindow`+`MessageBubbles` nút mở `ReasoningPanel`; `ReasoningPanel.tsx` (CoT **không** trong bong bóng). `chatAgentIpc` + `getConversationAiState/setAiState` nhận `channel` optional (default `'zalo'` → Zalo/FB cá nhân không đổi).
+
+### Cổng kiểm chứng
+- **Code review:** 6 ràng buộc cứng PASS (không hồi quy Zalo/FB cá nhân; `'page'` không rơi Zalo; gửi tay không lộ secret + cổng 24h; reasoning scoped không sync; `conversation_ai_state` đúng kênh — FB cá nhân vẫn `'zalo'`; tsc sạch). Đã vá M1 (cổng 24h chuyển **per-PSID** cả đường gửi tay lẫn auto-reply — trước dùng `last_customer_message_at` page-global), L1 (abort-on-error chỉ áp Page). L2 (reasoning hiện CoT mới nhất/thread khi `msgId=''`) và L3 (pill phụ thuộc messages đã nạp) chấp nhận có ghi chú.
+- **Tester:** 32 suites / 296 tests pass, 0 fail; cả 2 typecheck exit 0.
+
+### Hoãn (ngoài scope Phase 6, ghi rõ)
+- **Đẩy realtime tin Page mới lên renderer:** Page inbound chỉ `fireHooksOnly('event:channelMessage')` (dispatcher, red-team C5) — renderer chưa nhận push, tin mới hiện khi tải lại/đổi thread. Không ảnh hưởng bot tự trả lời. Cần đụng file Phase 3/4 (`page-webhook-handler`/`page-inbound-store`/`main.ts`) + thêm listener renderer + kiểm chứng app thật → tách follow-up.
+- **Gửi ảnh/video từ file cục bộ (Page):** `pageGraphClient` chỉ nhận URL công khai (chưa multipart upload) → nút đính kèm từ đĩa từ chối gọn. Gửi ảnh qua URL vẫn chạy.
+- **Hàng chờ "cần người trả lời":** chưa dựng (tránh scope creep P2).

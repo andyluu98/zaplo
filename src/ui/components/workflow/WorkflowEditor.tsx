@@ -29,7 +29,9 @@ interface Props {
   onBack: () => void;
 }
 
-const normalizeWorkflowChannel = (channel?: string): Channel => channel === 'facebook' ? 'facebook' : 'zalo';
+// Workflows/posting only target Zalo or personal Facebook — never a Page (Pages
+// have no workflow/posting subsystem). Keep this narrower than channelConfig.Channel.
+const normalizeWorkflowChannel = (channel?: string): 'zalo' | 'facebook' => channel === 'facebook' ? 'facebook' : 'zalo';
 
 // ── Test-run recipient picker modal ──────────────────────────────────────────
 function TestRunModal({ accounts, workflowPageIds, triggerType, onRun, onClose }: {
@@ -244,7 +246,7 @@ export default function WorkflowEditor({ workflowId, onBack }: Props) {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
   const [workflowMeta, setWorkflowMeta] = useState({
-    name: '', description: '', enabled: true, channel: 'zalo' as Channel,
+    name: '', description: '', enabled: true, channel: 'zalo' as 'zalo' | 'facebook',
     pageIds: [] as string[],   // new: multi-page
   });
   const [saving, setSaving] = useState(false);
