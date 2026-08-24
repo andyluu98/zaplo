@@ -54,3 +54,19 @@ export interface AIAccountAssistant {
     role: 'suggestion' | 'panel';
     assistant_id: string;
 }
+
+/**
+ * Chain-of-thought behind one AI reply. Stored in ai_reasoning_log, which is
+ * NOT synced to employee machines (holds customer message + knowledge + internal
+ * policy). Keyed to the reply via (channel, account_id, thread_id, msg_id).
+ */
+export interface AIReasoningLog {
+    id?: number;
+    channel: string;
+    account_id: string;
+    thread_id: string;
+    msg_id: string;
+    assistant_id: string;
+    reasoning_text: string;
+    created_at: number;
+}

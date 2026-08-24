@@ -13,6 +13,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { google } from 'googleapis';
 import { parseStructuredResponse, isValidStructuredResponse } from '../../utils/aiUtils';
+import { normalizeModelName } from '../ai/normalize-model-name';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1565,7 +1566,7 @@ class WorkflowEngineService {
 
         const platform = cfg.platform || 'openai';
         const rawModel = cfg.model || 'gpt-5.4-mini';
-        const model = this.normalizeModelName(rawModel);
+        const model = normalizeModelName(rawModel);
         const maxTokens = Number(cfg.maxTokens || 500);
         const temperature = Number(cfg.temperature ?? 0.7);
 
@@ -1665,7 +1666,7 @@ class WorkflowEngineService {
         }
 
         const platform = cfg.platform || 'openai';
-        const model = this.normalizeModelName(cfg.model || 'gpt-5.4-mini');
+        const model = normalizeModelName(cfg.model || 'gpt-5.4-mini');
         const classifyMessages = [
           { role: 'system' as const, content: systemMsg },
           { role: 'user' as const, content: cfg.input },
@@ -2582,20 +2583,6 @@ class WorkflowEngineService {
       default:           return 'https://api.openai.com/v1/chat/completions';
     }
   }
-
-  /** Normalize legacy/incorrect model names to current API model IDs */
-  private normalizeModelName(model: string): string {
-    const aliases: Record<string, string> = {
-      'deepseek-chat-v3.2':    'deepseek-v4-flash',
-      'deepseek-chat-v3.1':    'deepseek-v4-flash',
-      'deepseek-reasoner-r1.5':'deepseek-v4-pro',
-      'gemini-3.1-pro':        'gemini-3.1-pro-preview',
-      'gemini-3.1-flash':      'gemini-3.5-flash',
-      'gemini-3.0-flash':      'gemini-3-flash-preview',
-      'gemini-3.0-flash-lite': 'gemini-3-flash-preview',
-    };
-    return aliases[model] ?? model;
-}
 
   /** Convert OpenAI-format messages to Google Gemini format */
   private openaiMessagesToGemini(messages: Array<{ role: string; content: string }>): any[] {

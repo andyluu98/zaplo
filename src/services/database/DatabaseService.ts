@@ -2529,6 +2529,35 @@ class DatabaseService {
             Logger.warn(`[DatabaseService] ai_usage_logs migration: ${err.message}`);
         }
 
+        // Migration: create ai_reasoning_log table for DeepSeek thinking chain-of-thought.
+        // Deliberately SEPARATE from ai_usage_logs, which is in SYNCABLE_TABLES_GLOBAL:
+        // reasoning restates the customer's message, the knowledge base, and internal
+        // pricing/policy, and must NOT replicate to employee machines (red-team H4).
+        // thread_id/msg_id let the UI join a specific reply bubble to its reasoning.
+        try {
+            const arl = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='ai_reasoning_log'`);
+            if (arl.length === 0) {
+                db!.exec(`
+                    CREATE TABLE IF NOT EXISTS ai_reasoning_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        channel TEXT DEFAULT '',
+                        account_id TEXT DEFAULT '',
+                        thread_id TEXT DEFAULT '',
+                        msg_id TEXT DEFAULT '',
+                        assistant_id TEXT DEFAULT '',
+                        reasoning_text TEXT DEFAULT '',
+                        created_at INTEGER NOT NULL DEFAULT 0
+                    )
+                `);
+                db!.exec(`CREATE INDEX IF NOT EXISTS idx_ai_reasoning_msg ON ai_reasoning_log(channel, account_id, thread_id, msg_id)`);
+                db!.exec(`CREATE INDEX IF NOT EXISTS idx_ai_reasoning_date ON ai_reasoning_log(created_at)`);
+                this.save();
+                Logger.log('[DatabaseService] Migration: created ai_reasoning_log table');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] ai_reasoning_log migration: ${err.message}`);
+        }
+
         // Migration: create message_drafts table if missing
         try {
             const md = this.query<any>(`SELECT name FROM sqlite_master WHERE type='table' AND name='message_drafts'`);

@@ -13,6 +13,8 @@ import DatabaseService from '../database/DatabaseService';
 import IntegrationRegistry from '../integrations/IntegrationRegistry';
 import Logger from '../../utils/Logger';
 import type { AIAssistant, AIAssistantFile, ChatMessage, AIPlatform } from '../../models';
+import { normalizeModelName } from './normalize-model-name';
+import { thinkingRequestBody, thinkingMaxTokens, extractReasoning } from './thinking-support';
 
 // ─── Encryption helpers ───────────────────────────────────────────────────────
 
@@ -76,22 +78,6 @@ function resolveApiUrl(platform: string, model: string, apiKey: string, baseUrl:
     return 'https://api.anthropic.com/v1/messages';
   }
   return getOpenAICompatibleUrl(platform);
-}
-
-/** Normalize legacy/incorrect model names to current API model IDs */
-function normalizeModelName(model: string): string {
-  const aliases: Record<string, string> = {
-    // DeepSeek — fake versioned names that were never real API model IDs
-    'deepseek-chat-v3.2':    'deepseek-v4-flash',
-    'deepseek-chat-v3.1':    'deepseek-v4-flash',
-    'deepseek-reasoner-r1.5':'deepseek-v4-pro',
-    // Gemini — wrong model IDs (missing -preview suffix or wrong version)
-    'gemini-3.1-pro':        'gemini-3.1-pro-preview',
-    'gemini-3.1-flash':      'gemini-3.5-flash',
-    'gemini-3.0-flash':      'gemini-3-flash-preview',
-    'gemini-3.0-flash-lite': 'gemini-3-flash-preview',
-  };
-  return aliases[model] ?? model;
 }
 
 function openaiMessagesToGemini(messages: ChatMessage[]): any[] {
@@ -340,8 +326,13 @@ VÍ DỤ ĐẦU RA ĐÚNG:
     assistant: AIAssistant,
     messages: ChatMessage[],
     maxTokensOverride?: number,
-  ): Promise<{ result: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
-    const maxTokens = maxTokensOverride || assistant.maxTokens || 1000;
+    opts?: { thinking?: boolean },
+  ): Promise<{ result: string; reasoning: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
+    const thinking = opts?.thinking === true;
+    const baseMaxTokens = maxTokensOverride || assistant.maxTokens || 1000;
+    // When thinking is on, reasoning tokens share the completion budget — raise the
+    // ceiling so the answer is not truncated mid-JSON (red-team H5).
+    const maxTokens = thinkingMaxTokens(baseMaxTokens, thinking, assistant.platform);
     const temperature = assistant.temperature ?? 0.7;
     const model = normalizeModelName(assistant.model);
 
@@ -350,6 +341,7 @@ VÍ DỤ ĐẦU RA ĐÚNG:
     Logger.info(`[AIAssistant] callLLM → platform=${assistant.platform}, model=${model}${model !== assistant.model ? ` (normalized from ${assistant.model})` : ''}, keyPreview=${keyPreview}, maxTokens=${maxTokens}`);
 
     let result = '';
+    let reasoning = '';
     let promptTokens = 0;
     let completionTokens = 0;
     let totalTokens = 0;
@@ -408,7 +400,7 @@ VÍ DỤ ĐẦU RA ĐÚNG:
           : { max_tokens: maxTokens };
         const res = await axios.post(
           openaiApiUrl,
-          { model, messages, ...tokenParam, temperature },
+          { model, messages, ...tokenParam, temperature, ...thinkingRequestBody(assistant.platform, thinking) },
           {
             headers: {
               Authorization: `Bearer ${assistant.apiKey}`,
@@ -418,6 +410,7 @@ VÍ DỤ ĐẦU RA ĐÚNG:
           }
         );
         result = res.data.choices?.[0]?.message?.content?.trim() || '';
+        reasoning = extractReasoning(res.data);
         promptTokens = res.data.usage?.prompt_tokens || 0;
         completionTokens = res.data.usage?.completion_tokens || 0;
         totalTokens = res.data.usage?.total_tokens || (promptTokens + completionTokens);
@@ -431,15 +424,18 @@ VÍ DỤ ĐẦU RA ĐÚNG:
       throw err;
     }
 
-    // Log usage to DB
+    // Log usage to DB. Do NOT swallow errors silently — a schema drift here used
+    // to disable usage logging app-wide with no signal (red-team H3).
     try {
       this.logUsage(assistant.id, assistant.name, assistant.platform, assistant.model,
         messages.map(m => m.content).join('\n---\n').substring(0, 5000),
         result.substring(0, 5000),
         promptTokens, completionTokens, totalTokens);
-    } catch {}
+    } catch (e: any) {
+      Logger.warn(`[AIAssistant] logUsage failed: ${e?.message || e}`);
+    }
 
-    return { result, totalTokens, promptTokens, completionTokens };
+    return { result, reasoning, totalTokens, promptTokens, completionTokens };
   }
 
   // ─── Public AI methods ──────────────────────────────────────────────────
@@ -525,7 +521,7 @@ YÊU CẦU BẮT BUỘC:
    * Direct chat with AI assistant
    * @param structured - If true, use structured JSON output rules (text/image segments) same as workflow
    */
-  public async chat(assistantId: string, conversationMessages: Array<{ role: string; content: string }>, structured: boolean = false, maxTokens?: number): Promise<{ result: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
+  public async chat(assistantId: string, conversationMessages: Array<{ role: string; content: string }>, structured: boolean = false, maxTokens?: number, opts?: { thinking?: boolean }): Promise<{ result: string; reasoning: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
     const assistant = this.getAssistant(assistantId);
     if (!assistant) throw new Error('Trợ lý AI không tồn tại');
     if (!assistant.enabled) throw new Error('Trợ lý AI đã bị tắt');
@@ -539,14 +535,14 @@ YÊU CẦU BẮT BUỘC:
       })),
     ];
 
-    return await this.callLLM(assistant, messages, maxTokens);
+    return await this.callLLM(assistant, messages, maxTokens, opts);
   }
 
   /**
    * Chat with AI assistant for workflow auto-reply.
    * Uses structured JSON output format (text/image segments) + natural conversational tone.
    */
-  public async chatForWorkflow(assistantId: string, conversationMessages: Array<{ role: string; content: string }>): Promise<{ result: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
+  public async chatForWorkflow(assistantId: string, conversationMessages: Array<{ role: string; content: string }>, opts?: { thinking?: boolean }): Promise<{ result: string; reasoning: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
     const assistant = this.getAssistant(assistantId);
     if (!assistant) throw new Error('Trợ lý AI không tồn tại');
     if (!assistant.enabled) throw new Error('Trợ lý AI đã bị tắt');
@@ -560,7 +556,10 @@ YÊU CẦU BẮT BUỘC:
       })),
     ];
 
-    return await this.callLLM(assistant, messages);
+    // thinking is a per-call opt — never an assistant-wide flag. getSuggestions
+    // and testConnection deliberately never pass it, so their tight token
+    // budgets and JSON parsing stay intact (red-team H5).
+    return await this.callLLM(assistant, messages, undefined, opts);
   }
 
   /**
@@ -593,6 +592,41 @@ YÊU CẦU BẮT BUỘC:
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [assistantId, assistantName, platform, model, promptText, responseText, promptTokens, completionTokens, totalTokens, Date.now()]
     );
+  }
+
+  /**
+   * Persist a thinking chain-of-thought, keyed to the reply it produced.
+   * Written to ai_reasoning_log (NOT synced to employees — red-team H4).
+   * Truncated at 5000 chars, matching the ai_usage_logs convention.
+   */
+  public logReasoning(p: { channel: string; accountId: string; threadId: string; msgId: string; assistantId: string; reasoning: string }): void {
+    if (!p.reasoning) return;
+    try {
+      DatabaseService.getInstance().run(
+        `INSERT INTO ai_reasoning_log (channel, account_id, thread_id, msg_id, assistant_id, reasoning_text, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [p.channel, p.accountId, p.threadId, p.msgId, p.assistantId, p.reasoning.substring(0, 5000), Date.now()]
+      );
+    } catch (e: any) {
+      Logger.warn(`[AIAssistant] logReasoning failed: ${e?.message || e}`);
+    }
+  }
+
+  /** Fetch the reasoning behind one reply, for the UI ReasoningPanel (Phase 6). */
+  public getReasoning(p: { channel: string; accountId: string; threadId: string; msgId?: string }): string {
+    // The reply path logs thread-level (msg_id=''), because the outgoing provider
+    // msgId isn't threaded into the debounce path yet (Page: SendResult.messageIds,
+    // Zalo: send response — Phase 3/4). So an empty/absent msgId retrieves the
+    // latest reasoning for the thread; a concrete msgId still matches exactly, so
+    // once real send-ids are logged, retrieval-by-bubble works without an API change.
+    const hasMsgId = !!p.msgId;
+    const rows = DatabaseService.getInstance().query<any>(
+      `SELECT reasoning_text FROM ai_reasoning_log
+       WHERE channel = ? AND account_id = ? AND thread_id = ?${hasMsgId ? ' AND msg_id = ?' : ''}
+       ORDER BY created_at DESC LIMIT 1`,
+      hasMsgId ? [p.channel, p.accountId, p.threadId, p.msgId] : [p.channel, p.accountId, p.threadId]
+    );
+    return rows[0]?.reasoning_text || '';
   }
 
   /**

@@ -935,7 +935,6 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
         // Deepseek
         { value: 'deepseek-v4-flash',  label: '🔮 Deepseek V4 Flash — Mới nhất (Deepseek — khuyến nghị)' },
         { value: 'deepseek-v4-pro',    label: '🔮 Deepseek V4 Pro — Thinking, mạnh nhất (Deepseek)' },
-        { value: 'deepseek-reasoner',  label: '🔮 Deepseek R1 — Lý luận ổn định (Deepseek)' },
         // Grok
         { value: 'grok-4-fast',      label: '⚡ Grok 4 Fast — Nhanh (xAI — khuyến nghị)' },
         { value: 'grok-4',           label: '⚡ Grok 4 — Flagship (xAI)' },
@@ -962,7 +961,7 @@ const CONFIG_SCHEMA: Record<string, Field[]> = {
         openai:   ['gpt-5.4', 'gpt-5.4-pro', 'gpt-5.4-mini', 'gpt-5.4-nano', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5', 'o4-mini', 'o3', 'gpt-4.1'],
         gemini:   ['gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3-flash-preview', 'gemini-2.5-pro'],
         claude:   ['claude-4.6-sonnet-20260301', 'claude-4.5-sonnet-20260115', 'claude-4.0-haiku-20260101', 'claude-4.0-opus-20260101', 'claude-sonnet-4-20250514'],
-        deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-reasoner'],
+        deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro'],
         grok:     ['grok-4-fast', 'grok-4', 'grok-4-mini', 'grok-4-mini-fast', 'grok-3'],
         mistral:  ['mistral-large-2-latest', 'codestral-2-latest', 'mistral-small-3-latest', 'mistral-medium-latest', 'open-mistral-nemo-2'],
         openrouter: ['openrouter/auto', 'openai/gpt-5.4-mini', 'anthropic/claude-4.6-sonnet', 'google/gemini-3.5-flash', 'deepseek/deepseek-v4-flash', 'meta-llama/llama-4-maverick', 'qwen/qwen3-max', 'mistralai/mistral-large-2'],

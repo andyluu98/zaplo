@@ -1228,7 +1228,7 @@ function AIAssistantPanel() {
               { icon: '🔴', name: 'claude-3-haiku', cost: 'Rẻ', note: 'Phân tích nhanh' },
               { icon: '🔵', name: 'claude-3.5-sonnet', cost: 'Cao', note: 'Nghiệp vụ phức tạp' },
               { icon: '🟤', name: 'gemini-2.0-flash', cost: 'Rất rẻ', note: 'Đa phương tiện' },
-              { icon: '⚪', name: 'deepseek-chat', cost: 'Rất rẻ', note: 'Code, logic' },
+              { icon: '⚪', name: 'deepseek-v4-flash', cost: 'Rất rẻ', note: 'Code, logic' },
               { icon: '🟠', name: 'qwen2.5-72b', cost: 'Rẻ', note: 'Tiếng Trung, đa năng' },
             ].map((m, i) => (
               <div key={i} className="bg-gray-700/30 rounded-lg p-2.5">

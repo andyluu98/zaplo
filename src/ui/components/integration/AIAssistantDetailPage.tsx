@@ -55,8 +55,6 @@ const MODELS_BY_PLATFORM: Record<string, { value: string; label: string }[]> = {
   deepseek: [
     { value: 'deepseek-v4-flash',   label: 'DeepSeek V4 Flash (mới nhất — khuyên dùng)' },
     { value: 'deepseek-v4-pro',     label: 'DeepSeek V4 Pro (thinking, mạnh nhất)' },
-    { value: 'deepseek-chat',       label: 'DeepSeek V3 (deprecated 2026/07/24)' },
-    { value: 'deepseek-reasoner',   label: 'DeepSeek R1 (deprecated 2026/07/24)' },
   ],
   grok: [
     { value: 'grok-4',           label: 'Grok 4 (flagship mạnh nhất)' },
