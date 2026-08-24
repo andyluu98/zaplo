@@ -10,6 +10,7 @@
 
 import DatabaseService from '../../database/DatabaseService';
 import Logger from '../../../utils/Logger';
+import { extractImageUrls } from '../../ai/vision-support';
 import type { ChatAgent, ConversationAiState } from '../../../models';
 import {
     ChannelContextProvider,
@@ -45,10 +46,15 @@ export class PageContextProvider implements ChannelContextProvider {
         return DatabaseService.getInstance().getMessages(accountId, threadId, n)
             .slice()
             .reverse()
-            .map((m) => ({
-                role: (m.is_sent ? 'assistant' : 'user') as 'assistant' | 'user',
-                content: plainMessageText(m),
-            }));
+            .map((m) => {
+                const role = (m.is_sent ? 'assistant' : 'user') as 'assistant' | 'user';
+                // Customer photos ride on the user turn's attachments; surface their
+                // URLs so the vision model can read them. Assistant turns carry none.
+                const images = role === 'user' ? extractImageUrls(m.attachments) : [];
+                return images.length
+                    ? { role, content: plainMessageText(m), images }
+                    : { role, content: plainMessageText(m) };
+            });
     }
 
     /** A Page has no local labels — trigger-by-label never applies. */

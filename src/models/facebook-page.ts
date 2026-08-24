@@ -53,6 +53,7 @@ export interface FbPage {
     token_status: PageTokenStatus;
     last_customer_message_at: number;      // ms epoch — drives the 24h window (Phase 4)
     last_backfill_at: number;              // ms epoch — backfill cursor (Phase 3)
+    bot_disclosure?: number;               // 1 | 0 — prepend auto-reply disclosure (Phase 4)
     connected_at?: number;
     updated_at?: number;
 }

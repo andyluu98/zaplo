@@ -170,6 +170,69 @@ export class PageGraphClient {
         }
     }
 
+    /**
+     * Send a text message from the Page to a customer (Send API, standard RESPONSE).
+     * Returns the Meta `message_id` (for echo suppression + persistence).
+     */
+    async sendText(p: { pageId: string; pageToken: string; psid: string; text: string }): Promise<string> {
+        try {
+            const res = await this.http.post(
+                `/${p.pageId}/messages`,
+                {
+                    recipient: { id: p.psid },
+                    messaging_type: 'RESPONSE',
+                    message: { text: p.text },
+                },
+                { params: { access_token: p.pageToken } },
+            );
+            return String(res.data?.message_id ?? '');
+        } catch (err: any) {
+            const m = translateMetaError(err);
+            Logger.error(`[PageGraphClient] sendText failed: code=${m.code} ${m.kind}`);
+            throw m;
+        }
+    }
+
+    /**
+     * Send an image by public URL. The URL must be publicly reachable https
+     * (product/knowledge image). Returns the Meta `message_id`.
+     */
+    async sendImage(p: { pageId: string; pageToken: string; psid: string; url: string }): Promise<string> {
+        try {
+            const res = await this.http.post(
+                `/${p.pageId}/messages`,
+                {
+                    recipient: { id: p.psid },
+                    messaging_type: 'RESPONSE',
+                    message: { attachment: { type: 'image', payload: { url: p.url, is_reusable: false } } },
+                },
+                { params: { access_token: p.pageToken } },
+            );
+            return String(res.data?.message_id ?? '');
+        } catch (err: any) {
+            const m = translateMetaError(err);
+            Logger.error(`[PageGraphClient] sendImage failed: code=${m.code} ${m.kind}`);
+            throw m;
+        }
+    }
+
+    /**
+     * Send a sender_action (`mark_seen` | `typing_on` | `typing_off`). Best-effort:
+     * these never carry content, so a failure is logged but not fatal to the reply.
+     */
+    async sendSenderAction(p: { pageId: string; pageToken: string; psid: string; action: 'mark_seen' | 'typing_on' | 'typing_off' }): Promise<void> {
+        try {
+            await this.http.post(
+                `/${p.pageId}/messages`,
+                { recipient: { id: p.psid }, sender_action: p.action },
+                { params: { access_token: p.pageToken } },
+            );
+        } catch (err: any) {
+            const m = translateMetaError(err);
+            Logger.warn(`[PageGraphClient] sendSenderAction(${p.action}) failed: code=${m.code} ${m.kind}`);
+        }
+    }
+
     /** Verify a Page token is still usable; returns the page id/name it belongs to. */
     async verifyPageToken(pageToken: string): Promise<{ id: string; name: string }> {
         try {

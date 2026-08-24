@@ -10,6 +10,10 @@ describe('thinking-support', () => {
         expect(supportsThinking(p)).toBe(false);
       }
     });
+    it('false for the deepseek vision model (thinking unconfirmed there)', () => {
+      expect(supportsThinking('deepseek', 'deepseek-v4-flash-vision-exp')).toBe(false);
+      expect(supportsThinking('deepseek', 'deepseek-v4-flash')).toBe(true);
+    });
   });
 
   describe('thinkingRequestBody', () => {
@@ -23,6 +27,10 @@ describe('thinking-support', () => {
       expect(thinkingRequestBody('openai', true)).toEqual({});
       expect(thinkingRequestBody('claude', true)).toEqual({});
       expect(thinkingRequestBody('gemini', true)).toEqual({});
+    });
+    it('empty when enabled on the deepseek vision model', () => {
+      expect(thinkingRequestBody('deepseek', true, 'deepseek-v4-flash-vision-exp')).toEqual({});
+      expect(thinkingRequestBody('deepseek', true, 'deepseek-v4-flash')).toEqual({ thinking: { type: 'enabled' } });
     });
   });
 

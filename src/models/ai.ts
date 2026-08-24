@@ -32,6 +32,13 @@ export interface AIAssistantFile {
 export interface ChatMessage {
     role: 'system' | 'user' | 'assistant';
     content: string;
+    /**
+     * Image URLs attached to this turn (customer-sent photos). Only consumed on
+     * the vision path (`isVisionModel`) for the OpenAI-compatible provider; every
+     * other model ignores it and sends `content` as a plain string. Optional so
+     * the Zalo/plain-text path is unchanged.
+     */
+    images?: string[];
 }
 
 export interface AIUsageLog {

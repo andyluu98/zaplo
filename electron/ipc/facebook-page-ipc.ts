@@ -156,6 +156,15 @@ export function registerFacebookPageIpc(): void {
         } catch (e: any) { return { success: false, error: e.message }; }
     });
 
+    ipcMain.handle('fbpage:setDisclosure', async (_e, { pageId, on }: { pageId: string; on: boolean }) => {
+        try {
+            DatabaseService.getInstance().setFbPageDisclosure(pageId, on ? 1 : 0);
+            DatabaseService.getInstance().save();
+            EventBroadcaster.emit('fbpage:changed', { action: 'disclosure', pageId });
+            return { success: true };
+        } catch (e: any) { return { success: false, error: e.message }; }
+    });
+
     // ─── Webhook config + tunnel (Phase 3) ───────────────────────────────────
     ipcMain.handle('fbpage:getWebhookInfo', async (_e, { appId }: { appId?: string }) => {
         try {

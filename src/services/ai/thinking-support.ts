@@ -15,17 +15,26 @@
  * would corrupt their requests, so the gate is strict.
  */
 
-/** Platforms whose OpenAI-compatible endpoint accepts the `thinking` field. */
-export function supportsThinking(platform: string): boolean {
-  return platform === 'deepseek';
+import { isVisionModel } from './vision-support';
+
+/**
+ * Platforms whose OpenAI-compatible endpoint accepts the `thinking` field.
+ * The vision model `deepseek-v4-flash-vision-exp` is EXCLUDED: DeepSeek's vision
+ * guide does not document `thinking` support, so sending it could corrupt the
+ * experimental request — gate it off by model to be safe.
+ */
+export function supportsThinking(platform: string, model?: string): boolean {
+  if (platform !== 'deepseek') return false;
+  if (model && isVisionModel(model)) return false;
+  return true;
 }
 
 /**
  * Request-body fragment to enable thinking, or `{}` when not applicable.
  * Spread into the OpenAI-compatible body.
  */
-export function thinkingRequestBody(platform: string, enabled: boolean): Record<string, unknown> {
-  if (enabled && supportsThinking(platform)) {
+export function thinkingRequestBody(platform: string, enabled: boolean, model?: string): Record<string, unknown> {
+  if (enabled && supportsThinking(platform, model)) {
     return { thinking: { type: 'enabled' } };
   }
   return {};
@@ -45,8 +54,8 @@ export function extractReasoning(responseData: any): string {
  * from the same max_tokens budget as the answer — a small default (e.g. 1000)
  * would truncate the answer mid-JSON. Raise the ceiling so the answer survives.
  */
-export function thinkingMaxTokens(baseMaxTokens: number, enabled: boolean, platform: string): number {
-  if (enabled && supportsThinking(platform)) {
+export function thinkingMaxTokens(baseMaxTokens: number, enabled: boolean, platform: string, model?: string): number {
+  if (enabled && supportsThinking(platform, model)) {
     return Math.max(baseMaxTokens, 4096);
   }
   return baseMaxTokens;

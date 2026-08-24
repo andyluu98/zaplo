@@ -14,6 +14,7 @@ import * as fs from 'fs';
 import { google } from 'googleapis';
 import { parseStructuredResponse, isValidStructuredResponse } from '../../utils/aiUtils';
 import { normalizeModelName } from '../ai/normalize-model-name';
+import { typingDelayMs } from '../facebook-page/typing-delay';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -942,7 +943,7 @@ class WorkflowEngineService {
                     const destType = threadType === 0 ? 3 : undefined;
                     await api.sendTypingEvent(tid, threadType, destType);
                   } catch {}
-                  const typingDelay = Math.min(Math.max(String(seg.content).length * 30, 800), 3000);
+                  const typingDelay = typingDelayMs(String(seg.content));
                   await new Promise(r => setTimeout(r, typingDelay));
                   const res = await api.sendMessage({ msg: String(seg.content) }, tid, threadType);
                   lastMsgId = (res as any)?.message?.msgId || lastMsgId;

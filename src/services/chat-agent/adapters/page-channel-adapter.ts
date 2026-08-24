@@ -18,9 +18,13 @@
 import EventBroadcaster from '../../event/EventBroadcaster';
 import type { ChannelEvent } from '../channel-event';
 import type { ParsedMessagingEvent } from '../../facebook-page/page-webhook-parse';
+import { extractImageUrls } from '../../ai/vision-support';
 
 /** Build the ChannelEvent for an inbound customer message. */
 export function toChannelEvent(ev: ParsedMessagingEvent): ChannelEvent {
+    // Surface image URLs so a caption-less photo still triggers a reply (the vision
+    // model reads them from persisted history). extractImageUrls filters to images.
+    const images = extractImageUrls(JSON.stringify(ev.attachments || []));
     return {
         channel: 'page',
         accountId: ev.pageId,
@@ -31,6 +35,7 @@ export function toChannelEvent(ev: ParsedMessagingEvent): ChannelEvent {
         msgId: ev.mid,
         ts: ev.ts,
         isSelf: false,
+        ...(images.length ? { images } : {}),
     };
 }
 

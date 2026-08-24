@@ -97,6 +97,16 @@ export function storeEcho(ev: ParsedMessagingEvent): void {
 
     upsertContact(ev.pageId, ev.psid, ev.text, ev.ts, false);
 
+    // Independent self-send guard (does not rely on Send-API message_id == echo mid):
+    // if the echo was sent BY OUR OWN app, it is the agent's own message (or a resend
+    // we didn't pre-record) — never a human handoff, so do not auto-pause.
+    if (ev.appId) {
+        try {
+            const ownAppId = db.getFbPage(ev.pageId)?.app_id;
+            if (ownAppId && String(ownAppId) === String(ev.appId)) return;
+        } catch { /* fall through to the human-handoff path */ }
+    }
+
     // Human agent replied by hand → pause AI on this thread if an enabled Page
     // agent opts into autopause_on_human (interim until Phase 4 routes echoes
     // through the dispatcher's handleSelfMessage).

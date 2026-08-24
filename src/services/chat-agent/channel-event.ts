@@ -42,6 +42,12 @@ export interface ChannelEvent {
   msgId?: string;
   ts: number;
   isSelf: boolean;                   // message the account itself sent (echo / human handoff)
+  /**
+   * Image URLs the customer attached. Present so an image-ONLY message (no caption)
+   * still triggers a reply instead of being dropped by the empty-text guard; the
+   * vision model then reads the images pulled from history.
+   */
+  images?: string[];
 }
 
 /** Per-thread AI pause/pin state, mirroring the fields the decider consumes. */
@@ -56,6 +62,12 @@ export interface ChannelAiState {
 export interface ChannelHistoryMessage {
   role: 'user' | 'assistant';
   content: string;
+  /**
+   * Image URLs the customer attached to this turn. Populated only by channels
+   * that carry photos (Page); consumed only on the vision path. Zalo/plain
+   * providers omit it, so the string-content path is unchanged.
+   */
+  images?: string[];
 }
 
 /**

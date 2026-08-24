@@ -1076,6 +1076,7 @@ class DatabaseService {
                 token_status TEXT NOT NULL DEFAULT 'active',
                 last_customer_message_at INTEGER NOT NULL DEFAULT 0,
                 last_backfill_at INTEGER NOT NULL DEFAULT 0,
+                bot_disclosure INTEGER NOT NULL DEFAULT 1,
                 connected_at INTEGER NOT NULL DEFAULT 0,
                 updated_at INTEGER NOT NULL DEFAULT 0
             );
@@ -1904,6 +1905,20 @@ class DatabaseService {
             this.save();
         } catch (err: any) {
             Logger.warn(`[DatabaseService] Migration fb_app/fb_page: ${err.message}`);
+        }
+
+        // ─── Migration: add `bot_disclosure` to fb_page on EXISTING databases ────
+        // Per-Page on/off for the "trả lời tự động" disclosure line (default ON while
+        // under App Review). ALTER idempotent via column guard; new col only.
+        try {
+            const fpCols = this.query<any>(`PRAGMA table_info(fb_page)`);
+            if (fpCols.length > 0 && !fpCols.some((c: any) => c.name === 'bot_disclosure')) {
+                db!.exec(`ALTER TABLE fb_page ADD COLUMN bot_disclosure INTEGER NOT NULL DEFAULT 1`);
+                this.save();
+                Logger.log('[DatabaseService] ✅ Migration: added bot_disclosure to fb_page');
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] Migration fb_page bot_disclosure: ${err.message}`);
         }
 
         // ─── Migration: add `channel` to chat_agent + chat_agent_thread ─────────
@@ -8468,6 +8483,46 @@ class DatabaseService {
         if (!this.initialized) return;
         try { this.run(`UPDATE fb_page SET enabled=?, updated_at=? WHERE page_id=?`, [enabled ? 1 : 0, Date.now(), pageId]); }
         catch (err: any) { Logger.error(`[DB] setFbPageEnabled: ${err.message}`); }
+    }
+
+    /** Toggle the per-Page auto-reply disclosure line (default ON). */
+    public setFbPageDisclosure(pageId: string, on: number): void {
+        if (!this.initialized) return;
+        try { this.run(`UPDATE fb_page SET bot_disclosure=?, updated_at=? WHERE page_id=?`, [on ? 1 : 0, Date.now(), pageId]); }
+        catch (err: any) { Logger.error(`[DB] setFbPageDisclosure: ${err.message}`); }
+    }
+
+    /** True if the AI has already sent at least one message in this Page thread. */
+    public hasPageAiReplied(pageId: string, psid: string): boolean {
+        if (!this.initialized) return false;
+        try {
+            const row = this.queryOne<any>(
+                `SELECT 1 FROM messages WHERE owner_zalo_id=? AND thread_id=? AND channel='page' AND sent_by='ai' LIMIT 1`,
+                [pageId, psid],
+            );
+            return !!row;
+        } catch (err: any) { Logger.error(`[DB] hasPageAiReplied: ${err.message}`); return false; }
+    }
+
+    /**
+     * Record a message the AI just sent on a Page thread into the unified messages
+     * table (channel='page', is_sent=1, sent_by='ai'), keyed by the Meta message_id
+     * so the webhook echo of this same message is recognised as ours (dedupe) and
+     * never triggers human-handoff auto-pause.
+     */
+    public recordPageSentMessage(pageId: string, psid: string, messageId: string, text: string, attachmentsJson = '[]', ts = Date.now()): void {
+        if (!this.initialized) return;
+        const mid = messageId || `page_out_${pageId}_${psid}_${ts}`;
+        const hasAttachments = !!attachmentsJson && attachmentsJson !== '[]' && attachmentsJson !== '';
+        const msgType = hasAttachments ? 'image' : 'text';
+        try {
+            this.run(
+                `INSERT OR IGNORE INTO messages
+                   (msg_id, owner_zalo_id, thread_id, thread_type, sender_id, content, msg_type, timestamp, is_sent, attachments, channel, status, sent_by)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                [mid, pageId, psid, 0, pageId, text, msgType, ts, 1, attachmentsJson, 'page', 'sent', 'ai'],
+            );
+        } catch (err: any) { Logger.error(`[DB] recordPageSentMessage: ${err.message}`); }
     }
 
     /**

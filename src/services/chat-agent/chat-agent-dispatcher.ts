@@ -33,6 +33,8 @@ import { channelProviderRegistry, channelSenderRegistry } from './channel-sender
 import { ZaloContextProvider } from './channel-context/zalo-context-provider';
 import { ZaloSender } from './senders/zalo-sender';
 import ZaloChannelAdapter from './adapters/zalo-channel-adapter';
+import { PageContextProvider } from './channel-context/page-context-provider';
+import { pageSendService } from '../facebook-page/page-send-service';
 import Logger from '../../utils/Logger';
 
 /** Window (ms) for treating a SELF message as an echo of something the AI just sent. */
@@ -68,11 +70,15 @@ class ChatAgentDispatcher {
         return ChatAgentDispatcher.instance;
     }
 
-    /** Register the built-in Zalo channel (provider + sender). Idempotent. */
+    /** Register the built-in channels (provider + sender). Idempotent. */
     private registerChannels(): void {
         if (this.channelsRegistered) return;
         channelProviderRegistry.register('zalo', new ZaloContextProvider());
         channelSenderRegistry.register('zalo', new ZaloSender());
+        // Page (Phase 4 activation): inbound events already flow from Phase 3; wiring
+        // the provider + sender turns replies on. No Zalo path is touched.
+        channelProviderRegistry.register('page', new PageContextProvider());
+        channelSenderRegistry.register('page', pageSendService);
         this.channelsRegistered = true;
     }
 
@@ -147,8 +153,10 @@ class ChatAgentDispatcher {
         // Strip the bot's OWN @mention so the AI answers the question, not the mentioned name
         // (e.g. "@Esta Leasing chào bạn" → "chào bạn"). Mentions of others are kept.
         const content = stripSelfMentions(rawContent, evt.mentions, accountId);
-        // Ignore empty (sticker/media-only, or a bare @mention with no text).
-        if (!content.trim()) return;
+        // Ignore empty (sticker/media-only, or a bare @mention with no text) — UNLESS the
+        // message carries images (a caption-less photo the vision model should answer).
+        const hasImages = !!(evt.images && evt.images.length);
+        if (!content.trim() && !hasImages) return;
 
         // ── Build routing inputs ──────────────────────────────────────────
         const agents = this.loadAgentRules(provider, accountId);
@@ -199,8 +207,10 @@ class ChatAgentDispatcher {
 
         // ── mode === 'reply' ──────────────────────────────────────────────
         // Gom tin ngắt quãng: chờ khách im DEBOUNCE_MS rồi xếp vào hàng đợi trả lời 1 lần.
+        // `force` khi tin chỉ có ảnh (text rỗng) → vẫn flush để trả lời tin ảnh.
         this.aggregator.enqueue(bufKey, content, combined =>
             this.enqueueReply(channel, provider, accountId, threadId, isGroup, agent, combined),
+            hasImages && !content.trim(),
         );
     }
 
@@ -322,9 +332,13 @@ class ChatAgentDispatcher {
             const history = provider.getHistory(accountId, threadId, contextCount)
                 .map(m => {
                     const content = m.role === 'user' ? stripSelfMentionText(m.content, selfName) : m.content;
-                    return { role: m.role, content };
+                    // Carry customer image URLs through to the vision model. An image-only
+                    // turn (no caption) must survive the empty-text filter below.
+                    return m.images && m.images.length
+                        ? { role: m.role, content, images: m.images }
+                        : { role: m.role, content };
                 })
-                .filter(m => m.content.trim());
+                .filter(m => m.content.trim() || ('images' in m && (m as any).images?.length));
 
             // Ensure the current incoming question is the last user turn — the DB row for it
             // may not be persisted yet when this event fires, so append it if missing.

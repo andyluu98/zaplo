@@ -52,7 +52,7 @@ Quyết định #3-4 chốt lại **sau khi** xác minh tài liệu DeepSeek (2 
 | 1 | [Trừu tượng hoá kênh cho Chat Agent](./phase-01-channel-abstraction.md) | ✅ Done | P1 | 2.5-3d | — |
 | 2 | [Kết nối Page + lược đồ dữ liệu](./phase-02-page-connect.md) | ✅ Done | P1 | 2d | 1 |
 | 3 | [Webhook nhận tin + backfill](./phase-03-webhook-inbound.md) | ✅ Done | P1 | 2-2.5d | 2 |
-| 4 | [Send API + hành vi giống người](./phase-04-send-humanlike.md) | Pending | P1 | 1.5d | 2 |
+| 4 | [Send API + hành vi giống người + đọc ảnh (vision)](./phase-04-send-humanlike.md) | ✅ Done | P1 | 2d | 2 |
 | 5 | [DeepSeek V4 thinking + vá model chết](./phase-05-deepseek-thinking.md) | ✅ Done | P1 | 1-1.5d | — |
 | 6 | [UI quản lý Page + hội thoại](./phase-06-ui.md) | Pending | P2 | 1.5-2d | 3,4 |
 | 7 | [Review + kiểm thử tích hợp](./phase-07-review.md) | Pending | P1 | 1d | 1-6 |
@@ -99,6 +99,7 @@ Phase 5 độc lập với 1-4, có thể làm song song. Tổng ~11-14d (effort
 | Backfill | `GET /{PAGE_ID}/conversations?platform=messenger&fields=messages` — **chỉ lấy được chi tiết 20 tin gần nhất mỗi hội thoại** | [Conversations API](https://developers.facebook.com/docs/messenger-platform/conversations/) |
 | DeepSeek model hiện hành | `deepseek-v4-flash`, `deepseek-v4-pro` — `deepseek-chat`/`deepseek-reasoner` khai tử 24/07/2026 | [Changelog](https://api-docs.deepseek.com/updates/) |
 | Bật thinking | body `"thinking": {"type": "enabled"}`; trả về `choices[0].message.reasoning_content` | [Thinking mode](https://api-docs.deepseek.com/guides/thinking_mode) |
+| Model vision (đọc ảnh) | `deepseek-v4-flash-vision-exp` — OpenAI-compat, content array `[{type:'text'},{type:'image_url',image_url:{url}}]`; URL ngoài ≤8192 ký tự / ≤32MiB, hoặc base64 `data:`; thinking **chưa xác nhận** → tắt | [Vision](https://api-docs.deepseek.com/guides/vision) |
 
 ## Success Criteria
 

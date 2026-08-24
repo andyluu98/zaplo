@@ -15,6 +15,7 @@ import Logger from '../../utils/Logger';
 import type { AIAssistant, AIAssistantFile, ChatMessage, AIPlatform } from '../../models';
 import { normalizeModelName } from './normalize-model-name';
 import { thinkingRequestBody, thinkingMaxTokens, extractReasoning } from './thinking-support';
+import { isVisionModel, buildMultimodalContent, VISION_MAX_IMAGES } from './vision-support';
 
 // ─── Encryption helpers ───────────────────────────────────────────────────────
 
@@ -330,11 +331,12 @@ VÍ DỤ ĐẦU RA ĐÚNG:
   ): Promise<{ result: string; reasoning: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
     const thinking = opts?.thinking === true;
     const baseMaxTokens = maxTokensOverride || assistant.maxTokens || 1000;
-    // When thinking is on, reasoning tokens share the completion budget — raise the
-    // ceiling so the answer is not truncated mid-JSON (red-team H5).
-    const maxTokens = thinkingMaxTokens(baseMaxTokens, thinking, assistant.platform);
     const temperature = assistant.temperature ?? 0.7;
     const model = normalizeModelName(assistant.model);
+    // When thinking is on, reasoning tokens share the completion budget — raise the
+    // ceiling so the answer is not truncated mid-JSON (red-team H5). Gated by model:
+    // the vision model does not get thinking, so it keeps the base budget.
+    const maxTokens = thinkingMaxTokens(baseMaxTokens, thinking, assistant.platform, model);
 
     // Debug: log request info
     const keyPreview = assistant.apiKey ? `${assistant.apiKey.substring(0, 8)}...${assistant.apiKey.substring(assistant.apiKey.length - 4)}` : '(empty)';
@@ -398,9 +400,32 @@ VÍ DỤ ĐẦU RA ĐÚNG:
         const tokenParam = assistant.platform === 'openai'
           ? { max_completion_tokens: maxTokens }
           : { max_tokens: maxTokens };
-        const res = await axios.post(
+        const visionOn = isVisionModel(model);
+        const hadImages = visionOn && messages.some(m => m.role === 'user' && !!m.images?.length);
+        // Vision: a user turn carrying images is sent as an array content
+        // [{type:'text'},{type:'image_url',...}]. Only the vision model gets this;
+        // every other model keeps plain-string content byte-identical. Images are
+        // budgeted NEWEST-FIRST across the whole request (VISION_MAX_IMAGES total) so
+        // an image-heavy history can't balloon the payload (red-team H2).
+        const buildWire = (includeImages: boolean) => {
+          if (!visionOn || !includeImages) return messages.map(m => ({ role: m.role, content: m.content }));
+          let budget = VISION_MAX_IMAGES;
+          const out: Array<{ role: string; content: any }> = [];
+          for (let i = messages.length - 1; i >= 0; i--) {
+            const m = messages[i];
+            if (m.role === 'user' && m.images && m.images.length && budget > 0) {
+              const imgs = m.images.slice(0, budget);
+              budget -= imgs.length;
+              out.unshift({ role: m.role, content: buildMultimodalContent(m.content, imgs) });
+            } else {
+              out.unshift({ role: m.role, content: m.content });
+            }
+          }
+          return out;
+        };
+        const doPost = (includeImages: boolean) => axios.post(
           openaiApiUrl,
-          { model, messages, ...tokenParam, temperature, ...thinkingRequestBody(assistant.platform, thinking) },
+          { model, messages: buildWire(includeImages), ...tokenParam, temperature, ...thinkingRequestBody(assistant.platform, thinking, model) },
           {
             headers: {
               Authorization: `Bearer ${assistant.apiKey}`,
@@ -409,6 +434,20 @@ VÍ DỤ ĐẦU RA ĐÚNG:
             timeout: 60000,
           }
         );
+        let res;
+        try {
+          res = await doPost(true);
+        } catch (visErr: any) {
+          // A customer image URL (Meta CDN, signed + short-lived) may have expired →
+          // the model's server-side fetch fails and the whole call errors. Rather than
+          // leave the customer unanswered, retry once WITHOUT images (text-only reply).
+          if (hadImages) {
+            Logger.warn(`[AIAssistant] vision request failed (${visErr?.response?.status || visErr?.message}) — retrying without images`);
+            res = await doPost(false);
+          } else {
+            throw visErr;
+          }
+        }
         result = res.data.choices?.[0]?.message?.content?.trim() || '';
         reasoning = extractReasoning(res.data);
         promptTokens = res.data.usage?.prompt_tokens || 0;
@@ -521,7 +560,7 @@ YÊU CẦU BẮT BUỘC:
    * Direct chat with AI assistant
    * @param structured - If true, use structured JSON output rules (text/image segments) same as workflow
    */
-  public async chat(assistantId: string, conversationMessages: Array<{ role: string; content: string }>, structured: boolean = false, maxTokens?: number, opts?: { thinking?: boolean }): Promise<{ result: string; reasoning: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
+  public async chat(assistantId: string, conversationMessages: Array<{ role: string; content: string; images?: string[] }>, structured: boolean = false, maxTokens?: number, opts?: { thinking?: boolean }): Promise<{ result: string; reasoning: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
     const assistant = this.getAssistant(assistantId);
     if (!assistant) throw new Error('Trợ lý AI không tồn tại');
     if (!assistant.enabled) throw new Error('Trợ lý AI đã bị tắt');
@@ -532,6 +571,7 @@ YÊU CẦU BẮT BUỘC:
       ...conversationMessages.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
+        ...(m.images && m.images.length ? { images: m.images } : {}),
       })),
     ];
 
@@ -542,7 +582,7 @@ YÊU CẦU BẮT BUỘC:
    * Chat with AI assistant for workflow auto-reply.
    * Uses structured JSON output format (text/image segments) + natural conversational tone.
    */
-  public async chatForWorkflow(assistantId: string, conversationMessages: Array<{ role: string; content: string }>, opts?: { thinking?: boolean }): Promise<{ result: string; reasoning: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
+  public async chatForWorkflow(assistantId: string, conversationMessages: Array<{ role: string; content: string; images?: string[] }>, opts?: { thinking?: boolean }): Promise<{ result: string; reasoning: string; totalTokens: number; promptTokens: number; completionTokens: number }> {
     const assistant = this.getAssistant(assistantId);
     if (!assistant) throw new Error('Trợ lý AI không tồn tại');
     if (!assistant.enabled) throw new Error('Trợ lý AI đã bị tắt');
@@ -553,6 +593,7 @@ YÊU CẦU BẮT BUỘC:
       ...conversationMessages.map(m => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
+        ...(m.images && m.images.length ? { images: m.images } : {}),
       })),
     ];
 
